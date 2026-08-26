@@ -1,5 +1,6 @@
 import update
 update.start_background_updater()
+
 import http.server
 import socketserver
 import urllib.parse
@@ -12,16 +13,33 @@ import threading
 import socket
 from http import cookies
 
-PORT = 8000
+# --- OS-SAFE FILE LAUNCHER ---
+def open_local_file(filepath):
+    """Safely open local documents across Windows, macOS, and Linux servers."""
+    try:
+        if hasattr(os, 'startfile'):
+            # Windows 11 local execution
+            os.startfile(filepath)
+        elif sys.platform.startswith('darwin'):
+            # macOS execution
+            subprocess.Popen(['open', filepath])
+        else:
+            # Linux execution (Render / Cloud)
+            subprocess.Popen(['xdg-open', filepath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        print(f"[File Launcher] Cannot open file locally: {e}")
+
+PORT = int(os.environ.get("PORT", 8000))
 UPLOAD_DIR = "uploads"
 
 # --- SUPABASE CONFIG ---
-SUPABASE_URL = "https://wkiihxsqvwdsmmppqrwx.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraWloeHNxdndkc21tcHBxcnd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwNDk3ODUsImV4cCI6MjEwMjYyNTc4NX0.kqcgJH-bBHDgwMkxg7vbdXIvPUQynA2fPnq65oQ0v20"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://wkiihxsqvwdsmmppqrwx.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraWloeHNxdndkc21tcHBxcnd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwNDk3ODUsImV4cCI6MjEwMjYyNTc4NX0.kqcgJH-bBHDgwMkxg7vbdXIvPUQynA2fPnq65oQ0v20")
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 SESSIONS = {}
 BOARD_CACHE = "[]"
+CACHE_LOCK = threading.Lock()
 
 USERS = {
     "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
@@ -61,7 +79,8 @@ def init_board():
     global BOARD_CACHE
     res = supabase_request("whiteboard?id=eq.1&select=lines")
     if res and len(res) > 0 and 'lines' in res[0]:
-        BOARD_CACHE = res[0]['lines']
+        with CACHE_LOCK:
+            BOARD_CACHE = res[0]['lines']
 
 threading.Thread(target=init_board, daemon=True).start()
 
@@ -323,7 +342,8 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 return
             self.send_html(STUDENT_HTML.replace("<!--USERNAME-->", session['username']))
         elif parsed.path == "/api/whiteboard":
-            self.send_json(BOARD_CACHE)
+            with CACHE_LOCK:
+                self.send_json(BOARD_CACHE)
         else:
             self.send_error(404)
 
@@ -381,14 +401,15 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     with open(default_doc, "wb") as f:
                         f.write(b"")
 
-                os.startfile(default_doc)
+                open_local_file(default_doc)
                 self.send_json('{"message":"Opening WPS Office via default document association..."}')
             except Exception as e:
                 print("Failed to open default viewer:", e)
                 self.send_json(f'{{"message":"Error opening default viewer: {e}"}}')
 
         elif self.path == "/api/whiteboard":
-            BOARD_CACHE = body.decode('utf-8')
+            with CACHE_LOCK:
+                BOARD_CACHE = body.decode('utf-8')
             threading.Thread(
                 target=supabase_request,
                 args=("whiteboard?id=eq.1", "PATCH", {"lines": BOARD_CACHE}),
@@ -420,7 +441,7 @@ if __name__ == "__main__":
     local_ip = get_local_ip()
     print("==================================================")
     print("DigiBoard Console is running!")
-    print(f"Local Access:   http://localhost:{PORT}")
+    print(f"Local Access:    http://localhost:{PORT}")
     print(f"Network Access: http://{local_ip}:{PORT}")
     print("==================================================")
     
