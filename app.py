@@ -7,13 +7,14 @@ import urllib.parse
 import urllib.request
 import json
 import os
+import sys
 import uuid
 import subprocess
 import threading
 import socket
 from http import cookies
 
-# --- OS-SAFE FILE LAUNCHER ---
+# --- OS-SAFE FILE LAUNCHER (Used during local execution) ---
 def open_local_file(filepath):
     """Safely open local documents across Windows, macOS, and Linux servers."""
     try:
@@ -24,7 +25,7 @@ def open_local_file(filepath):
             # macOS execution
             subprocess.Popen(['open', filepath])
         else:
-            # Linux execution (Render / Cloud)
+            # Linux execution
             subprocess.Popen(['xdg-open', filepath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
         print(f"[File Launcher] Cannot open file locally: {e}")
@@ -166,7 +167,7 @@ TEACHER_HTML = """<!DOCTYPE html>
                     <rect width="100" height="100" rx="20" fill="#ff334b"/>
                     <path d="M20 30 L35 70 L50 45 L65 70 L80 30" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <span>WPS Office</span>
+                <span>Document Viewer</span>
             </div>
 
             <div class="app-card" onclick="openModal('upload-modal')">
@@ -202,9 +203,10 @@ TEACHER_HTML = """<!DOCTYPE html>
     <script>
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
         function launchWPS() {
-            fetch('/launch-wps', { method: 'POST' })
-                .then(r => r.json()).then(d => alert(d.message));
+            // Direct browser download/open trigger
+            window.location.href = '/launch-wps';
         }
 
         const canvas = document.getElementById('board');
@@ -341,6 +343,22 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.redirect("/")
                 return
             self.send_html(STUDENT_HTML.replace("<!--USERNAME-->", session['username']))
+        elif parsed.path == "/launch-wps":
+            default_doc = os.path.join(UPLOAD_DIR, "Document.docx")
+            if not os.path.exists(default_doc):
+                with open(default_doc, "wb") as f:
+                    f.write(b"")
+
+            # Try local execution if server is running locally
+            open_local_file(default_doc)
+
+            # Serve file to browser for remote cloud access
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            self.send_header('Content-Disposition', 'attachment; filename="Document.docx"')
+            self.end_headers()
+            with open(default_doc, 'rb') as f:
+                self.wfile.write(f.read())
         elif parsed.path == "/api/whiteboard":
             with CACHE_LOCK:
                 self.send_json(BOARD_CACHE)
@@ -393,19 +411,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 print("Upload processing error:", e)
                 self.redirect("/teacher")
-
-        elif self.path == "/launch-wps":
-            try:
-                default_doc = os.path.join(UPLOAD_DIR, "Document.docx")
-                if not os.path.exists(default_doc):
-                    with open(default_doc, "wb") as f:
-                        f.write(b"")
-
-                open_local_file(default_doc)
-                self.send_json('{"message":"Opening WPS Office via default document association..."}')
-            except Exception as e:
-                print("Failed to open default viewer:", e)
-                self.send_json(f'{{"message":"Error opening default viewer: {e}"}}')
 
         elif self.path == "/api/whiteboard":
             with CACHE_LOCK:
