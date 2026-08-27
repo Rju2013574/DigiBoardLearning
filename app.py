@@ -14,18 +14,15 @@ import threading
 import socket
 from http import cookies
 
-# --- OS-SAFE FILE LAUNCHER (Used during local execution) ---
+# --- OS-SAFE FILE LAUNCHER ---
 def open_local_file(filepath):
     """Safely open local documents across Windows, macOS, and Linux servers."""
     try:
         if hasattr(os, 'startfile'):
-            # Windows 11 local execution
             os.startfile(filepath)
         elif sys.platform.startswith('darwin'):
-            # macOS execution
             subprocess.Popen(['open', filepath])
         else:
-            # Linux execution
             subprocess.Popen(['xdg-open', filepath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
         print(f"[File Launcher] Cannot open file locally: {e}")
@@ -48,7 +45,6 @@ USERS = {
 }
 
 def get_local_ip():
-    """Detects the computer's local Wi-Fi/LAN IP address."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -134,6 +130,12 @@ TEACHER_HTML = """<!DOCTYPE html>
         .modal-content { background: #091a34; border: 1px solid #38bdf8; border-radius: 16px; padding: 25px; width: 860px; max-width: 95%; position: relative; }
         .close-btn { position: absolute; top: 15px; right: 20px; color: #ef4444; font-size: 24px; cursor: pointer; }
         canvas { background: white; border-radius: 8px; cursor: crosshair; display: block; margin-top: 15px; touch-action: none; }
+        
+        /* File Manager List Styles */
+        .file-list { list-style: none; margin-top: 15px; max-height: 250px; overflow-y: auto; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 42, 86, 0.7); padding: 10px 15px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(56, 189, 248, 0.2); }
+        .file-item a { color: #38bdf8; text-decoration: none; font-weight: bold; word-break: break-all; }
+        .file-actions a { color: #ef4444; margin-left: 15px; text-decoration: none; font-size: 13px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -170,7 +172,7 @@ TEACHER_HTML = """<!DOCTYPE html>
                 <span>Document Viewer</span>
             </div>
 
-            <div class="app-card" onclick="openModal('upload-modal')">
+            <div class="app-card" onclick="openFileManager()">
                 <svg viewBox="0 0 100 100">
                     <path d="M10 25 C10 20, 20 20, 35 20 L45 30 L90 30 L95 40 L95 80 L15 85 Z" fill="#eab308"/>
                     <rect x="25" y="50" width="50" height="30" rx="5" fill="#0284c7"/>
@@ -180,6 +182,7 @@ TEACHER_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- Whiteboard Modal -->
     <div id="whiteboard-modal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal('whiteboard-modal')">&times;</span>
@@ -189,14 +192,20 @@ TEACHER_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- File Manager & Upload Modal -->
     <div id="upload-modal" class="modal">
-        <div class="modal-content" style="width: 450px;">
+        <div class="modal-content" style="width: 550px;">
             <span class="close-btn" onclick="closeModal('upload-modal')">&times;</span>
             <h3 style="color:#38bdf8; margin-bottom:15px;">Upload Class Resource</h3>
-            <form action="/upload" method="post" enctype="multipart/form-data">
-                <input type="file" name="file" required style="margin-bottom:20px; color:#e0f2fe;">
+            <form action="/upload" method="post" enctype="multipart/form-data" style="margin-bottom: 25px;">
+                <input type="file" name="file" required style="margin-bottom:15px; color:#e0f2fe; display:block;">
                 <button type="submit" style="padding:10px 20px; background:#0284c7; color:white; border:none; border-radius:6px; cursor:pointer;">Upload File</button>
             </form>
+
+            <h4 style="color:#38bdf8; border-top: 1px solid rgba(56, 189, 248, 0.3); padding-top: 15px;">Uploaded Files</h4>
+            <ul id="file-list-container" class="file-list">
+                <li style="color:#94a3b8;">Loading files...</li>
+            </ul>
         </div>
     </div>
 
@@ -205,8 +214,42 @@ TEACHER_HTML = """<!DOCTYPE html>
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
         
         function launchWPS() {
-            // Direct browser download/open trigger
             window.location.href = '/launch-wps';
+        }
+
+        function openFileManager() {
+            openModal('upload-modal');
+            loadFileList();
+        }
+
+        function loadFileList() {
+            fetch('/api/files')
+                .then(r => r.json())
+                .then(files => {
+                    const container = document.getElementById('file-list-container');
+                    if (files.length === 0) {
+                        container.innerHTML = '<li style="color:#94a3b8;">No uploaded files found.</li>';
+                        return;
+                    }
+                    container.innerHTML = files.map(file => `
+                        <li class="file-item">
+                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank">${file}</a>
+                            <div class="file-actions">
+                                <a href="#" onclick="deleteFile('${encodeURIComponent(file)}'); return false;">Delete</a>
+                            </div>
+                        </li>
+                    `).join('');
+                })
+                .catch(() => {
+                    document.getElementById('file-list-container').innerHTML = '<li style="color:#ef4444;">Error loading files.</li>';
+                });
+        }
+
+        function deleteFile(filename) {
+            if (confirm("Are you sure you want to delete this file?")) {
+                fetch('/api/delete-file?name=' + filename, { method: 'DELETE' })
+                    .then(() => loadFileList());
+            }
         }
 
         const canvas = document.getElementById('board');
@@ -349,16 +392,31 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 with open(default_doc, "wb") as f:
                     f.write(b"")
 
-            # Try local execution if server is running locally
             open_local_file(default_doc)
 
-            # Serve file to browser for remote cloud access
             self.send_response(200)
             self.send_header('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             self.send_header('Content-Disposition', 'attachment; filename="Document.docx"')
             self.end_headers()
             with open(default_doc, 'rb') as f:
                 self.wfile.write(f.read())
+        elif parsed.path == "/api/files":
+            # API to list all uploaded files
+            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
+            self.send_json(files)
+        elif parsed.path.startswith("/uploads/"):
+            # Serve specific uploaded files for viewing/downloading
+            filename = urllib.parse.unquote(parsed.path.replace("/uploads/", ""))
+            filepath = os.path.join(UPLOAD_DIR, filename)
+            if os.path.exists(filepath):
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+                self.end_headers()
+                with open(filepath, 'rb') as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_error(404, "File Not Found")
         elif parsed.path == "/api/whiteboard":
             with CACHE_LOCK:
                 self.send_json(BOARD_CACHE)
@@ -421,6 +479,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 daemon=True
             ).start()
             self.send_json('{"status":"ok"}')
+
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/delete-file":
+            params = urllib.parse.parse_qs(parsed.query)
+            filename = params.get('name', [''])[0]
+            if filename:
+                filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            self.send_json('{"status":"deleted"}')
 
     def redirect(self, path):
         self.send_response(303)
