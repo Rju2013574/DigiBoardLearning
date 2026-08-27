@@ -13,7 +13,7 @@ import traceback
 # CONFIGURATION ($0 Cost - Standard Python)
 # ==========================================================
 CURRENT_VERSION = "1.0.0"
-GITHUB_REPO = "YOUR_GITHUB_USERNAME/YOUR_REPO_NAME"  # e.g. "raghav/digiboard"
+GITHUB_REPO = "rju2013574"
 CHECK_INTERVAL_SECONDS = 86400  # Check for updates every 24 hours
 
 # Gmail Credentials for Alerts
