@@ -8,6 +8,7 @@ import threading
 import time
 import sys
 import traceback
+import os
 
 # ==========================================================
 # CONFIGURATION ($0 Cost - Standard Python)
@@ -17,12 +18,13 @@ GITHUB_REPO = "rju2013574"
 CHECK_INTERVAL_SECONDS = 86400  # Check for updates every 24 hours
 
 # Gmail Credentials for Alerts
-SENDER_EMAIL = "no.reply_Digiboardlearning@gmail.com"        # Your sending Gmail
-SENDER_APP_PASSWORD = "3267562787269626"          # 16-digit Google App Password
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "dundiadda2021@gmail.com")
+# Replace with a valid 16-character Google App Password from your Google Account
+SENDER_APP_PASSWORD = os.environ.get("SENDER_APP_PASSWORD", "3267562787269626")
 
 PRIMARY_RECIPIENT = "juraghav@gmail.com"
 CC_RECIPIENTS = [
-    "dundiadda2021@gmail.com",                              # Add team member emails here
+    "dundiadda2021@gmail.com",
     "nagaraj.js@gmail.com"
 ]
 
@@ -36,22 +38,20 @@ def send_critical_email_alert(error_title, error_report_details):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S IST")
     all_recipients = [PRIMARY_RECIPIENT] + CC_RECIPIENTS
     
-    subject = f"🚨 [SYSTEM CRITICAL ALERT] Failure Report - {error_title}"
+    subject = f"🚨 [SYSTEM ALERT] DigiBoard Report - {error_title}"
     body = f"""Hello Raghav Jatavallabha Ujjwal!
 
-Here is some failure look into it:
+Here is the requested notification / failure report:
 
 --------------------------------------------------
-SYSTEM FAILURE REPORT
+SYSTEM REPORT DETAILS
 --------------------------------------------------
 Timestamp: {timestamp}
-Error Summary: {error_title}
+Summary: {error_title}
 
-Detailed Diagnostic Logs:
+Diagnostic Details:
 {error_report_details}
 --------------------------------------------------
-
-Please review and deploy a hotfix or software patch if required.
 
 - DigiBoard Automated Telemetry Engine
 """
@@ -67,13 +67,23 @@ Please review and deploy a hotfix or software patch if required.
         # Connect to Gmail SMTP Server (Standard Library)
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
-        server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+        server.login(SENDER_EMAIL, SENDER_APP_PASSWORD.replace(" ", ""))
         server.sendmail(SENDER_EMAIL, all_recipients, msg.as_string())
         server.quit()
         
-        print(f"[Alert System] Critical failure email successfully sent to {PRIMARY_RECIPIENT} and team.")
+        print(f"[Alert System] Email successfully sent to {PRIMARY_RECIPIENT} and team.")
+        return True
     except Exception as e:
-        print(f"[Alert System] Failed to send alert email: {e}")
+        print(f"[Alert System] Failed to send email: {e}")
+        return False
+
+def trigger_manual_alert(event_name, event_details):
+    """Call this function from app.py to send an email on button clicks or events."""
+    threading.Thread(
+        target=send_critical_email_alert,
+        args=(event_name, event_details),
+        daemon=True
+    ).start()
 
 def handle_uncaught_exception(exctype, value, tb):
     """Global hook to trap system crashes and auto-email Raghav and team."""
@@ -85,7 +95,6 @@ def handle_uncaught_exception(exctype, value, tb):
 
 # Attach global crash handler automatically
 sys.excepthook = handle_uncaught_exception
-
 
 # ==========================================================
 # 2. AUTOMATIC BACKGROUND UPDATE GENERATOR
@@ -121,3 +130,7 @@ def start_background_updater():
     thread = threading.Thread(target=loop, daemon=True)
     thread.start()
     print("[Updater] Background interval update engine active.")
+
+if __name__ == "__main__":
+    print("Testing update.py email dispatcher...")
+    send_critical_email_alert("Test Subject", "Test email content from update.py runner.")
