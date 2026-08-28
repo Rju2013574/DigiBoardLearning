@@ -131,13 +131,20 @@ TEACHER_HTML = """<!DOCTYPE html>
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 11, 24, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background: #091a34; border: 1px solid #38bdf8; border-radius: 16px; padding: 25px; width: 860px; max-width: 95%; position: relative; }
         .close-btn { position: absolute; top: 15px; right: 20px; color: #ef4444; font-size: 24px; cursor: pointer; }
-        canvas { background: white; border-radius: 8px; cursor: crosshair; display: block; margin-top: 15px; touch-action: none; }
+        canvas { background: white; border-radius: 8px; cursor: crosshair; display: block; touch-action: none; margin-top: 10px; }
         
         .file-list { list-style: none; margin-top: 15px; max-height: 250px; overflow-y: auto; }
         .file-item { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 42, 86, 0.7); padding: 10px 15px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(56, 189, 248, 0.2); }
         .file-item a { color: #38bdf8; text-decoration: none; font-weight: bold; word-break: break-all; }
         .file-actions a { color: #ef4444; margin-left: 15px; text-decoration: none; font-size: 13px; font-weight: bold; }
         .btn-action { padding: 6px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; margin-left: 8px; }
+
+        /* Clean Drawing Toolbar Bar */
+        .toolbar-row { display: flex; align-items: center; gap: 12px; background: rgba(15, 42, 86, 0.8); padding: 8px 15px; border-radius: 8px; margin-top: 12px; border: 1px solid rgba(56, 189, 248, 0.3); }
+        .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s; }
+        .color-dot:hover { transform: scale(1.2); }
+        .color-dot.active { border-color: #fff; transform: scale(1.15); }
+        .size-btn { background: #0284c7; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -195,6 +202,22 @@ TEACHER_HTML = """<!DOCTYPE html>
                     <button onclick="clearBoard()" class="btn-action" style="background:#ef4444;">Clear Board</button>
                 </div>
             </div>
+
+            <!-- Clean Drawing Controls Bar -->
+            <div class="toolbar-row">
+                <span style="font-size: 13px; font-weight: bold; color: #38bdf8;">Pen Color:</span>
+                <div class="color-dot active" style="background: red;" onclick="setColor('red', this)"></div>
+                <div class="color-dot" style="background: #000;" onclick="setColor('black', this)"></div>
+                <div class="color-dot" style="background: #38bdf8;" onclick="setColor('#38bdf8', this)"></div>
+                <div class="color-dot" style="background: #22c55e;" onclick="setColor('#22c55e', this)"></div>
+                <div class="color-dot" style="background: #eab308;" onclick="setColor('#eab308', this)"></div>
+                
+                <span style="font-size: 13px; font-weight: bold; color: #38bdf8; margin-left: 15px;">Stroke Size:</span>
+                <button class="size-btn" onclick="setSize(2)">Thin</button>
+                <button class="size-btn" onclick="setSize(4)">Medium</button>
+                <button class="size-btn" onclick="setSize(8)">Thick</button>
+            </div>
+
             <canvas id="board" width="800" height="400"></canvas>
         </div>
     </div>
@@ -262,17 +285,33 @@ TEACHER_HTML = """<!DOCTYPE html>
         const canvas = document.getElementById('board');
         const ctx = canvas.getContext('2d');
         let drawing = false, lines = [], currentLine = [];
+        let currentColor = "red";
+        let currentLineWidth = 3;
+
+        function setColor(color, el) {
+            currentColor = color;
+            document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        function setSize(size) {
+            currentLineWidth = size;
+        }
 
         canvas.onpointerdown = (e) => { 
             drawing = true; 
             const rect = canvas.getBoundingClientRect();
-            currentLine = [{x: e.clientX - rect.left, y: e.clientY - rect.top}]; 
+            currentLine = {
+                color: currentColor,
+                width: currentLineWidth,
+                pts: [{x: e.clientX - rect.left, y: e.clientY - rect.top}]
+            }; 
         };
 
         canvas.onpointermove = (e) => {
             if (!drawing) return;
             const rect = canvas.getBoundingClientRect();
-            currentLine.push({x: e.clientX - rect.left, y: e.clientY - rect.top});
+            currentLine.pts.push({x: e.clientX - rect.left, y: e.clientY - rect.top});
             redraw();
         };
 
@@ -286,10 +325,15 @@ TEACHER_HTML = """<!DOCTYPE html>
 
         function redraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "red"; ctx.lineWidth = 3;
             lines.concat([currentLine]).forEach(line => {
+                if (!line || !line.pts) return;
+                ctx.strokeStyle = line.color || "red";
+                ctx.lineWidth = line.width || 3;
                 ctx.beginPath();
-                line.forEach((pt, i) => { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
+                line.pts.forEach((pt, i) => { 
+                    if (i === 0) ctx.moveTo(pt.x, pt.y); 
+                    else ctx.lineTo(pt.x, pt.y); 
+                });
                 ctx.stroke();
             });
         }
@@ -300,7 +344,7 @@ TEACHER_HTML = """<!DOCTYPE html>
             saveBoard();
         }
 
-        function clearBoard() { lines = []; currentLine = []; redraw(); saveBoard(); }
+        function clearBoard() { lines = []; currentLine = {}; redraw(); saveBoard(); }
 
         function saveBoard() {
             fetch('/api/whiteboard', {
@@ -312,6 +356,7 @@ TEACHER_HTML = """<!DOCTYPE html>
     </script>
 </body>
 </html>"""
+
 
 STUDENT_HTML = """<!DOCTYPE html>
 <html>
