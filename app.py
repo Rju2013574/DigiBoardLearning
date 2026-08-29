@@ -134,10 +134,10 @@ TEACHER_HTML = """<!DOCTYPE html>
         .user-info a { color: #38bdf8; text-decoration: none; margin-left: 15px; padding: 5px 12px; border: 1px solid #38bdf8; border-radius: 4px; }
         .main-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; padding: 40px; }
         .app-grid { display: grid; grid-template-columns: repeat(4, 180px); gap: 30px; background: rgba(8, 28, 58, 0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 20px; border: 1px solid rgba(0, 195, 255, 0.4); }
-        .app-card { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 42, 86, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.3s; text-decoration: none; }
+        .app-card { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 42, 86, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.3s; text-decoration: none; user-select: none; }
         .app-card:hover { transform: translateY(-8px); border-color: #38bdf8; background: rgba(20, 55, 110, 0.8); }
-        .app-card svg { width: 70px; height: 70px; margin-bottom: 12px; }
-        .app-card span { color: #f0f9ff; font-size: 14px; font-weight: 600; text-align: center; }
+        .app-card svg { width: 70px; height: 70px; margin-bottom: 12px; pointer-events: none; }
+        .app-card span { color: #f0f9ff; font-size: 14px; font-weight: 600; text-align: center; pointer-events: none; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 11, 24, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background: #091a34; border: 1px solid #38bdf8; border-radius: 16px; padding: 25px; width: 860px; max-width: 95%; position: relative; }
         .close-btn { position: absolute; top: 15px; right: 20px; color: #ef4444; font-size: 24px; cursor: pointer; }
@@ -274,9 +274,9 @@ TEACHER_HTML = """<!DOCTYPE html>
     </div>
 
     <!-- File Manager Modal -->
-    <div id="upload-modal" class="modal">
+    <div id="filemanager-modal" class="modal">
         <div class="modal-content" style="width: 550px;">
-            <span class="close-btn" onclick="closeModal('upload-modal')">&times;</span>
+            <span class="close-btn" onclick="closeModal('filemanager-modal')">&times;</span>
             <h3 style="color:#38bdf8; margin-bottom:15px;">Upload Class Resource</h3>
             <form action="/upload" method="post" enctype="multipart/form-data" style="margin-bottom: 25px;">
                 <input type="file" name="file" required style="margin-bottom:15px; color:#e0f2fe; display:block;">
@@ -291,15 +291,22 @@ TEACHER_HTML = """<!DOCTYPE html>
     </div>
 
     <script>
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function openModal(id) { 
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex'; 
+        }
+
+        function closeModal(id) { 
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none'; 
+        }
         
         function launchWPS() {
             window.location.href = '/launch-wps';
         }
 
         function openFileManager() {
-            openModal('upload-modal');
+            openModal('filemanager-modal');
             loadFileList();
         }
 
@@ -468,10 +475,10 @@ STUDENT_HTML = """<!DOCTYPE html>
         .user-info a { color: #38bdf8; text-decoration: none; margin-left: 15px; padding: 5px 12px; border: 1px solid #38bdf8; border-radius: 4px; }
         .main-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; padding: 40px; }
         .app-grid { display: grid; grid-template-columns: repeat(4, 180px); gap: 30px; background: rgba(8, 28, 58, 0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 20px; border: 1px solid rgba(0, 195, 255, 0.4); }
-        .app-card { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 42, 86, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.3s; text-decoration: none; }
+        .app-card { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 42, 86, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.3s; text-decoration: none; user-select: none; }
         .app-card:hover { transform: translateY(-8px); border-color: #38bdf8; background: rgba(20, 55, 110, 0.8); }
-        .app-card svg { width: 70px; height: 70px; margin-bottom: 12px; }
-        .app-card span { color: #f0f9ff; font-size: 14px; font-weight: 600; text-align: center; }
+        .app-card svg { width: 70px; height: 70px; margin-bottom: 12px; pointer-events: none; }
+        .app-card span { color: #f0f9ff; font-size: 14px; font-weight: 600; text-align: center; pointer-events: none; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 11, 24, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background: #091a34; border: 1px solid #38bdf8; border-radius: 16px; padding: 25px; width: 860px; max-width: 95%; position: relative; }
         .close-btn { position: absolute; top: 15px; right: 20px; color: #ef4444; font-size: 24px; cursor: pointer; }
@@ -578,9 +585,9 @@ STUDENT_HTML = """<!DOCTYPE html>
     </div>
 
     <!-- File Manager Modal -->
-    <div id="upload-modal" class="modal">
+    <div id="filemanager-modal" class="modal">
         <div class="modal-content" style="width: 550px;">
-            <span class="close-btn" onclick="closeModal('upload-modal')">&times;</span>
+            <span class="close-btn" onclick="closeModal('filemanager-modal')">&times;</span>
             <h3 style="color:#38bdf8; margin-bottom:15px;">Class Resources & Files</h3>
             <ul id="file-list-container" class="file-list">
                 <li style="color:#94a3b8;">Loading files...</li>
@@ -589,15 +596,22 @@ STUDENT_HTML = """<!DOCTYPE html>
     </div>
 
     <script>
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function openModal(id) { 
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex'; 
+        }
+
+        function closeModal(id) { 
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none'; 
+        }
         
         function launchWPS() {
             window.location.href = '/launch-wps';
         }
 
         function openFileManager() {
-            openModal('upload-modal');
+            openModal('filemanager-modal');
             loadFileList();
         }
 
