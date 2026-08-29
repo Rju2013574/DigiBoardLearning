@@ -44,7 +44,7 @@ USERS = {
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
 
-# --- INTERNAL FILE & RESOURCE SAVER (ZERO EXTERNAL PIP PACKAGES NEEDED) ---
+# --- INTERNAL FILE & RESOURCE SAVER ---
 def save_to_file_manager(filename, content):
     """Saves generated notes, flashcards, mind maps, or presentations into the local File Manager."""
     filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
@@ -149,14 +149,12 @@ TEACHER_HTML = """<!DOCTYPE html>
         .file-actions a { color: #ef4444; margin-left: 15px; text-decoration: none; font-size: 13px; font-weight: bold; }
         .btn-action { padding: 6px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; margin-left: 8px; }
 
-        /* Drawing Toolbar Bar */
         .toolbar-row { display: flex; align-items: center; gap: 12px; background: rgba(15, 42, 86, 0.8); padding: 8px 15px; border-radius: 8px; margin-top: 12px; border: 1px solid rgba(56, 189, 248, 0.3); }
         .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s; }
         .color-dot:hover { transform: scale(1.2); }
         .color-dot.active { border-color: #fff; transform: scale(1.15); }
         .size-btn { background: #0284c7; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold; }
 
-        /* AI Chatbot Styles */
         .chat-container { display: flex; flex-direction: column; height: 420px; background: rgba(15, 42, 86, 0.5); border-radius: 8px; padding: 15px; border: 1px solid rgba(56, 189, 248, 0.2); margin-top: 15px; }
         .chat-box { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
         .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
@@ -208,7 +206,6 @@ TEACHER_HTML = """<!DOCTYPE html>
                 <span>File Manager</span>
             </div>
 
-            <!-- AI ASSISTANT APP CARD -->
             <div class="app-card" onclick="openModal('ai-modal')">
                 <svg viewBox="0 0 100 100">
                     <rect width="100" height="100" rx="20" fill="url(#ai-grad)"/>
@@ -258,7 +255,6 @@ TEACHER_HTML = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Drawing Controls Bar -->
             <div class="toolbar-row">
                 <span style="font-size: 13px; font-weight: bold; color: #38bdf8;">Pen Color:</span>
                 <div class="color-dot active" style="background: red;" onclick="setColor('red', this)"></div>
@@ -337,7 +333,6 @@ TEACHER_HTML = """<!DOCTYPE html>
             }
         }
 
-        /* AI Assistant Chat Handlers */
         function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const promptText = input.value.trim();
@@ -345,14 +340,12 @@ TEACHER_HTML = """<!DOCTYPE html>
 
             const box = document.getElementById('chat-box');
             
-            // Render user message
             const uDiv = document.createElement('div');
             uDiv.className = 'chat-msg user-msg';
             uDiv.textContent = promptText;
             box.appendChild(uDiv);
             input.value = '';
 
-            // Render temporary response loading state
             const aiDiv = document.createElement('div');
             aiDiv.className = 'chat-msg ai-msg';
             aiDiv.textContent = 'Generating resource and saving to File Manager...';
@@ -386,7 +379,7 @@ TEACHER_HTML = """<!DOCTYPE html>
 
         const canvas = document.getElementById('board');
         const ctx = canvas.getContext('2d');
-        let drawing = false, lines = [], currentLine = [];
+        let drawing = false, lines = [], currentLine = null;
         let currentColor = "red";
         let currentLineWidth = 3;
 
@@ -411,15 +404,16 @@ TEACHER_HTML = """<!DOCTYPE html>
         };
 
         canvas.onpointermove = (e) => {
-            if (!drawing) return;
+            if (!drawing || !currentLine) return;
             const rect = canvas.getBoundingClientRect();
             currentLine.pts.push({x: e.clientX - rect.left, y: e.clientY - rect.top});
             redraw();
         };
 
         canvas.onpointerup = () => { 
-            if (drawing) { 
+            if (drawing && currentLine) { 
                 lines.push(currentLine); 
+                currentLine = null;
                 drawing = false; 
                 saveBoard(); 
             } 
@@ -427,8 +421,9 @@ TEACHER_HTML = """<!DOCTYPE html>
 
         function redraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            lines.concat([currentLine]).forEach(line => {
-                if (!line || !line.pts) return;
+            const allLines = currentLine ? lines.concat([currentLine]) : lines;
+            allLines.forEach(line => {
+                if (!line || !line.pts || line.pts.length === 0) return;
                 ctx.strokeStyle = line.color || "red";
                 ctx.lineWidth = line.width || 3;
                 ctx.beginPath();
@@ -446,7 +441,7 @@ TEACHER_HTML = """<!DOCTYPE html>
             saveBoard();
         }
 
-        function clearBoard() { lines = []; currentLine = {}; redraw(); saveBoard(); }
+        function clearBoard() { lines = []; currentLine = null; redraw(); saveBoard(); }
 
         function saveBoard() {
             fetch('/api/whiteboard', {
@@ -471,8 +466,27 @@ STUDENT_HTML = """<!DOCTYPE html>
         body { background: radial-gradient(circle at 50% 50%, #0c2340 0%, #020b18 100%); color: #e0f2fe; min-height: 100vh; display: flex; flex-direction: column; }
         header { background: rgba(4, 19, 41, 0.85); backdrop-filter: blur(10px); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 195, 255, 0.3); }
         .user-info a { color: #38bdf8; text-decoration: none; margin-left: 15px; padding: 5px 12px; border: 1px solid #38bdf8; border-radius: 4px; }
-        .main-container { display: flex; flex-direction: column; align-items: center; flex-grow: 1; padding: 20px; }
-        canvas { background: white; border-radius: 8px; margin-top: 20px; max-width: 100%; height: auto; }
+        .main-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; padding: 40px; }
+        .app-grid { display: grid; grid-template-columns: repeat(4, 180px); gap: 30px; background: rgba(8, 28, 58, 0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 20px; border: 1px solid rgba(0, 195, 255, 0.4); }
+        .app-card { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 42, 86, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.3s; text-decoration: none; }
+        .app-card:hover { transform: translateY(-8px); border-color: #38bdf8; background: rgba(20, 55, 110, 0.8); }
+        .app-card svg { width: 70px; height: 70px; margin-bottom: 12px; }
+        .app-card span { color: #f0f9ff; font-size: 14px; font-weight: 600; text-align: center; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 11, 24, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #091a34; border: 1px solid #38bdf8; border-radius: 16px; padding: 25px; width: 860px; max-width: 95%; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 20px; color: #ef4444; font-size: 24px; cursor: pointer; }
+        canvas { background: white; border-radius: 8px; display: block; margin-top: 10px; width: 100%; height: auto; }
+        .file-list { list-style: none; margin-top: 15px; max-height: 250px; overflow-y: auto; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 42, 86, 0.7); padding: 10px 15px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(56, 189, 248, 0.2); }
+        .file-item a { color: #38bdf8; text-decoration: none; font-weight: bold; word-break: break-all; }
+        .btn-action { padding: 6px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; margin-left: 8px; }
+        .chat-container { display: flex; flex-direction: column; height: 420px; background: rgba(15, 42, 86, 0.5); border-radius: 8px; padding: 15px; border: 1px solid rgba(56, 189, 248, 0.2); margin-top: 15px; }
+        .chat-box { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
+        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
+        .user-msg { align-self: flex-end; background: #0284c7; color: #fff; }
+        .ai-msg { align-self: flex-start; background: #0f2a56; border: 1px solid rgba(56, 189, 248, 0.3); color: #e0f2fe; }
+        .chat-input-row { display: flex; gap: 10px; margin-top: 15px; }
+        .chat-input { flex-grow: 1; padding: 10px 14px; background: rgba(15, 42, 86, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: #fff; outline: none; }
     </style>
 </head>
 <body>
@@ -483,38 +497,223 @@ STUDENT_HTML = """<!DOCTYPE html>
             <a href="/logout">Logout</a>
         </div>
     </header>
+
     <div class="main-container">
-        <h3 style="color:#38bdf8;">Live Whiteboard Stream</h3>
-        <canvas id="board" width="800" height="400"></canvas>
+        <div class="app-grid">
+            <div class="app-card" onclick="openModal('whiteboard-modal')">
+                <svg viewBox="0 0 100 100">
+                    <rect width="100" height="100" rx="20" fill="url(#blue-grad)"/>
+                    <path d="M20 65 Q 40 30, 60 65 T 90 40" stroke="white" stroke-width="8" fill="none" stroke-linecap="round"/>
+                    <polygon points="65,30 85,10 90,15 70,35" fill="#333"/>
+                    <defs>
+                        <linearGradient id="blue-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#0052D4;" />
+                            <stop offset="100%" style="stop-color:#4364F7;" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span>Live Whiteboard</span>
+            </div>
+
+            <div class="app-card" onclick="launchWPS()">
+                <svg viewBox="0 0 100 100">
+                    <rect width="100" height="100" rx="20" fill="#ff334b"/>
+                    <path d="M20 30 L35 70 L50 45 L65 70 L80 30" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Document Viewer</span>
+            </div>
+
+            <div class="app-card" onclick="openFileManager()">
+                <svg viewBox="0 0 100 100">
+                    <path d="M10 25 C10 20, 20 20, 35 20 L45 30 L90 30 L95 40 L95 80 L15 85 Z" fill="#eab308"/>
+                    <rect x="25" y="50" width="50" height="30" rx="5" fill="#0284c7"/>
+                </svg>
+                <span>Class Files</span>
+            </div>
+
+            <div class="app-card" onclick="openModal('ai-modal')">
+                <svg viewBox="0 0 100 100">
+                    <rect width="100" height="100" rx="20" fill="url(#ai-grad)"/>
+                    <circle cx="50" cy="50" r="22" fill="none" stroke="white" stroke-width="6"/>
+                    <circle cx="50" cy="50" r="8" fill="#38bdf8"/>
+                    <path d="M50 15 L50 25 M50 75 L50 85 M15 50 L25 50 M75 50 L85 50" stroke="white" stroke-width="6" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="ai-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8b5cf6;" />
+                            <stop offset="100%" style="stop-color:#ec4899;" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span>Student AI Tutor</span>
+            </div>
+        </div>
     </div>
+
+    <!-- AI Student Modal -->
+    <div id="ai-modal" class="modal">
+        <div class="modal-content" style="width: 700px;">
+            <span class="close-btn" onclick="closeModal('ai-modal')">&times;</span>
+            <h3 style="color:#38bdf8;">Student AI Tutor</h3>
+            <p style="color:#94a3b8; font-size: 13px; margin-top: 4px;">Ask questions, study notes, or request study guides.</p>
+            
+            <div class="chat-container">
+                <div id="chat-box" class="chat-box">
+                    <div class="chat-msg ai-msg">Hello! What topic would you like to study or review today?</div>
+                </div>
+                <div class="chat-input-row">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="Ask a question..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+                    <button onclick="sendChatMessage()" class="btn-action" style="background:#0284c7; padding:10px 18px;">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Whiteboard Modal -->
+    <div id="whiteboard-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('whiteboard-modal')">&times;</span>
+            <h3 style="color:#38bdf8; margin-bottom: 10px;">Live Teacher Whiteboard Stream</h3>
+            <canvas id="board" width="800" height="400"></canvas>
+        </div>
+    </div>
+
+    <!-- File Manager Modal -->
+    <div id="upload-modal" class="modal">
+        <div class="modal-content" style="width: 550px;">
+            <span class="close-btn" onclick="closeModal('upload-modal')">&times;</span>
+            <h3 style="color:#38bdf8; margin-bottom:15px;">Class Resources & Files</h3>
+            <ul id="file-list-container" class="file-list">
+                <li style="color:#94a3b8;">Loading files...</li>
+            </ul>
+        </div>
+    </div>
+
     <script>
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function launchWPS() {
+            window.location.href = '/launch-wps';
+        }
+
+        function openFileManager() {
+            openModal('upload-modal');
+            loadFileList();
+        }
+
+        function loadFileList() {
+            fetch('/api/files')
+                .then(r => r.json())
+                .then(files => {
+                    const container = document.getElementById('file-list-container');
+                    if (files.length === 0) {
+                        container.innerHTML = '<li style="color:#94a3b8;">No shared files available.</li>';
+                        return;
+                    }
+                    container.innerHTML = files.map(file => `
+                        <li class="file-item">
+                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank">${file}</a>
+                            <span>Download</span>
+                        </li>
+                    `).join('');
+                })
+                .catch(() => {
+                    document.getElementById('file-list-container').innerHTML = '<li style="color:#ef4444;">Error loading files.</li>';
+                });
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const promptText = input.value.trim();
+            if (!promptText) return;
+
+            const box = document.getElementById('chat-box');
+            
+            const uDiv = document.createElement('div');
+            uDiv.className = 'chat-msg user-msg';
+            uDiv.textContent = promptText;
+            box.appendChild(uDiv);
+            input.value = '';
+
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'chat-msg ai-msg';
+            aiDiv.textContent = 'Thinking...';
+            box.appendChild(aiDiv);
+            box.scrollTop = box.scrollHeight;
+
+            setTimeout(() => {
+                aiDiv.textContent = "Thank you for asking! Based on your query about: '" + promptText + "', make sure to check the class files or refer to the notes shared by your teacher.";
+                box.scrollTop = box.scrollHeight;
+            }, 600);
+        }
+
         const canvas = document.getElementById('board');
         const ctx = canvas.getContext('2d');
         let lastRaw = "";
 
         function fetchBoard() {
             fetch('/api/whiteboard')
-                .then(r => r.text())
-                .then(rawText => {
+                .then(r => r.json())
+                .then(lines => {
+                    const rawText = JSON.stringify(lines);
                     if (rawText === lastRaw) return;
                     lastRaw = rawText;
-                    const lines = JSON.parse(rawText);
+
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.strokeStyle = "red"; ctx.lineWidth = 3;
+                    if (!Array.isArray(lines)) return;
+
                     lines.forEach(line => {
-                        ctx.beginPath();
-                        line.forEach((pt, i) => { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
-                        ctx.stroke();
+                        if (!line) return;
+                        if (Array.isArray(line.pts)) {
+                            ctx.strokeStyle = line.color || "red";
+                            ctx.lineWidth = line.width || 3;
+                            ctx.beginPath();
+                            line.pts.forEach((pt, i) => {
+                                if (i === 0) ctx.moveTo(pt.x, pt.y);
+                                else ctx.lineTo(pt.x, pt.y);
+                            });
+                            ctx.stroke();
+                        } else if (Array.isArray(line)) {
+                            ctx.strokeStyle = "red";
+                            ctx.lineWidth = 3;
+                            ctx.beginPath();
+                            line.forEach((pt, i) => {
+                                if (i === 0) ctx.moveTo(pt.x, pt.y);
+                                else ctx.lineTo(pt.x, pt.y);
+                            });
+                            ctx.stroke();
+                        }
                     });
-                }).catch(() => {});
+                })
+                .catch(() => {});
         }
-        setInterval(fetchBoard, 150);
+        setInterval(fetchBoard, 200);
         fetchBoard();
     </script>
 </body>
 </html>"""
 
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
+    def redirect(self, location):
+        self.send_response(303)
+        self.send_header('Location', location)
+        self.end_headers()
+
+    def send_html(self, html_str):
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(html_str.encode('utf-8'))
+
+    def send_json(self, data):
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.end_headers()
+        if isinstance(data, str):
+            self.wfile.write(data.encode('utf-8'))
+        else:
+            self.wfile.write(json.dumps(data).encode('utf-8'))
+
     def get_session(self):
         cookie_header = self.headers.get('Cookie')
         if cookie_header:
@@ -657,42 +856,30 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         parsed = urllib.parse.urlparse(self.path)
+        session = self.get_session()
+        
+        if not session or session.get('role') != 'teacher':
+            self.send_error(403, "Unauthorized access")
+            return
+
         if parsed.path == "/api/delete-file":
-            params = urllib.parse.parse_qs(parsed.query)
-            filename = params.get('name', [''])[0]
+            query = urllib.parse.parse_qs(parsed.query)
+            filename = query.get('name', [''])[0]
             if filename:
                 filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
                 if os.path.exists(filepath):
                     os.remove(filepath)
-            self.send_json('{"status":"deleted"}')
-
-    def redirect(self, path):
-        self.send_response(303)
-        self.send_header('Location', path)
-        self.end_headers()
-
-    def send_html(self, html_str):
-        self.send_response(200)
-        self.send_header('Content-Type', 'text/html; charset=utf-8')
-        self.end_headers()
-        self.wfile.write(html_str.encode('utf-8'))
-
-    def send_json(self, json_str):
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json; charset=utf-8')
-        self.end_headers()
-        if isinstance(json_str, str):
-            self.wfile.write(json_str.encode('utf-8'))
+                    self.send_json({"status": "deleted"})
+                    return
+            self.send_error(404, "File not found")
         else:
-            self.wfile.write(json.dumps(json_str).encode('utf-8'))
+            self.send_error(404)
 
-if __name__ == "__main__":
-    local_ip = get_local_ip()
-    print("==================================================")
-    print("DigiBoard Console is running!")
-    print(f"Local Access:    http://localhost:{PORT}")
-    print(f"Network Access: http://{local_ip}:{PORT}")
-    print("==================================================")
-    
-    with socketserver.TCPServer(("0.0.0.0", PORT), DigiBoardHandler) as httpd:
-        httpd.serve_forever()
+if __name__ == '__main__':
+    server = socketserver.TCPServer(("", PORT), DigiBoardHandler)
+    print(f"DigiBoard server online at http://localhost:{PORT}")
+    print(f"Local IP address: http://{get_local_ip()}:{PORT}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.server_close()
