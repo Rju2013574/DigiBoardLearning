@@ -2,6 +2,7 @@ import http.server
 import socketserver
 import json
 import urllib.parse
+import urllib.request
 from http import cookies
 import os
 import uuid
@@ -13,10 +14,38 @@ SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
+# Retrieve Gemini API Key from system environment
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
 USERS = {
     "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
+
+def call_gemini_api(prompt):
+    """Calls Gemini 1.5 Flash using built-in urllib (No external dependencies required)"""
+    if not GEMINI_API_KEY:
+        return "Error: GEMINI_API_KEY environment variable is missing. Please set your API key in the environment."
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            return res_data['candidates'][0]['content']['parts'][0]['text']
+    except Exception as e:
+        return f"Gemini Error: {str(e)}"
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
@@ -126,10 +155,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         /* App Specific Styles */
         canvas { background: #ffffff; border-radius: 6px; cursor: crosshair; display: block; width: 100%; height: 500px; }
-        .chat-box { background: #070d19; border: 1px solid #1e293b; border-radius: 6px; padding: 1rem; height: 350px; overflow-y: auto; margin-bottom: 1rem; }
-        .chat-msg { margin-bottom: 0.75rem; font-size: 0.9rem; }
-        .user-msg { color: #38bdf8; }
-        .ai-msg { color: #4ade80; }
+        .chat-box { background: #070d19; border: 1px solid #1e293b; border-radius: 6px; padding: 1rem; height: 380px; overflow-y: auto; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+        .chat-msg { font-size: 0.9rem; line-height: 1.5; padding: 0.75rem 1rem; border-radius: 8px; max-width: 85%; whitespace: pre-wrap; }
+        .user-msg { color: #38bdf8; background: #0f172a; align-self: flex-end; border: 1px solid #1e293b; }
+        .ai-msg { color: #f8fafc; background: #111c30; align-self: flex-start; border: 1px solid #1e293b; }
         .input-group { display: flex; gap: 0.5rem; }
         .input-group input { flex: 1; padding: 0.65rem; background: #070d19; border: 1px solid #1e293b; color: white; border-radius: 6px; }
         .input-group button { padding: 0.65rem 1.25rem; background: #0284c7; border: none; color: white; border-radius: 6px; cursor: pointer; }
@@ -223,15 +252,15 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     <!-- AI Assistant Modal -->
     <div class="modal" id="ai-modal">
-        <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
-                <h3>AI Learning & Resource Assistant</h3>
+                <h3>Gemini AI Assistant</h3>
                 <span class="close-btn" onclick="closeApp('ai-modal')">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="chat-box" id="chat-box"></div>
                 <div class="input-group">
-                    <input type="text" id="chat-input" placeholder="Ask AI to generate resources or answer questions...">
+                    <input type="text" id="chat-input" placeholder="Ask Gemini anything..." onkeypress="if(event.key==='Enter') sendChatMessage()">
                     <button onclick="sendChatMessage()">Send</button>
                 </div>
             </div>
@@ -284,35 +313,34 @@ CONSOLE_HTML = """<!DOCTYPE html>
             if (!promptText) return;
 
             const box = document.getElementById('chat-box');
+            
+            // Add user message to UI
             const uDiv = document.createElement('div');
             uDiv.className = 'chat-msg user-msg';
             uDiv.textContent = promptText;
             box.appendChild(uDiv);
             input.value = '';
 
+            // Add placeholder AI message
             const aiDiv = document.createElement('div');
             aiDiv.className = 'chat-msg ai-msg';
-            aiDiv.textContent = 'Generating resource...';
+            aiDiv.textContent = 'Gemini is thinking...';
             box.appendChild(aiDiv);
             box.scrollTop = box.scrollHeight;
 
-            const docName = "Resource_" + Date.now() + ".txt";
-
-            fetch('/api/generate-resource', {
+            // Call backend Gemini proxy
+            fetch('/api/chat-gemini', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    filename: docName,
-                    content: "DigiBoard Generated Resource\\nPrompt: " + promptText + "\\n\\nContent created successfully."
-                })
+                body: JSON.stringify({ prompt: promptText })
             })
             .then(r => r.json())
             .then(data => {
-                if (data.status === 'success') {
-                    aiDiv.textContent = `Generated resource saved as "${data.file}". You can access it in the File Manager.`;
-                } else {
-                    aiDiv.textContent = "Error: " + data.message;
-                }
+                aiDiv.textContent = data.response;
+                box.scrollTop = box.scrollHeight;
+            })
+            .catch(err => {
+                aiDiv.textContent = "Error receiving response from Gemini.";
                 box.scrollTop = box.scrollHeight;
             });
         }
@@ -390,7 +418,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-
 def save_to_file_manager(filename, content):
     if not os.path.exists(UPLOAD_DIR):
         os.makedirs(UPLOAD_DIR)
@@ -403,7 +430,6 @@ def save_to_file_manager(filename, content):
             f.write(content)
     return filename
 
-
 def open_local_file(filepath):
     import subprocess, sys
     try:
@@ -415,7 +441,6 @@ def open_local_file(filepath):
             subprocess.run(['xdg-open', filepath])
     except Exception as e:
         print(f"Error opening document: {e}")
-
 
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
@@ -580,16 +605,15 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.redirect("/")
             return
 
-        if path == "/api/generate-resource":
+        if path == "/api/chat-gemini":
             body = self.rfile.read(content_length).decode('utf-8')
             try:
                 data = json.loads(body)
-                filename = data.get("filename", "resource.txt")
-                content = data.get("content", "")
-                saved_name = save_to_file_manager(filename, content)
-                self.send_json({"status": "success", "file": saved_name})
+                prompt = data.get("prompt", "")
+                response_text = call_gemini_api(prompt)
+                self.send_json({"response": response_text})
             except Exception as e:
-                self.send_json({"status": "error", "message": str(e)}, 400)
+                self.send_json({"response": f"Error: {str(e)}"}, 400)
             return
 
         if path == "/api/whiteboard":
@@ -629,7 +653,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         self.send_error(404)
-
 
 def run_server():
     port = int(os.environ.get("PORT", PORT))
