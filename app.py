@@ -17,27 +17,30 @@ USERS = {
     "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
+
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard - Login</title>
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: #1e293b; padding: 2rem; border-radius: 8px; width: 320px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
-        h2 { text-align: center; margin-top: 0; color: #38bdf8; }
-        input { width: 100%; padding: 0.5rem; margin: 0.5rem 0 1rem 0; border: 1px solid #475569; background: #0f172a; color: #fff; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 0.6rem; background: #0284c7; border: none; color: white; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 340px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
+        h2 { text-align: center; margin-top: 0; color: #38bdf8; font-size: 1.5rem; }
+        label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 1rem; }
+        input { width: 100%; padding: 0.65rem; margin-top: 0.3rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }
+        input:focus { outline: none; border-color: #38bdf8; }
+        button { width: 100%; padding: 0.75rem; margin-top: 1.5rem; background: #0284c7; border: none; color: white; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
         button:hover { background: #0369a1; }
-        .error { color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; }
+        .error { color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; }
     </style>
 </head>
 <body>
     <div class="login-card">
-        <h2>DigiBoard Login</h2>
+        <h2>DigiBoard Master Console</h2>
         <!--ERROR-->
         <form action="/login" method="POST">
             <label>Username</label>
-            <input type="text" name="username" required>
+            <input type="text" name="username" placeholder="user@domain.com" required>
             <label>Password</label>
             <input type="password" name="password" required>
             <button type="submit">Sign In</button>
@@ -46,84 +49,207 @@ LOGIN_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-TEACHER_HTML = """<!DOCTYPE html>
+CONSOLE_HTML = """<!DOCTYPE html>
 <html>
 <head>
-    <title>DigiBoard - Teacher Dashboard</title>
+    <title>DigiBoard Master Console</title>
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 1rem; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
-        .nav-btns button { margin-left: 0.5rem; padding: 0.5rem 1rem; background: #334155; border: none; color: white; border-radius: 4px; cursor: pointer; }
-        .nav-btns button:hover { background: #475569; }
-        .main-content { display: flex; gap: 1rem; margin-top: 1rem; }
-        .board-container { flex: 2; background: #1e293b; padding: 1rem; border-radius: 8px; }
-        canvas { background: #fff; border-radius: 4px; cursor: crosshair; display: block; width: 100%; height: 500px; }
-        .sidebar { flex: 1; background: #1e293b; padding: 1rem; border-radius: 8px; display: flex; flex-direction: column; gap: 1rem; }
-        .chat-box { flex: 1; background: #0f172a; border-radius: 4px; padding: 0.5rem; height: 250px; overflow-y: auto; }
-        .chat-msg { margin-bottom: 0.5rem; font-size: 0.875rem; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }
+        .header-title { font-size: 1.25rem; font-weight: bold; letter-spacing: 0.5px; color: #ffffff; }
+        .user-section { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }
+        .user-id { color: #ffffff; font-weight: 600; }
+        .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        .logout-btn:hover { background: #1e293b; color: #fff; }
+
+        .console-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 2rem; }
+        
+        .grid-wrapper {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #172554;
+            border-radius: 16px;
+            padding: 2.5rem;
+            display: flex;
+            gap: 1.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .app-card {
+            width: 140px;
+            height: 140px;
+            background: #091326;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            gap: 0.75rem;
+        }
+
+        .app-card:hover {
+            transform: translateY(-4px);
+            border-color: #38bdf8;
+            background: #0e1d38;
+            box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2);
+        }
+
+        .app-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .icon-wb { background: #2563eb; }
+        .icon-doc { background: #ef4444; }
+        .icon-fm { background: #eab308; }
+        .icon-ai { background: #c026d3; }
+
+        .app-icon svg { width: 28px; height: 28px; fill: white; }
+        .app-title { font-size: 0.8rem; font-weight: 600; color: #cbd5e1; text-align: center; }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.9); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 90%; max-width: 1000px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; }
+        .modal-header h3 { margin: 0; color: #38bdf8; }
+        .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .close-btn:hover { color: #fff; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+
+        /* App Specific Styles */
+        canvas { background: #ffffff; border-radius: 6px; cursor: crosshair; display: block; width: 100%; height: 500px; }
+        .chat-box { background: #070d19; border: 1px solid #1e293b; border-radius: 6px; padding: 1rem; height: 350px; overflow-y: auto; margin-bottom: 1rem; }
+        .chat-msg { margin-bottom: 0.75rem; font-size: 0.9rem; }
         .user-msg { color: #38bdf8; }
         .ai-msg { color: #4ade80; }
         .input-group { display: flex; gap: 0.5rem; }
-        .input-group input { flex: 1; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px; }
-        .input-group button { padding: 0.5rem 1rem; background: #0284c7; border: none; color: white; border-radius: 4px; cursor: pointer; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
-        .modal-content { background: #1e293b; padding: 1.5rem; border-radius: 8px; width: 400px; max-height: 80vh; overflow-y: auto; }
-        .close-btn { float: right; cursor: pointer; color: #94a3b8; font-weight: bold; }
-        .file-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; padding: 0.5rem; background: #0f172a; border-radius: 4px; }
+        .input-group input { flex: 1; padding: 0.65rem; background: #070d19; border: 1px solid #1e293b; color: white; border-radius: 6px; }
+        .input-group button { padding: 0.65rem 1.25rem; background: #0284c7; border: none; color: white; border-radius: 6px; cursor: pointer; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }
         .file-item a { color: #38bdf8; text-decoration: none; }
-        .delete-btn { color: #ef4444; cursor: pointer; background: none; border: none; }
+        .delete-btn { color: #ef4444; background: none; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
     <header>
-        <h2>DigiBoard Teacher Panel (Welcome, <!--USERNAME-->)</h2>
-        <div class="nav-btns">
-            <button onclick="openFileManager()">Files Manager</button>
-            <button onclick="launchWPS()">Launch Document Viewer</button>
-            <button onclick="window.location.href='/logout'">Logout</button>
+        <div class="header-title">DigiBoard Master Console</div>
+        <div class="user-section">
+            User ID: <span class="user-id"><!--USERNAME--></span>
+            <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
         </div>
     </header>
-    <div class="main-content">
-        <div class="board-container">
-            <canvas id="board" width="800" height="500"></canvas>
-            <div style="margin-top:0.5rem; display:flex; gap:0.5rem;">
-                <button onclick="clearBoard()" style="background:#ef4444; color:white; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Clear Board</button>
+
+    <div class="console-container">
+        <div class="grid-wrapper">
+            <!-- Whiteboard Tile -->
+            <div class="app-card" onclick="openApp('whiteboard-modal')">
+                <div class="app-icon icon-wb">
+                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </div>
+                <div class="app-title">WhiteBoard</div>
             </div>
-        </div>
-        <div class="sidebar">
-            <h3>AI Assistant & Resources</h3>
-            <div class="chat-box" id="chat-box"></div>
-            <div class="input-group">
-                <input type="text" id="chat-input" placeholder="Prompt AI to generate resource...">
-                <button onclick="sendChatMessage()">Send</button>
+
+            <!-- Document Viewer Tile -->
+            <div class="app-card" onclick="launchWPS()">
+                <div class="app-icon icon-doc">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                </div>
+                <div class="app-title">Document Viewer</div>
             </div>
-            <hr style="border-color:#334155; width:100%;">
-            <h3>Upload Resource File</h3>
-            <form action="/upload" method="POST" enctype="multipart/form-data">
-                <input type="file" name="file" required style="margin-bottom:0.5rem; color:white;">
-                <button type="submit" style="width:100%; padding:0.5rem; background:#10b981; border:none; color:white; border-radius:4px; cursor:pointer;">Upload to Class</button>
-            </form>
+
+            <!-- File Manager Tile -->
+            <div class="app-card" onclick="openFileManager()">
+                <div class="app-icon icon-fm">
+                    <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                </div>
+                <div class="app-title">File Manager</div>
+            </div>
+
+            <!-- AI Assistant Tile -->
+            <div class="app-card" onclick="openApp('ai-modal')">
+                <div class="app-icon icon-ai">
+                    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V17a1 1 0 0 1-2 0v-.07A7 7 0 0 1 5.07 13H5a1 1 0 0 1 0-2h.07A7 7 0 0 1 11 5.07V5a1 1 0 0 1 2 0v.07A7 7 0 0 1 18.93 11H19a1 1 0 0 1 0 2h-.07A7 7 0 0 1 13 16.93z"/></svg>
+                </div>
+                <div class="app-title">AI Assistant</div>
+            </div>
         </div>
     </div>
 
-    <div class="modal" id="filemanager-modal">
+    <!-- Whiteboard Modal -->
+    <div class="modal" id="whiteboard-modal">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeModal('filemanager-modal')">&times;</span>
-            <h3 style="margin-top:0;">Managed Class Files</h3>
-            <ul id="file-list-container" style="list-style:none; padding:0;"></ul>
+            <div class="modal-header">
+                <h3>DigiBoard Interactive Whiteboard</h3>
+                <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <canvas id="board" width="950" height="480"></canvas>
+                <!--ROLE_TEACHER_ONLY-->
+                <div style="margin-top:0.75rem; text-align:right;">
+                    <button onclick="clearBoard()" style="background:#ef4444; color:white; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Clear Board</button>
+                </div>
+                <!--END_ROLE-->
+            </div>
+        </div>
+    </div>
+
+    <!-- File Manager Modal -->
+    <div class="modal" id="filemanager-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Class File Manager</h3>
+                <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!--ROLE_TEACHER_ONLY-->
+                <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px;">
+                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8;">Upload New Document:</label>
+                    <input type="file" name="file" required style="margin-bottom:0.75rem; color:white;">
+                    <button type="submit" style="width:100%; padding:0.5rem; background:#10b981; border:none; color:white; border-radius:4px; cursor:pointer;">Upload File</button>
+                </form>
+                <!--END_ROLE-->
+                <ul id="file-list-container" style="list-style:none; padding:0; margin:0;"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Assistant Modal -->
+    <div class="modal" id="ai-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>AI Learning & Resource Assistant</h3>
+                <span class="close-btn" onclick="closeApp('ai-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="chat-box" id="chat-box"></div>
+                <div class="input-group">
+                    <input type="text" id="chat-input" placeholder="Ask AI to generate resources or answer questions...">
+                    <button onclick="sendChatMessage()">Send</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        const USER_ROLE = "<!--USER_ROLE-->";
+
+        function openApp(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeApp(id) { document.getElementById(id).style.display = 'none'; }
 
         function launchWPS() {
             window.location.href = '/launch-wps';
         }
 
         function openFileManager() {
-            openModal('filemanager-modal');
+            openApp('filemanager-modal');
             loadFileList();
         }
 
@@ -132,14 +258,14 @@ TEACHER_HTML = """<!DOCTYPE html>
                 .then(r => r.json())
                 .then(files => {
                     const container = document.getElementById('file-list-container');
-                    if (files.length === 0) {
-                        container.innerHTML = '<li style="color:#94a3b8;">No uploaded files found.</li>';
+                    if (!files || files.length === 0) {
+                        container.innerHTML = '<li style="color:#94a3b8; text-align:center;">No files available.</li>';
                         return;
                     }
                     container.innerHTML = files.map(file => `
                         <li class="file-item">
                             <a href="/uploads/${encodeURIComponent(file)}" target="_blank">${file}</a>
-                            <button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>
+                            ${USER_ROLE === 'teacher' ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
                         </li>
                     `).join('');
                 });
@@ -183,7 +309,7 @@ TEACHER_HTML = """<!DOCTYPE html>
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
-                    aiDiv.textContent = `Generated resource saved as "${data.file}".`;
+                    aiDiv.textContent = `Generated resource saved as "${data.file}". You can access it in the File Manager.`;
                 } else {
                     aiDiv.textContent = "Error: " + data.message;
                 }
@@ -198,28 +324,32 @@ TEACHER_HTML = """<!DOCTYPE html>
         let currentLine = null;
         let lines = [];
 
-        canvas.addEventListener('mousedown', (e) => {
-            isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            currentLine = { color: 'red', width: 3, pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }] };
-            lines.push(currentLine);
-        });
+        if (USER_ROLE === 'teacher') {
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                currentLine = { color: 'red', width: 3, pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }] };
+                lines.push(currentLine);
+            });
 
-        canvas.addEventListener('mousemove', (e) => {
-            if (!isDrawing) return;
-            const rect = canvas.getBoundingClientRect();
-            currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-            redraw();
-            syncWhiteboard();
-        });
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing) return;
+                const rect = canvas.getBoundingClientRect();
+                currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                redraw(lines);
+                syncWhiteboard();
+            });
 
-        canvas.addEventListener('mouseup', () => { isDrawing = false; });
+            canvas.addEventListener('mouseup', () => { isDrawing = false; });
+        }
 
-        function redraw() {
+        function redraw(linesToDraw) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            lines.forEach(line => {
-                ctx.strokeStyle = line.color;
-                ctx.lineWidth = line.width;
+            if (!linesToDraw) return;
+            linesToDraw.forEach(line => {
+                if (!line || !line.pts) return;
+                ctx.strokeStyle = line.color || "red";
+                ctx.lineWidth = line.width || 3;
                 ctx.beginPath();
                 line.pts.forEach((pt, i) => {
                     if (i === 0) ctx.moveTo(pt.x, pt.y);
@@ -231,7 +361,7 @@ TEACHER_HTML = """<!DOCTYPE html>
 
         function clearBoard() {
             lines = [];
-            redraw();
+            redraw(lines);
             syncWhiteboard();
         }
 
@@ -242,190 +372,23 @@ TEACHER_HTML = """<!DOCTYPE html>
                 body: JSON.stringify(lines)
             });
         }
-    </script>
-</body>
-</html>"""
-
-STUDENT_HTML = """<!DOCTYPE html>
-<html>
-<head>
-    <title>DigiBoard - Student Viewer</title>
-    <style>
-        body { font-family: sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 1rem; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
-        .nav-btns button { margin-left: 0.5rem; padding: 0.5rem 1rem; background: #334155; border: none; color: white; border-radius: 4px; cursor: pointer; }
-        .main-content { display: flex; gap: 1rem; margin-top: 1rem; }
-        .board-container { flex: 2; background: #1e293b; padding: 1rem; border-radius: 8px; }
-        canvas { background: #fff; border-radius: 4px; display: block; width: 100%; height: 500px; }
-        .sidebar { flex: 1; background: #1e293b; padding: 1rem; border-radius: 8px; display: flex; flex-direction: column; gap: 1rem; }
-        .chat-box { flex: 1; background: #0f172a; border-radius: 4px; padding: 0.5rem; height: 350px; overflow-y: auto; }
-        .chat-msg { margin-bottom: 0.5rem; font-size: 0.875rem; }
-        .user-msg { color: #38bdf8; }
-        .ai-msg { color: #4ade80; }
-        .input-group { display: flex; gap: 0.5rem; }
-        .input-group input { flex: 1; padding: 0.5rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 4px; }
-        .input-group button { padding: 0.5rem 1rem; background: #0284c7; border: none; color: white; border-radius: 4px; cursor: pointer; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
-        .modal-content { background: #1e293b; padding: 1.5rem; border-radius: 8px; width: 400px; max-height: 80vh; overflow-y: auto; }
-        .close-btn { float: right; cursor: pointer; color: #94a3b8; font-weight: bold; }
-        .file-item { margin-bottom: 0.5rem; padding: 0.5rem; background: #0f172a; border-radius: 4px; }
-        .file-item a { color: #38bdf8; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <header>
-        <h2>DigiBoard Live Stream (Welcome, <!--USERNAME-->)</h2>
-        <div class="nav-btns">
-            <button onclick="openFileManager()">Class Files</button>
-            <button onclick="launchWPS()">Open Viewer</button>
-            <button onclick="window.location.href='/logout'">Logout</button>
-        </div>
-    </header>
-    <div class="main-content">
-        <div class="board-container">
-            <canvas id="board" width="800" height="500"></canvas>
-        </div>
-        <div class="sidebar">
-            <h3>AI Study Assistant</h3>
-            <div class="chat-box" id="chat-box"></div>
-            <div class="input-group">
-                <input type="text" id="chat-input" placeholder="Ask AI for study notes...">
-                <button onclick="sendChatMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="filemanager-modal">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeModal('filemanager-modal')">&times;</span>
-            <h3 style="margin-top:0;">Class Files</h3>
-            <ul id="file-list-container" style="list-style:none; padding:0;"></ul>
-        </div>
-    </div>
-
-    <script>
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-        function launchWPS() {
-            window.location.href = '/launch-wps';
-        }
-
-        function openFileManager() {
-            openModal('filemanager-modal');
-            loadFileList();
-        }
-
-        function loadFileList() {
-            fetch('/api/files')
-                .then(r => r.json())
-                .then(files => {
-                    const container = document.getElementById('file-list-container');
-                    if (files.length === 0) {
-                        container.innerHTML = '<li style="color:#94a3b8;">No uploaded files found.</li>';
-                        return;
-                    }
-                    container.innerHTML = files.map(file => `
-                        <li class="file-item">
-                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank">${file}</a>
-                        </li>
-                    `).join('');
-                })
-                .catch(() => {
-                    document.getElementById('file-list-container').innerHTML = '<li style="color:#ef4444;">Error loading files.</li>';
-                });
-        }
-
-        function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const promptText = input.value.trim();
-            if (!promptText) return;
-
-            const box = document.getElementById('chat-box');
-            
-            const uDiv = document.createElement('div');
-            uDiv.className = 'chat-msg user-msg';
-            uDiv.textContent = promptText;
-            box.appendChild(uDiv);
-            input.value = '';
-
-            const aiDiv = document.createElement('div');
-            aiDiv.className = 'chat-msg ai-msg';
-            aiDiv.textContent = 'Generating response...';
-            box.appendChild(aiDiv);
-            box.scrollTop = box.scrollHeight;
-
-            const docName = "Student_Notes_" + Date.now() + ".txt";
-
-            fetch('/api/generate-resource', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json; charset=utf-8'},
-                body: JSON.stringify({
-                    filename: docName,
-                    content: "DigiBoard AI Study Guide\\nPrompt: " + promptText + "\\n\\n[Content generated automatically]"
-                })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    aiDiv.textContent = `Study guide generated successfully! Saved to Class Files as "${data.file}".`;
-                } else {
-                    aiDiv.textContent = "Error: " + data.message;
-                }
-                box.scrollTop = box.scrollHeight;
-            })
-            .catch(() => {
-                aiDiv.textContent = "Error connecting to AI backend.";
-                box.scrollTop = box.scrollHeight;
-            });
-        }
-
-        const canvas = document.getElementById('board');
-        const ctx = canvas.getContext('2d');
-
-        function redraw(lines) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            lines.forEach(line => {
-                if (!line || !line.pts || line.pts.length === 0) return;
-                ctx.strokeStyle = line.color || "red";
-                ctx.lineWidth = line.width || 3;
-                ctx.beginPath();
-                line.pts.forEach((pt, i) => { 
-                    if (i === 0) ctx.moveTo(pt.x, pt.y); 
-                    else ctx.lineTo(pt.x, pt.y); 
-                });
-                ctx.stroke();
-            });
-        }
 
         function pollWhiteboard() {
-            fetch('/api/whiteboard')
-                .then(r => r.json())
-                .then(lines => {
-                    redraw(lines);
-                })
-                .catch(() => {})
-                .finally(() => {
-                    setTimeout(pollWhiteboard, 1000);
-                });
+            if (USER_ROLE === 'student') {
+                fetch('/api/whiteboard')
+                    .then(r => r.json())
+                    .then(data => redraw(data))
+                    .catch(() => {})
+                    .finally(() => setTimeout(pollWhiteboard, 1000));
+            }
         }
 
-        pollWhiteboard();
+        if (USER_ROLE === 'student') {
+            pollWhiteboard();
+        }
     </script>
 </body>
 </html>"""
-
-
-def get_local_ip():
-    import socket
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
 
 
 def save_to_file_manager(filename, content):
@@ -454,7 +417,6 @@ def open_local_file(filepath):
         print(f"Error opening document: {e}")
 
 
-# --- REQUEST HANDLER ---
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
     def get_session(self):
@@ -487,7 +449,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
-
         session = self.get_session()
 
         if path == "/login":
@@ -505,14 +466,20 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.redirect("/login")
             return
 
-        if path == "/" or path == "/dashboard":
+        if path in ("/", "/dashboard"):
             if not session:
                 self.redirect("/login")
                 return
-            if session['role'] == 'teacher':
-                html = TEACHER_HTML.replace("<!--USERNAME-->", session['username'])
+            
+            html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
+            html = html.replace("<!--USER_ROLE-->", session['role'])
+            
+            if session['role'] != 'teacher':
+                import re
+                html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
             else:
-                html = STUDENT_HTML.replace("<!--USERNAME-->", session['username'])
+                html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
+                
             self.send_html(html)
             return
 
@@ -665,12 +632,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
 
 def run_server():
-    server_address = ('', PORT)
+    port = int(os.environ.get("PORT", PORT))
+    server_address = ('', port)
     httpd = socketserver.ThreadingTCPServer(server_address, DigiBoardHandler)
-    local_ip = get_local_ip()
-    print(f"[DigiBoard Server Running]")
-    print(f" Local Access:   http://localhost:{PORT}")
-    print(f" Network Access: http://{local_ip}:{PORT}")
+    print(f"[DigiBoard Master Console Running on port {port}]")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
