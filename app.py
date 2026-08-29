@@ -15,7 +15,7 @@ BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
 # Retrieve Gemini API Key from system environment
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyCKzHuwsH4Rv4Uagia8tcRnwt-reHI-8")
 
 USERS = {
     "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
