@@ -44,6 +44,16 @@ USERS = {
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
 
+# --- INTERNAL FILE & RESOURCE SAVER (NO EXTERNAL PIP PACKAGES NEEDED) ---
+def save_to_file_manager(filename, content):
+    """Saves generated notes, flashcards, mind maps, or presentations into the local File Manager."""
+    filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+    mode = "wb" if isinstance(content, bytes) else "w"
+    encoding = None if isinstance(content, bytes) else "utf-8"
+    with open(filepath, mode, encoding=encoding) as f:
+        f.write(content)
+    return filename
+
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -528,6 +538,21 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             except Exception as e:
                 print("Upload processing error:", e)
                 self.redirect("/teacher")
+
+        elif self.path == "/api/generate-resource":
+            # Endpoint to create/save internal files (notes, mindmaps, flashcards, pptx outlines) into file manager
+            session = self.get_session()
+            if not session or session.get('role') != 'teacher':
+                self.send_error(403, "Unauthorized access")
+                return
+            try:
+                payload = json.loads(body.decode('utf-8'))
+                filename = payload.get("filename", f"resource_{uuid.uuid4().hex[:6]}.txt")
+                content = payload.get("content", "")
+                saved_filename = save_to_file_manager(filename, content)
+                self.send_json({"status": "success", "file": saved_filename})
+            except Exception as e:
+                self.send_json({"status": "error", "message": str(e)})
 
         elif self.path == "/api/whiteboard":
             with CACHE_LOCK:
