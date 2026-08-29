@@ -2,7 +2,7 @@ import http.server
 import socketserver
 import json
 import urllib.parse
-import cookies
+from http import cookies
 import os
 import uuid
 import threading
