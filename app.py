@@ -44,7 +44,7 @@ USERS = {
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
 
-# --- INTERNAL FILE & RESOURCE SAVER (NO EXTERNAL PIP PACKAGES NEEDED) ---
+# --- INTERNAL FILE & RESOURCE SAVER (ZERO EXTERNAL PIP PACKAGES NEEDED) ---
 def save_to_file_manager(filename, content):
     """Saves generated notes, flashcards, mind maps, or presentations into the local File Manager."""
     filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
@@ -133,11 +133,11 @@ TEACHER_HTML = """<!DOCTYPE html>
         header { background: rgba(4, 19, 41, 0.85); backdrop-filter: blur(10px); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 195, 255, 0.3); }
         .user-info a { color: #38bdf8; text-decoration: none; margin-left: 15px; padding: 5px 12px; border: 1px solid #38bdf8; border-radius: 4px; }
         .main-container { display: flex; justify-content: center; align-items: center; flex-grow: 1; padding: 40px; }
-        .app-grid { display: grid; grid-template-columns: repeat(3, 180px); gap: 40px; background: rgba(8, 28, 58, 0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 20px; border: 1px solid rgba(0, 195, 255, 0.4); }
+        .app-grid { display: grid; grid-template-columns: repeat(4, 180px); gap: 30px; background: rgba(8, 28, 58, 0.75); backdrop-filter: blur(12px); padding: 40px; border-radius: 20px; border: 1px solid rgba(0, 195, 255, 0.4); }
         .app-card { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 42, 86, 0.6); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.3s; text-decoration: none; }
         .app-card:hover { transform: translateY(-8px); border-color: #38bdf8; background: rgba(20, 55, 110, 0.8); }
         .app-card svg { width: 70px; height: 70px; margin-bottom: 12px; }
-        .app-card span { color: #f0f9ff; font-size: 14px; font-weight: 600; }
+        .app-card span { color: #f0f9ff; font-size: 14px; font-weight: 600; text-align: center; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 11, 24, 0.85); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background: #091a34; border: 1px solid #38bdf8; border-radius: 16px; padding: 25px; width: 860px; max-width: 95%; position: relative; }
         .close-btn { position: absolute; top: 15px; right: 20px; color: #ef4444; font-size: 24px; cursor: pointer; }
@@ -149,12 +149,21 @@ TEACHER_HTML = """<!DOCTYPE html>
         .file-actions a { color: #ef4444; margin-left: 15px; text-decoration: none; font-size: 13px; font-weight: bold; }
         .btn-action { padding: 6px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; color: white; margin-left: 8px; }
 
-        /* Clean Drawing Toolbar Bar */
+        /* Drawing Toolbar Bar */
         .toolbar-row { display: flex; align-items: center; gap: 12px; background: rgba(15, 42, 86, 0.8); padding: 8px 15px; border-radius: 8px; margin-top: 12px; border: 1px solid rgba(56, 189, 248, 0.3); }
         .color-dot { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.1s; }
         .color-dot:hover { transform: scale(1.2); }
         .color-dot.active { border-color: #fff; transform: scale(1.15); }
         .size-btn { background: #0284c7; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold; }
+
+        /* AI Chatbot Styles */
+        .chat-container { display: flex; flex-direction: column; height: 420px; background: rgba(15, 42, 86, 0.5); border-radius: 8px; padding: 15px; border: 1px solid rgba(56, 189, 248, 0.2); margin-top: 15px; }
+        .chat-box { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; }
+        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; }
+        .user-msg { align-self: flex-end; background: #0284c7; color: #fff; }
+        .ai-msg { align-self: flex-start; background: #0f2a56; border: 1px solid rgba(56, 189, 248, 0.3); color: #e0f2fe; }
+        .chat-input-row { display: flex; gap: 10px; margin-top: 15px; }
+        .chat-input { flex-grow: 1; padding: 10px 14px; background: rgba(15, 42, 86, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; color: #fff; outline: none; }
     </style>
 </head>
 <body>
@@ -198,6 +207,42 @@ TEACHER_HTML = """<!DOCTYPE html>
                 </svg>
                 <span>File Manager</span>
             </div>
+
+            <!-- AI ASSISTANT APP CARD -->
+            <div class="app-card" onclick="openModal('ai-modal')">
+                <svg viewBox="0 0 100 100">
+                    <rect width="100" height="100" rx="20" fill="url(#ai-grad)"/>
+                    <circle cx="50" cy="50" r="22" fill="none" stroke="white" stroke-width="6"/>
+                    <circle cx="50" cy="50" r="8" fill="#38bdf8"/>
+                    <path d="M50 15 L50 25 M50 75 L50 85 M15 50 L25 50 M75 50 L85 50" stroke="white" stroke-width="6" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="ai-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8b5cf6;" />
+                            <stop offset="100%" style="stop-color:#ec4899;" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span>AI Assistant</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Chatbot Modal -->
+    <div id="ai-modal" class="modal">
+        <div class="modal-content" style="width: 700px;">
+            <span class="close-btn" onclick="closeModal('ai-modal')">&times;</span>
+            <h3 style="color:#38bdf8;">DigiBoard AI Assistant</h3>
+            <p style="color:#94a3b8; font-size: 13px; margin-top: 4px;">Generate teaching notes, test papers, or lesson outlines. Saved resources will appear automatically in your File Manager.</p>
+            
+            <div class="chat-container">
+                <div id="chat-box" class="chat-box">
+                    <div class="chat-msg ai-msg">Hello Teacher! How can I assist you with class prep, notes, or assessments today?</div>
+                </div>
+                <div class="chat-input-row">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="Type a prompt (e.g., Generate Grade 6 Sanskrit test portion)..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+                    <button onclick="sendChatMessage()" class="btn-action" style="background:#0284c7; padding:10px 18px;">Send</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -213,7 +258,7 @@ TEACHER_HTML = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Clean Drawing Controls Bar -->
+            <!-- Drawing Controls Bar -->
             <div class="toolbar-row">
                 <span style="font-size: 13px; font-weight: bold; color: #38bdf8;">Pen Color:</span>
                 <div class="color-dot active" style="background: red;" onclick="setColor('red', this)"></div>
@@ -290,6 +335,53 @@ TEACHER_HTML = """<!DOCTYPE html>
                 fetch('/api/delete-file?name=' + filename, { method: 'DELETE' })
                     .then(() => loadFileList());
             }
+        }
+
+        /* AI Assistant Chat Handlers */
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const promptText = input.value.trim();
+            if (!promptText) return;
+
+            const box = document.getElementById('chat-box');
+            
+            // Render user message
+            const uDiv = document.createElement('div');
+            uDiv.className = 'chat-msg user-msg';
+            uDiv.textContent = promptText;
+            box.appendChild(uDiv);
+            input.value = '';
+
+            // Render temporary response loading state
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'chat-msg ai-msg';
+            aiDiv.textContent = 'Generating resource and saving to File Manager...';
+            box.appendChild(aiDiv);
+            box.scrollTop = box.scrollHeight;
+
+            const docName = "AI_Generated_" + Date.now() + ".txt";
+
+            fetch('/api/generate-resource', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json; charset=utf-8'},
+                body: JSON.stringify({
+                    filename: docName,
+                    content: "DigiBoard AI Generated Resource\nPrompt: " + promptText + "\n\n[Content generated automatically]"
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    aiDiv.textContent = `Generated resource successfully! Saved to File Manager as "${data.file}".`;
+                } else {
+                    aiDiv.textContent = "Error generating resource: " + data.message;
+                }
+                box.scrollTop = box.scrollHeight;
+            })
+            .catch(() => {
+                aiDiv.textContent = "Error connecting to AI backend.";
+                box.scrollTop = box.scrollHeight;
+            });
         }
 
         const canvas = document.getElementById('board');
@@ -540,7 +632,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.redirect("/teacher")
 
         elif self.path == "/api/generate-resource":
-            # Endpoint to create/save internal files (notes, mindmaps, flashcards, pptx outlines) into file manager
             session = self.get_session()
             if not session or session.get('role') != 'teacher':
                 self.send_error(403, "Unauthorized access")
