@@ -23,16 +23,24 @@ USERS = {
 }
 
 def call_gemini_api(prompt):
-    """Calls Gemini 1.5 Flash using built-in urllib (No external dependencies required)"""
-    if not GEMINI_API_KEY:
-        return "Error: GEMINI_API_KEY environment variable is missing. Please set your API key in the environment."
+    """Calls the official Google Gemini API using Python built-in urllib."""
+    if GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE" or not GEMINI_API_KEY:
+        return (
+            "Error: Gemini API key missing. Pass your key via terminal variable "
+            "or update GEMINI_API_KEY in app.py."
+        )
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    # Updated endpoint to gemini-2.5-flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     
     payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
     }
 
     try:
@@ -43,7 +51,18 @@ def call_gemini_api(prompt):
         )
         with urllib.request.urlopen(req) as response:
             res_data = json.loads(response.read().decode("utf-8"))
-            return res_data['candidates'][0]['content']['parts'][0]['text']
+            
+            # Safely extract response text
+            candidates = res_data.get("candidates", [])
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if parts:
+                    return parts[0].get("text", "No text returned.")
+            return "No response content generated."
+            
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8")
+        return f"Gemini API HTTP Error {e.code}: {error_body}"
     except Exception as e:
         return f"Gemini Error: {str(e)}"
 
