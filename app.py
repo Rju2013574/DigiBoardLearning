@@ -120,7 +120,26 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 95%; max-width: 1150px; height: 88vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; background: #070d19; }
         .modal-header h3 { margin: 0; color: #38bdf8; font-size: 1.1rem; }
-        .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .header-actions { display: flex; align-items: center; gap: 1rem; }
+        
+        .clear-all-btn {
+            background: #ef4444;
+            color: #ffffff;
+            border: none;
+            padding: 0.45rem 0.9rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .clear-all-btn:hover { background: #dc2626; transform: scale(1.02); }
+        .clear-all-btn:active { transform: scale(0.98); }
+
+        .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; line-height: 1; }
         .close-btn:hover { color: #fff; }
         .modal-body { padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }
 
@@ -253,7 +272,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
         <div class="modal-content">
             <div class="modal-header">
                 <h3>DigiBoard Interactive Whiteboard</h3>
-                <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
+                <div class="header-actions">
+                    <!--ROLE_TEACHER_ONLY-->
+                    <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard">
+                        <span>Clear All</span> 🗑️
+                    </button>
+                    <!--END_ROLE-->
+                    <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
+                </div>
             </div>
             
             <!--ROLE_STUDENT_ONLY-->
@@ -292,7 +318,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         <div class="palette-divider"></div>
 
                         <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">⚙️</button>
-                        <button class="markup-btn" onclick="clearBoard()" title="Clear Board" style="color:#ef4444;">🗑️</button>
                     </div>
 
                     <!-- Popover Settings Box -->
@@ -525,6 +550,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         function clearBoard() {
             if (lines.length === 0) return;
+            if (!confirm("Are you sure you want to clear the entire whiteboard?")) return;
             undoStack.push(...lines);
             lines = [];
             redraw(lines);
