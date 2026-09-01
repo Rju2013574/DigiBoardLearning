@@ -2,7 +2,6 @@ import http.server
 import socketserver
 import json
 import urllib.parse
-import urllib.request
 from http import cookies
 import os
 import uuid
@@ -14,57 +13,10 @@ SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
-# Retrieve Gemini API Key from system environment
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyCKzHuwsH4Rv4Uagia8tcRnwt-reHI-8")
-
 USERS = {
     "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
-
-def call_gemini_api(prompt):
-    """Calls the official Google Gemini API using Python built-in urllib."""
-    if GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE" or not GEMINI_API_KEY:
-        return (
-            "Error: Gemini API key missing. Pass your key via terminal variable "
-            "or update GEMINI_API_KEY in app.py."
-        )
-
-    # Updated endpoint to gemini-2.5-flash
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-    
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt}
-                ]
-            }
-        ]
-    }
-
-    try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-        )
-        with urllib.request.urlopen(req) as response:
-            res_data = json.loads(response.read().decode("utf-8"))
-            
-            # Safely extract response text
-            candidates = res_data.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if parts:
-                    return parts[0].get("text", "No text returned.")
-            return "No response content generated."
-            
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8")
-        return f"Gemini API HTTP Error {e.code}: {error_body}"
-    except Exception as e:
-        return f"Gemini Error: {str(e)}"
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
@@ -109,6 +61,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .header-title { font-size: 1.25rem; font-weight: bold; letter-spacing: 0.5px; color: #ffffff; }
         .user-section { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }
         .user-id { color: #ffffff; font-weight: 600; }
+        .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
         .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
         .logout-btn:hover { background: #1e293b; color: #fff; }
 
@@ -120,23 +73,23 @@ CONSOLE_HTML = """<!DOCTYPE html>
             border-radius: 16px;
             padding: 2.5rem;
             display: flex;
-            gap: 1.5rem;
+            gap: 2rem;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
         }
 
         .app-card {
-            width: 140px;
-            height: 140px;
+            width: 150px;
+            height: 150px;
             background: #091326;
             border: 1px solid #1e293b;
-            border-radius: 12px;
+            border-radius: 14px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            gap: 0.75rem;
+            gap: 0.85rem;
         }
 
         .app-card:hover {
@@ -147,9 +100,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         .app-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 12px;
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -158,32 +111,103 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .icon-wb { background: #2563eb; }
         .icon-doc { background: #ef4444; }
         .icon-fm { background: #eab308; }
-        .icon-ai { background: #c026d3; }
 
-        .app-icon svg { width: 28px; height: 28px; fill: white; }
-        .app-title { font-size: 0.8rem; font-weight: 600; color: #cbd5e1; text-align: center; }
+        .app-icon svg { width: 30px; height: 30px; fill: white; }
+        .app-title { font-size: 0.85rem; font-weight: 600; color: #cbd5e1; text-align: center; }
 
         /* Modal Styles */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.9); justify-content: center; align-items: center; z-index: 100; }
-        .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 90%; max-width: 1000px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; }
-        .modal-header h3 { margin: 0; color: #38bdf8; }
+        .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 95%; max-width: 1150px; height: 88vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; background: #070d19; }
+        .modal-header h3 { margin: 0; color: #38bdf8; font-size: 1.1rem; }
         .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
         .close-btn:hover { color: #fff; }
-        .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; }
+        .modal-body { padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }
 
-        /* App Specific Styles */
-        canvas { background: #ffffff; border-radius: 6px; cursor: crosshair; display: block; width: 100%; height: 500px; }
-        .chat-box { background: #070d19; border: 1px solid #1e293b; border-radius: 6px; padding: 1rem; height: 380px; overflow-y: auto; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
-        .chat-msg { font-size: 0.9rem; line-height: 1.5; padding: 0.75rem 1rem; border-radius: 8px; max-width: 85%; whitespace: pre-wrap; }
-        .user-msg { color: #38bdf8; background: #0f172a; align-self: flex-end; border: 1px solid #1e293b; }
-        .ai-msg { color: #f8fafc; background: #111c30; align-self: flex-start; border: 1px solid #1e293b; }
-        .input-group { display: flex; gap: 0.5rem; }
-        .input-group input { flex: 1; padding: 0.65rem; background: #070d19; border: 1px solid #1e293b; color: white; border-radius: 6px; }
-        .input-group button { padding: 0.65rem 1.25rem; background: #0284c7; border: none; color: white; border-radius: 6px; cursor: pointer; }
+        /* Whiteboard Floating Toolbar */
+        .wb-viewport { position: relative; width: 100%; height: 100%; flex: 1; background: #ffffff; border-radius: 8px; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; background: radial-gradient(#d1d5db 1px, transparent 1px); background-size: 20px 20px; cursor: crosshair; }
+        
+        /* Markup Floating Toolbar Container */
+        .markup-palette {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 30px;
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+            z-index: 20;
+            width: 58px;
+        }
+
+        .markup-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: background 0.15s, transform 0.15s;
+            color: #334155;
+            padding: 0;
+        }
+        .markup-btn:hover { background: #e2e8f0; transform: scale(1.08); }
+        .markup-btn.active { background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid #0284c7; }
+
+        .palette-divider { width: 30px; height: 1px; background: #cbd5e1; margin: 2px 0; }
+
+        .color-dot {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .color-dot:hover { transform: scale(1.15); }
+        .color-dot.active { transform: scale(1.2); border-color: #0284c7; }
+
+        /* Popover Tool Config Window */
+        .tool-config-popover {
+            display: none;
+            position: absolute;
+            left: 85px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 30;
+            width: 220px;
+            color: #1e293b;
+        }
+        .tool-config-popover h4 { margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #475569; }
+        .stroke-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+        .stroke-opt { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #cbd5e1; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .stroke-opt.active { border-color: #0284c7; background: #e0f2fe; }
+        .stroke-preview { background: #000; border-radius: 50%; }
+
+        /* File Manager List */
         .file-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }
         .file-item a { color: #38bdf8; text-decoration: none; }
-        .delete-btn { color: #ef4444; background: none; border: none; cursor: pointer; }
+        .delete-btn { color: #ef4444; background: none; border: none; cursor: pointer; font-weight: bold; }
+
+        /* Read Only Alert Banner */
+        .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
@@ -191,13 +215,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
         <div class="header-title">DigiBoard Master Console</div>
         <div class="user-section">
             User ID: <span class="user-id"><!--USERNAME--></span>
+            <span class="user-role-badge"><!--USER_ROLE--></span>
             <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
         </div>
     </header>
 
     <div class="console-container">
         <div class="grid-wrapper">
-            <!-- Whiteboard Tile -->
+            <!-- 1. Whiteboard Tile -->
             <div class="app-card" onclick="openApp('whiteboard-modal')">
                 <div class="app-icon icon-wb">
                     <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
@@ -205,28 +230,20 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="app-title">WhiteBoard</div>
             </div>
 
-            <!-- Document Viewer Tile -->
+            <!-- 2. WPS Office Document Viewer Tile -->
             <div class="app-card" onclick="launchWPS()">
                 <div class="app-icon icon-doc">
                     <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
                 </div>
-                <div class="app-title">Document Viewer</div>
+                <div class="app-title">WPS Office</div>
             </div>
 
-            <!-- File Manager Tile -->
+            <!-- 3. File Manager Tile -->
             <div class="app-card" onclick="openFileManager()">
                 <div class="app-icon icon-fm">
                     <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
                 </div>
                 <div class="app-title">File Manager</div>
-            </div>
-
-            <!-- AI Assistant Tile -->
-            <div class="app-card" onclick="openApp('ai-modal')">
-                <div class="app-icon icon-ai">
-                    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V17a1 1 0 0 1-2 0v-.07A7 7 0 0 1 5.07 13H5a1 1 0 0 1 0-2h.07A7 7 0 0 1 11 5.07V5a1 1 0 0 1 2 0v.07A7 7 0 0 1 18.93 11H19a1 1 0 0 1 0 2h-.07A7 7 0 0 1 13 16.93z"/></svg>
-                </div>
-                <div class="app-title">AI Assistant</div>
             </div>
         </div>
     </div>
@@ -238,25 +255,73 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <h3>DigiBoard Interactive Whiteboard</h3>
                 <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
             </div>
+            
+            <!--ROLE_STUDENT_ONLY-->
+            <div class="readonly-banner">Student View (Read-Only Mode) - Live Syncing Teacher Board</div>
+            <!--END_STUDENT_ROLE-->
+
             <div class="modal-body">
-                <canvas id="board" width="950" height="480"></canvas>
-                <!--ROLE_TEACHER_ONLY-->
-                <div style="margin-top:0.75rem; text-align:right;">
-                    <button onclick="clearBoard()" style="background:#ef4444; color:white; border:none; padding:0.5rem 1rem; border-radius:4px; cursor:pointer;">Clear Board</button>
+                <div class="wb-viewport" id="wb-container">
+                    <canvas id="board"></canvas>
+
+                    <!--ROLE_TEACHER_ONLY-->
+                    <!-- Floating Apple Markup Style Palette -->
+                    <div class="markup-palette">
+                        <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
+                        <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
+                        
+                        <div class="palette-divider"></div>
+                        
+                        <button class="markup-btn active" id="tool-pen" onclick="selectTool('pen')" title="Pen">✏️</button>
+                        <button class="markup-btn" id="tool-fountain" onclick="selectTool('fountain')" title="Fountain Pen">✒️</button>
+                        <button class="markup-btn" id="tool-marker" onclick="selectTool('marker')" title="Marker">🖊️</button>
+                        <button class="markup-btn" id="tool-highlighter" onclick="selectTool('highlighter')" title="Highlighter">🖍️</button>
+                        <button class="markup-btn" id="tool-tube" onclick="selectTool('tube')" title="Paint Tube">🎨</button>
+                        <button class="markup-btn" id="tool-eraser" onclick="selectTool('eraser')" title="Eraser">🧹</button>
+
+                        <div class="palette-divider"></div>
+
+                        <div class="color-dot active" style="background:#000000;" onclick="setColor('#000000', this)"></div>
+                        <div class="color-dot" style="background:#ef4444;" onclick="setColor('#ef4444', this)"></div>
+                        <div class="color-dot" style="background:#3b82f6;" onclick="setColor('#3b82f6', this)"></div>
+                        <div class="color-dot" style="background:#10b981;" onclick="setColor('#10b981', this)"></div>
+                        <div class="color-dot" style="background:#f59e0b;" onclick="setColor('#f59e0b', this)"></div>
+                        
+                        <input type="color" id="custom-color" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" onchange="setColor(this.value, null)">
+
+                        <div class="palette-divider"></div>
+
+                        <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">⚙️</button>
+                        <button class="markup-btn" onclick="clearBoard()" title="Clear Board" style="color:#ef4444;">🗑️</button>
+                    </div>
+
+                    <!-- Popover Settings Box -->
+                    <div class="tool-config-popover" id="config-popover">
+                        <h4>Stroke Thickness</h4>
+                        <div class="stroke-options">
+                            <div class="stroke-opt" onclick="setStroke(2, this)"><div class="stroke-preview" style="width:3px; height:3px;"></div></div>
+                            <div class="stroke-opt active" onclick="setStroke(5, this)"><div class="stroke-preview" style="width:6px; height:6px;"></div></div>
+                            <div class="stroke-opt" onclick="setStroke(10, this)"><div class="stroke-preview" style="width:10px; height:10px;"></div></div>
+                            <div class="stroke-opt" onclick="setStroke(18, this)"><div class="stroke-preview" style="width:14px; height:14px;"></div></div>
+                        </div>
+
+                        <h4>Opacity</h4>
+                        <input type="range" id="opacity-range" min="0.1" max="1" step="0.1" value="1" style="width:100%;" onchange="setOpacity(this.value)">
+                    </div>
+                    <!--END_ROLE-->
                 </div>
-                <!--END_ROLE-->
             </div>
         </div>
     </div>
 
     <!-- File Manager Modal -->
     <div class="modal" id="filemanager-modal">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-content" style="max-width: 600px; height:auto;">
             <div class="modal-header">
                 <h3>Class File Manager</h3>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="height: 450px; overflow-y: auto;">
                 <!--ROLE_TEACHER_ONLY-->
                 <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px;">
                     <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8;">Upload New Document:</label>
@@ -264,24 +329,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <button type="submit" style="width:100%; padding:0.5rem; background:#10b981; border:none; color:white; border-radius:4px; cursor:pointer;">Upload File</button>
                 </form>
                 <!--END_ROLE-->
-                <ul id="file-list-container" style="list-style:none; padding:0; margin:0;"></ul>
-            </div>
-        </div>
-    </div>
 
-    <!-- AI Assistant Modal -->
-    <div class="modal" id="ai-modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3>Gemini AI Assistant</h3>
-                <span class="close-btn" onclick="closeApp('ai-modal')">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="chat-box" id="chat-box"></div>
-                <div class="input-group">
-                    <input type="text" id="chat-input" placeholder="Ask Gemini anything..." onkeypress="if(event.key==='Enter') sendChatMessage()">
-                    <button onclick="sendChatMessage()">Send</button>
-                </div>
+                <!--ROLE_STUDENT_ONLY-->
+                <div class="readonly-banner" style="margin-bottom: 1rem; border-radius: 4px;">Student View (Read-Only) - View & Download Available Documents</div>
+                <!--END_STUDENT_ROLE-->
+
+                <ul id="file-list-container" style="list-style:none; padding:0; margin:0;"></ul>
             </div>
         </div>
     </div>
@@ -289,7 +342,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <script>
         const USER_ROLE = "<!--USER_ROLE-->";
 
-        function openApp(id) { document.getElementById(id).style.display = 'flex'; }
+        function openApp(id) { 
+            document.getElementById(id).style.display = 'flex'; 
+            if(id === 'whiteboard-modal') {
+                resizeCanvas();
+            }
+        }
         function closeApp(id) { document.getElementById(id).style.display = 'none'; }
 
         function launchWPS() {
@@ -326,93 +384,155 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 .then(() => loadFileList());
         }
 
-        function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const promptText = input.value.trim();
-            if (!promptText) return;
-
-            const box = document.getElementById('chat-box');
-            
-            // Add user message to UI
-            const uDiv = document.createElement('div');
-            uDiv.className = 'chat-msg user-msg';
-            uDiv.textContent = promptText;
-            box.appendChild(uDiv);
-            input.value = '';
-
-            // Add placeholder AI message
-            const aiDiv = document.createElement('div');
-            aiDiv.className = 'chat-msg ai-msg';
-            aiDiv.textContent = 'Gemini is thinking...';
-            box.appendChild(aiDiv);
-            box.scrollTop = box.scrollHeight;
-
-            // Call backend Gemini proxy
-            fetch('/api/chat-gemini', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ prompt: promptText })
-            })
-            .then(r => r.json())
-            .then(data => {
-                aiDiv.textContent = data.response;
-                box.scrollTop = box.scrollHeight;
-            })
-            .catch(err => {
-                aiDiv.textContent = "Error receiving response from Gemini.";
-                box.scrollTop = box.scrollHeight;
-            });
-        }
-
-        // Whiteboard Logic
+        /* Interactive Whiteboard Scripting */
         const canvas = document.getElementById('board');
         const ctx = canvas.getContext('2d');
+        const container = document.getElementById('wb-container');
+
         let isDrawing = false;
-        let currentLine = null;
         let lines = [];
+        let undoStack = [];
+        
+        let activeTool = 'pen';
+        let currentColor = '#000000';
+        let currentLineWidth = 5;
+        let currentOpacity = 1.0;
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            redraw(lines);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
 
         if (USER_ROLE === 'teacher') {
             canvas.addEventListener('mousedown', (e) => {
                 isDrawing = true;
                 const rect = canvas.getBoundingClientRect();
-                currentLine = { color: 'red', width: 3, pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }] };
-                lines.push(currentLine);
+                
+                let width = currentLineWidth;
+                let color = currentColor;
+                let opacity = currentOpacity;
+
+                if (activeTool === 'highlighter') {
+                    opacity = 0.4;
+                    width = Math.max(width, 18);
+                } else if (activeTool === 'eraser') {
+                    color = '#ffffff';
+                    width = 25;
+                    opacity = 1.0;
+                } else if (activeTool === 'marker') {
+                    width = Math.max(width, 10);
+                }
+
+                const newLine = {
+                    tool: activeTool,
+                    color: color,
+                    width: width,
+                    opacity: opacity,
+                    pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
+                };
+                lines.push(newLine);
+                undoStack = [];
             });
 
             canvas.addEventListener('mousemove', (e) => {
                 if (!isDrawing) return;
                 const rect = canvas.getBoundingClientRect();
+                const currentLine = lines[lines.length - 1];
                 currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
                 redraw(lines);
-                syncWhiteboard();
             });
 
-            canvas.addEventListener('mouseup', () => { isDrawing = false; });
+            canvas.addEventListener('mouseup', () => { 
+                if (isDrawing) {
+                    isDrawing = false; 
+                    syncWhiteboard();
+                }
+            });
         }
 
         function redraw(linesToDraw) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (!linesToDraw) return;
+            
             linesToDraw.forEach(line => {
-                if (!line || !line.pts) return;
-                ctx.strokeStyle = line.color || "red";
+                if (!line || !line.pts || line.pts.length === 0) return;
+                
+                ctx.save();
+                ctx.strokeStyle = line.color || "#000000";
                 ctx.lineWidth = line.width || 3;
+                ctx.globalAlpha = line.opacity || 1.0;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
                 ctx.beginPath();
                 line.pts.forEach((pt, i) => {
                     if (i === 0) ctx.moveTo(pt.x, pt.y);
                     else ctx.lineTo(pt.x, pt.y);
                 });
                 ctx.stroke();
+                ctx.restore();
             });
         }
 
+        function selectTool(tool) {
+            activeTool = tool;
+            document.querySelectorAll('.markup-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.getElementById('tool-' + tool);
+            if(activeBtn) activeBtn.classList.add('active');
+        }
+
+        function setColor(hex, el) {
+            currentColor = hex;
+            if(el) {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                el.classList.add('active');
+            }
+        }
+
+        function setStroke(width, el) {
+            currentLineWidth = width;
+            document.querySelectorAll('.stroke-opt').forEach(o => o.classList.remove('active'));
+            if(el) el.classList.add('active');
+        }
+
+        function setOpacity(val) {
+            currentOpacity = parseFloat(val);
+        }
+
+        function toggleConfigPopover() {
+            const pop = document.getElementById('config-popover');
+            pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function undo() {
+            if (lines.length > 0) {
+                undoStack.push(lines.pop());
+                redraw(lines);
+                syncWhiteboard();
+            }
+        }
+
+        function redo() {
+            if (undoStack.length > 0) {
+                lines.push(undoStack.pop());
+                redraw(lines);
+                syncWhiteboard();
+            }
+        }
+
         function clearBoard() {
+            if (lines.length === 0) return;
+            undoStack.push(...lines);
             lines = [];
             redraw(lines);
             syncWhiteboard();
         }
 
         function syncWhiteboard() {
+            if (USER_ROLE !== 'teacher') return;
             fetch('/api/whiteboard', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -424,7 +544,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
             if (USER_ROLE === 'student') {
                 fetch('/api/whiteboard')
                     .then(r => r.json())
-                    .then(data => redraw(data))
+                    .then(data => {
+                        lines = data;
+                        redraw(lines);
+                    })
                     .catch(() => {})
                     .finally(() => setTimeout(pollWhiteboard, 1000));
             }
@@ -518,10 +641,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
             
+            import re
             if session['role'] != 'teacher':
-                import re
                 html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
+                html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
             else:
+                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
                 html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
                 
             self.send_html(html)
@@ -622,17 +747,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     save_to_file_manager(filename, file_data)
             
             self.redirect("/")
-            return
-
-        if path == "/api/chat-gemini":
-            body = self.rfile.read(content_length).decode('utf-8')
-            try:
-                data = json.loads(body)
-                prompt = data.get("prompt", "")
-                response_text = call_gemini_api(prompt)
-                self.send_json({"response": response_text})
-            except Exception as e:
-                self.send_json({"response": f"Error: {str(e)}"}, 400)
             return
 
         if path == "/api/whiteboard":
