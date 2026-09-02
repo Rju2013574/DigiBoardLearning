@@ -7,8 +7,9 @@ import os
 import uuid
 import threading
 import re
+from email import message_from_bytes
 
-PORT = 8000
+PORT = int(os.environ.get("PORT", 8000))
 UPLOAD_DIR = "uploads"
 SESSIONS = {}
 BOARD_CACHE = "[]"
@@ -86,7 +87,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .modal-body { padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }
         .wb-viewport { position: relative; width: 100%; height: 100%; flex: 1; background: #ffffff; border-radius: 8px; overflow: hidden; }
         
-        /* UPDATED CANVAS CSS FOR IPAD TOUCH CONTROL */
         canvas { 
             display: block; 
             width: 100%; 
@@ -94,7 +94,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             background: radial-gradient(#d1d5db 1px, transparent 1px); 
             background-size: 20px 20px; 
             cursor: crosshair; 
-            touch-action: none; /* Disables iPad default scroll gestures on canvas */
+            touch-action: none;
         }
         
         .markup-palette { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 30px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); z-index: 20; width: 58px; }
@@ -285,7 +285,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        /* UPDATED POINTER LISTENERS FOR IPAD / APPLE PENCIL / MOUSE COMPATIBILITY */
         if (USER_ROLE === 'teacher') {
             canvas.addEventListener('pointerdown', (e) => {
                 isDrawing = true;
@@ -611,6 +610,28 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
+        # UPLOAD IMPLEMENTATION
+        if path == "/upload":
+            if session['role'] != 'teacher':
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+
+            ctype = self.headers.get('Content-Type', '')
+            if 'multipart/form-data' in ctype:
+                body = self.rfile.read(content_length)
+                msg_bytes = f"Content-Type: {ctype}\r\n\r\n".encode('utf-8') + body
+                msg = message_from_bytes(msg_bytes)
+                
+                for part in msg.walk():
+                    filename = part.get_filename()
+                    if filename:
+                        file_data = part.get_payload(decode=True)
+                        save_to_file_manager(filename, file_data)
+                        break
+
+            self.redirect("/")
+            return
+
         if path == "/api/whiteboard":
             if session['role'] != 'teacher':
                 self.send_json({"error": "Forbidden"}, 403)
@@ -650,5 +671,5 @@ if __name__ == "__main__":
         os.makedirs(UPLOAD_DIR)
     
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
-        print(f"DigiBoard Master Console running at http://localhost:{PORT}")
+        print(f"DigiBoard Master Console running on port {PORT}")
         httpd.serve_forever()
