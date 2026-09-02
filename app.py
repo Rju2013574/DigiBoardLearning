@@ -6,6 +6,7 @@ from http import cookies
 import os
 import uuid
 import threading
+import re
 
 PORT = 8000
 UPLOAD_DIR = "uploads"
@@ -56,7 +57,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
-        
         header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }
         .header-title { font-size: 1.25rem; font-weight: bold; letter-spacing: 0.5px; color: #ffffff; }
         .user-section { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }
@@ -64,168 +64,56 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
         .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
         .logout-btn:hover { background: #1e293b; color: #fff; }
-
         .console-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 2rem; }
-        
-        .grid-wrapper {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid #172554;
-            border-radius: 16px;
-            padding: 2.5rem;
-            display: flex;
-            gap: 2rem;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-        }
-
-        .app-card {
-            width: 150px;
-            height: 150px;
-            background: #091326;
-            border: 1px solid #1e293b;
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            gap: 0.85rem;
-        }
-
-        .app-card:hover {
-            transform: translateY(-4px);
-            border-color: #38bdf8;
-            background: #0e1d38;
-            box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2);
-        }
-
-        .app-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 14px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
+        .grid-wrapper { background: rgba(15, 23, 42, 0.6); border: 1px solid #172554; border-radius: 16px; padding: 2.5rem; display: flex; gap: 2rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
+        .app-card { width: 150px; height: 150px; background: #091326; border: 1px solid #1e293b; border-radius: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; gap: 0.85rem; }
+        .app-card:hover { transform: translateY(-4px); border-color: #38bdf8; background: #0e1d38; box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2); }
+        .app-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; }
         .icon-wb { background: #2563eb; }
         .icon-doc { background: #ef4444; }
         .icon-fm { background: #eab308; }
-
         .app-icon svg { width: 30px; height: 30px; fill: white; }
         .app-title { font-size: 0.85rem; font-weight: 600; color: #cbd5e1; text-align: center; }
-
-        /* Modal Styles */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.9); justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 95%; max-width: 1150px; height: 88vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; background: #070d19; }
         .modal-header h3 { margin: 0; color: #38bdf8; font-size: 1.1rem; }
         .header-actions { display: flex; align-items: center; gap: 1rem; }
-        
-        .clear-all-btn {
-            background: #ef4444;
-            color: #ffffff;
-            border: none;
-            padding: 0.45rem 0.9rem;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            transition: background 0.2s, transform 0.1s;
-        }
+        .clear-all-btn { background: #ef4444; color: #ffffff; border: none; padding: 0.45rem 0.9rem; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s, transform 0.1s; }
         .clear-all-btn:hover { background: #dc2626; transform: scale(1.02); }
-        .clear-all-btn:active { transform: scale(0.98); }
-
         .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; line-height: 1; }
         .close-btn:hover { color: #fff; }
         .modal-body { padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }
-
-        /* Whiteboard Floating Toolbar */
         .wb-viewport { position: relative; width: 100%; height: 100%; flex: 1; background: #ffffff; border-radius: 8px; overflow: hidden; }
-        canvas { display: block; width: 100%; height: 100%; background: radial-gradient(#d1d5db 1px, transparent 1px); background-size: 20px 20px; cursor: crosshair; }
         
-        /* Markup Floating Toolbar Container */
-        .markup-palette {
-            position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-radius: 30px;
-            padding: 12px 8px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
-            z-index: 20;
-            width: 58px;
+        /* UPDATED CANVAS CSS FOR IPAD TOUCH CONTROL */
+        canvas { 
+            display: block; 
+            width: 100%; 
+            height: 100%; 
+            background: radial-gradient(#d1d5db 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            cursor: crosshair; 
+            touch-action: none; /* Disables iPad default scroll gestures on canvas */
         }
-
-        .markup-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            transition: background 0.15s, transform 0.15s;
-            color: #334155;
-            padding: 0;
-        }
+        
+        .markup-palette { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 30px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); z-index: 20; width: 58px; }
+        .markup-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 0.15s, transform 0.15s; color: #334155; padding: 0; }
         .markup-btn:hover { background: #e2e8f0; transform: scale(1.08); }
         .markup-btn.active { background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid #0284c7; }
-
         .palette-divider { width: 30px; height: 1px; background: #cbd5e1; margin: 2px 0; }
-
-        .color-dot {
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-            cursor: pointer;
-            transition: transform 0.15s;
-        }
+        .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.15s; }
         .color-dot:hover { transform: scale(1.15); }
         .color-dot.active { transform: scale(1.2); border-color: #0284c7; }
-
-        /* Popover Tool Config Window */
-        .tool-config-popover {
-            display: none;
-            position: absolute;
-            left: 85px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            padding: 1rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            z-index: 30;
-            width: 220px;
-            color: #1e293b;
-        }
+        .tool-config-popover { display: none; position: absolute; left: 85px; top: 50%; transform: translateY(-50%); background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 30; width: 220px; color: #1e293b; }
         .tool-config-popover h4 { margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #475569; }
         .stroke-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
         .stroke-opt { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #cbd5e1; display: flex; justify-content: center; align-items: center; cursor: pointer; }
         .stroke-opt.active { border-color: #0284c7; background: #e0f2fe; }
         .stroke-preview { background: #000; border-radius: 50%; }
-
-        /* File Manager List */
         .file-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }
         .file-item a { color: #38bdf8; text-decoration: none; }
         .delete-btn { color: #ef4444; background: none; border: none; cursor: pointer; font-weight: bold; }
-
-        /* Read Only Alert Banner */
         .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
     </style>
 </head>
@@ -241,23 +129,18 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     <div class="console-container">
         <div class="grid-wrapper">
-            <!-- 1. Whiteboard Tile -->
             <div class="app-card" onclick="openApp('whiteboard-modal')">
                 <div class="app-icon icon-wb">
                     <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                 </div>
                 <div class="app-title">WhiteBoard</div>
             </div>
-
-            <!-- 2. WPS Office Document Viewer Tile -->
             <div class="app-card" onclick="launchWPS()">
                 <div class="app-icon icon-doc">
                     <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
                 </div>
                 <div class="app-title">WPS Office</div>
             </div>
-
-            <!-- 3. File Manager Tile -->
             <div class="app-card" onclick="openFileManager()">
                 <div class="app-icon icon-fm">
                     <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
@@ -267,7 +150,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- Whiteboard Modal -->
     <div class="modal" id="whiteboard-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -281,46 +163,33 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
                 </div>
             </div>
-            
             <!--ROLE_STUDENT_ONLY-->
             <div class="readonly-banner">Student View (Read-Only Mode) - Live Syncing Teacher Board</div>
             <!--END_STUDENT_ROLE-->
-
             <div class="modal-body">
                 <div class="wb-viewport" id="wb-container">
                     <canvas id="board"></canvas>
-
                     <!--ROLE_TEACHER_ONLY-->
-                    <!-- Floating Apple Markup Style Palette -->
                     <div class="markup-palette">
                         <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
                         <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
-                        
                         <div class="palette-divider"></div>
-                        
                         <button class="markup-btn active" id="tool-pen" onclick="selectTool('pen')" title="Pen">✏️</button>
                         <button class="markup-btn" id="tool-fountain" onclick="selectTool('fountain')" title="Fountain Pen">✒️</button>
                         <button class="markup-btn" id="tool-marker" onclick="selectTool('marker')" title="Marker">🖊️</button>
                         <button class="markup-btn" id="tool-highlighter" onclick="selectTool('highlighter')" title="Highlighter">🖍️</button>
                         <button class="markup-btn" id="tool-tube" onclick="selectTool('tube')" title="Paint Tube">🎨</button>
                         <button class="markup-btn" id="tool-eraser" onclick="selectTool('eraser')" title="Eraser">🧹</button>
-
                         <div class="palette-divider"></div>
-
                         <div class="color-dot active" style="background:#000000;" onclick="setColor('#000000', this)"></div>
                         <div class="color-dot" style="background:#ef4444;" onclick="setColor('#ef4444', this)"></div>
                         <div class="color-dot" style="background:#3b82f6;" onclick="setColor('#3b82f6', this)"></div>
                         <div class="color-dot" style="background:#10b981;" onclick="setColor('#10b981', this)"></div>
                         <div class="color-dot" style="background:#f59e0b;" onclick="setColor('#f59e0b', this)"></div>
-                        
                         <input type="color" id="custom-color" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" onchange="setColor(this.value, null)">
-
                         <div class="palette-divider"></div>
-
                         <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">⚙️</button>
                     </div>
-
-                    <!-- Popover Settings Box -->
                     <div class="tool-config-popover" id="config-popover">
                         <h4>Stroke Thickness</h4>
                         <div class="stroke-options">
@@ -329,7 +198,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                             <div class="stroke-opt" onclick="setStroke(10, this)"><div class="stroke-preview" style="width:10px; height:10px;"></div></div>
                             <div class="stroke-opt" onclick="setStroke(18, this)"><div class="stroke-preview" style="width:14px; height:14px;"></div></div>
                         </div>
-
                         <h4>Opacity</h4>
                         <input type="range" id="opacity-range" min="0.1" max="1" step="0.1" value="1" style="width:100%;" onchange="setOpacity(this.value)">
                     </div>
@@ -339,7 +207,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- File Manager Modal -->
     <div class="modal" id="filemanager-modal">
         <div class="modal-content" style="max-width: 600px; height:auto;">
             <div class="modal-header">
@@ -354,11 +221,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <button type="submit" style="width:100%; padding:0.5rem; background:#10b981; border:none; color:white; border-radius:4px; cursor:pointer;">Upload File</button>
                 </form>
                 <!--END_ROLE-->
-
                 <!--ROLE_STUDENT_ONLY-->
                 <div class="readonly-banner" style="margin-bottom: 1rem; border-radius: 4px;">Student View (Read-Only) - View & Download Available Documents</div>
                 <!--END_STUDENT_ROLE-->
-
                 <ul id="file-list-container" style="list-style:none; padding:0; margin:0;"></ul>
             </div>
         </div>
@@ -369,20 +234,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         function openApp(id) { 
             document.getElementById(id).style.display = 'flex'; 
-            if(id === 'whiteboard-modal') {
-                resizeCanvas();
-            }
+            if(id === 'whiteboard-modal') { resizeCanvas(); }
         }
         function closeApp(id) { document.getElementById(id).style.display = 'none'; }
-
-        function launchWPS() {
-            window.location.href = '/launch-wps';
-        }
-
-        function openFileManager() {
-            openApp('filemanager-modal');
-            loadFileList();
-        }
+        function launchWPS() { window.location.href = '/launch-wps'; }
+        function openFileManager() { openApp('filemanager-modal'); loadFileList(); }
 
         function loadFileList() {
             fetch('/api/files')
@@ -409,7 +265,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 .then(() => loadFileList());
         }
 
-        /* Interactive Whiteboard Scripting */
         const canvas = document.getElementById('board');
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('wb-container');
@@ -417,7 +272,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
         let isDrawing = false;
         let lines = [];
         let undoStack = [];
-        
         let activeTool = 'pen';
         let currentColor = '#000000';
         let currentLineWidth = 5;
@@ -431,11 +285,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
+        /* UPDATED POINTER LISTENERS FOR IPAD / APPLE PENCIL / MOUSE COMPATIBILITY */
         if (USER_ROLE === 'teacher') {
-            canvas.addEventListener('mousedown', (e) => {
+            canvas.addEventListener('pointerdown', (e) => {
                 isDrawing = true;
+                canvas.setPointerCapture(e.pointerId);
                 const rect = canvas.getBoundingClientRect();
-                
                 let width = currentLineWidth;
                 let color = currentColor;
                 let opacity = currentOpacity;
@@ -462,7 +317,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 undoStack = [];
             });
 
-            canvas.addEventListener('mousemove', (e) => {
+            canvas.addEventListener('pointermove', (e) => {
                 if (!isDrawing) return;
                 const rect = canvas.getBoundingClientRect();
                 const currentLine = lines[lines.length - 1];
@@ -470,9 +325,18 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 redraw(lines);
             });
 
-            canvas.addEventListener('mouseup', () => { 
+            canvas.addEventListener('pointerup', (e) => { 
                 if (isDrawing) {
                     isDrawing = false; 
+                    canvas.releasePointerCapture(e.pointerId);
+                    syncWhiteboard();
+                }
+            });
+            
+            canvas.addEventListener('pointercancel', (e) => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
                     syncWhiteboard();
                 }
             });
@@ -484,7 +348,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
             
             linesToDraw.forEach(line => {
                 if (!line || !line.pts || line.pts.length === 0) return;
-                
                 ctx.save();
                 ctx.strokeStyle = line.color || "#000000";
                 ctx.lineWidth = line.width || 3;
@@ -523,9 +386,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             if(el) el.classList.add('active');
         }
 
-        function setOpacity(val) {
-            currentOpacity = parseFloat(val);
-        }
+        function setOpacity(val) { currentOpacity = parseFloat(val); }
 
         function toggleConfigPopover() {
             const pop = document.getElementById('config-popover');
@@ -667,7 +528,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
             
-            import re
             if session['role'] != 'teacher':
                 html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
                 html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
@@ -751,41 +611,15 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
-        if path == "/upload":
-            if session['role'] != 'teacher':
-                self.send_json({"error": "Forbidden"}, 403)
-                return
-            
-            boundary = self.headers.get('Content-Type').split("boundary=")[1].encode()
-            body = self.rfile.read(content_length)
-            parts = body.split(b"--" + boundary)
-            
-            for part in parts:
-                if b'name="file";' in part:
-                    headers_part, file_data = part.split(b"\r\n\r\n", 1)
-                    file_data = file_data.rsplit(b"\r\n", 1)[0]
-                    
-                    filename = "uploaded_file"
-                    for line in headers_part.decode(errors='ignore').split("\r\n"):
-                        if "filename=" in line:
-                            filename = line.split('filename=')[1].strip('"')
-                    
-                    save_to_file_manager(filename, file_data)
-            
-            self.redirect("/")
-            return
-
         if path == "/api/whiteboard":
             if session['role'] != 'teacher':
                 self.send_json({"error": "Forbidden"}, 403)
                 return
-            
             body = self.rfile.read(content_length).decode('utf-8')
             global BOARD_CACHE
             with CACHE_LOCK:
                 BOARD_CACHE = body
-
-            self.send_json({"status": "success"})
+            self.send_json({"status": "ok"})
             return
 
         self.send_error(404)
@@ -793,36 +627,28 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
     def do_DELETE(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
-
         session = self.get_session()
+
         if not session or session['role'] != 'teacher':
             self.send_json({"error": "Forbidden"}, 403)
             return
 
         if path == "/api/delete-file":
-            qs = urllib.parse.parse_qs(parsed.query)
-            filename = qs.get('name', [''])[0]
+            params = urllib.parse.parse_qs(parsed.query)
+            filename = params.get('name', [''])[0]
             if filename:
                 filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
                 if os.path.exists(filepath):
                     os.remove(filepath)
-                    self.send_json({"status": "success"})
-                    return
-            self.send_json({"error": "File not found"}, 404)
+            self.send_json({"status": "deleted"})
             return
 
         self.send_error(404)
 
-def run_server():
-    port = int(os.environ.get("PORT", PORT))
-    server_address = ('', port)
-    httpd = socketserver.ThreadingTCPServer(server_address, DigiBoardHandler)
-    print(f"[DigiBoard Master Console Running on port {port}]")
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\nShutting down server.")
-        httpd.server_close()
-
 if __name__ == "__main__":
-    run_server()
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+    
+    with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
+        print(f"DigiBoard Master Console running at http://localhost:{PORT}")
+        httpd.serve_forever()
