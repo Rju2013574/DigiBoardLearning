@@ -7,9 +7,8 @@ import os
 import uuid
 import threading
 import re
-from email import message_from_bytes
 
-PORT = int(os.environ.get("PORT", 8000))
+PORT = 8000
 UPLOAD_DIR = "uploads"
 SESSIONS = {}
 BOARD_CACHE = "[]"
@@ -94,7 +93,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             background: radial-gradient(#d1d5db 1px, transparent 1px); 
             background-size: 20px 20px; 
             cursor: crosshair; 
-            touch-action: none;
+            touch-action: none; 
         }
         
         .markup-palette { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 30px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); z-index: 20; width: 58px; }
@@ -241,7 +240,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
         function openFileManager() { openApp('filemanager-modal'); loadFileList(); }
 
         function loadFileList() {
-            fetch('/api/files')
+            // Append timestamp to prevent TV browser from returning cached API data
+            fetch('/api/files?t=' + Date.now(), { cache: "no-store" })
                 .then(r => r.json())
                 .then(files => {
                     const container = document.getElementById('file-list-container');
@@ -428,7 +428,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         function pollWhiteboard() {
             if (USER_ROLE === 'student') {
-                fetch('/api/whiteboard')
+                fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
                     .then(r => r.json())
                     .then(data => {
                         lines = data;
@@ -446,18 +446,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-def save_to_file_manager(filename, content):
-    if not os.path.exists(UPLOAD_DIR):
-        os.makedirs(UPLOAD_DIR)
-    filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
-    if isinstance(content, str):
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(content)
-    else:
-        with open(filepath, "wb") as f:
-            f.write(content)
-    return filename
-
 def open_local_file(filepath):
     import subprocess, sys
     try:
@@ -472,6 +460,11 @@ def open_local_file(filepath):
 
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
+    def set_no_cache_headers(self):
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+
     def get_session(self):
         cookie_header = self.headers.get('Cookie')
         if cookie_header:
@@ -485,19 +478,45 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
     def send_html(self, content, status=200):
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.set_no_cache_headers()
         self.end_headers()
         self.wfile.write(content.encode('utf-8'))
 
     def send_json(self, data, status=200):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.set_no_cache_headers()
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
     def redirect(self, location):
         self.send_response(302)
         self.send_header("Location", location)
+        self.set_no_cache_headers()
         self.end_headers()
+
+    def parse_multipart(self):
+        """Parses multipart form-data for file uploads."""
+        content_type = self.headers.get('Content-Type', '')
+        if not content_type.startswith('multipart/form-data'):
+            return None, None
+        
+        boundary = content_type.split('boundary=')[1].encode('utf-8')
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+
+        parts = body.split(b'--' + boundary)
+        for part in parts:
+            if b'filename="' in part:
+                header_part, file_data = part.split(b'\r\n\r\n', 1)
+                file_data = file_data.rsplit(b'\r\n', 1)[0]
+                
+                header_text = header_part.decode('utf-8', errors='ignore')
+                filename_match = re.search(r'filename="([^"]+)"', header_text)
+                if filename_match:
+                    filename = filename_match.group(1)
+                    return os.path.basename(filename), file_data
+        return None, None
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -573,6 +592,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.set_no_cache_headers()
                 self.end_headers()
                 with open(filepath, "rb") as f:
                     self.wfile.write(f.read())
@@ -585,9 +605,9 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
-        content_length = int(self.headers.get('Content-Length', 0))
 
         if path == "/login":
+            content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
             params = urllib.parse.parse_qs(body)
             username = params.get('username', [''])[0]
@@ -599,6 +619,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
                 self.send_header("Location", "/")
+                self.set_no_cache_headers()
                 self.end_headers()
             else:
                 err_html = LOGIN_HTML.replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
@@ -610,25 +631,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
-        # UPLOAD IMPLEMENTATION
         if path == "/upload":
             if session['role'] != 'teacher':
                 self.send_json({"error": "Forbidden"}, 403)
                 return
-
-            ctype = self.headers.get('Content-Type', '')
-            if 'multipart/form-data' in ctype:
-                body = self.rfile.read(content_length)
-                msg_bytes = f"Content-Type: {ctype}\r\n\r\n".encode('utf-8') + body
-                msg = message_from_bytes(msg_bytes)
-                
-                for part in msg.walk():
-                    filename = part.get_filename()
-                    if filename:
-                        file_data = part.get_payload(decode=True)
-                        save_to_file_manager(filename, file_data)
-                        break
-
+            filename, file_data = self.parse_multipart()
+            if filename and file_data:
+                if not os.path.exists(UPLOAD_DIR):
+                    os.makedirs(UPLOAD_DIR)
+                filepath = os.path.join(UPLOAD_DIR, filename)
+                with open(filepath, "wb") as f:
+                    f.write(file_data)
             self.redirect("/")
             return
 
@@ -636,6 +649,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if session['role'] != 'teacher':
                 self.send_json({"error": "Forbidden"}, 403)
                 return
+            content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
             global BOARD_CACHE
             with CACHE_LOCK:
@@ -671,5 +685,5 @@ if __name__ == "__main__":
         os.makedirs(UPLOAD_DIR)
     
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
-        print(f"DigiBoard Master Console running on port {PORT}")
+        print(f"DigiBoard Master Console running at http://localhost:{PORT}")
         httpd.serve_forever()
