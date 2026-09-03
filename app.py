@@ -111,8 +111,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .stroke-opt.active { border-color: #0284c7; background: #e0f2fe; }
         .stroke-preview { background: #000; border-radius: 50%; }
         .file-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }
-        .file-item a { color: #38bdf8; text-decoration: none; }
-        .delete-btn { color: #ef4444; background: none; border: none; cursor: pointer; font-weight: bold; }
+        .file-item a { color: #38bdf8; text-decoration: none; font-weight: 500; font-size: 0.95rem; word-break: break-all; }
+        .file-item a:hover { text-decoration: underline; }
+        .delete-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .delete-btn:hover { background: #ef4444; color: #fff; }
         .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
     </style>
 </head>
@@ -207,54 +209,82 @@ CONSOLE_HTML = """<!DOCTYPE html>
     </div>
 
     <div class="modal" id="filemanager-modal">
-        <div class="modal-content" style="max-width: 600px; height:auto;">
+        <div class="modal-content" style="max-width: 650px; height:auto;">
             <div class="modal-header">
                 <h3>Class File Manager</h3>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
-            <div class="modal-body" style="height: 450px; overflow-y: auto;">
+            <!--ROLE_STUDENT_ONLY-->
+            <div class="readonly-banner">Student View (Read-Only) - View & Download Available Documents</div>
+            <!--END_STUDENT_ROLE-->
+            <div class="modal-body" style="height: 480px; overflow-y: auto;">
                 <!--ROLE_TEACHER_ONLY-->
-                <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px;">
-                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8;">Upload New Document:</label>
-                    <input type="file" name="file" required style="margin-bottom:0.75rem; color:white;">
-                    <button type="submit" style="width:100%; padding:0.5rem; background:#10b981; border:none; color:white; border-radius:4px; cursor:pointer;">Upload File</button>
+                <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
+                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload New Document:</label>
+                    <input type="file" name="file" required style="margin-bottom:0.75rem; color:white; width:100%;">
+                    <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Upload File</button>
                 </form>
                 <!--END_ROLE-->
-                <!--ROLE_STUDENT_ONLY-->
-                <div class="readonly-banner" style="margin-bottom: 1rem; border-radius: 4px;">Student View (Read-Only) - View & Download Available Documents</div>
-                <!--END_STUDENT_ROLE-->
-                <ul id="file-list-container" style="list-style:none; padding:0; margin:0;"></ul>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                    <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">AVAILABLE DOCUMENTS</span>
+                    <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔄 Refresh</button>
+                </div>
+                <ul id="file-list-container" style="list-style:none; padding:0; margin:0;">
+                    <li style="color:#94a3b8; text-align:center; padding: 2rem 0;">Loading files...</li>
+                </ul>
             </div>
         </div>
     </div>
 
     <script>
         const USER_ROLE = "<!--USER_ROLE-->";
+        let filePollInterval = null;
 
         function openApp(id) { 
             document.getElementById(id).style.display = 'flex'; 
             if(id === 'whiteboard-modal') { resizeCanvas(); }
         }
-        function closeApp(id) { document.getElementById(id).style.display = 'none'; }
+        
+        function closeApp(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if(id === 'filemanager-modal' && filePollInterval) {
+                clearInterval(filePollInterval);
+                filePollInterval = null;
+            }
+        }
+        
         function launchWPS() { window.location.href = '/launch-wps'; }
-        function openFileManager() { openApp('filemanager-modal'); loadFileList(); }
+
+        function openFileManager() { 
+            openApp('filemanager-modal'); 
+            loadFileList();
+            if(!filePollInterval) {
+                filePollInterval = setInterval(loadFileList, 4000);
+            }
+        }
 
         function loadFileList() {
-            // Append timestamp to prevent TV browser from returning cached API data
             fetch('/api/files?t=' + Date.now(), { cache: "no-store" })
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error("HTTP error " + r.status);
+                    return r.json();
+                })
                 .then(files => {
                     const container = document.getElementById('file-list-container');
+                    if (!container) return;
                     if (!files || files.length === 0) {
-                        container.innerHTML = '<li style="color:#94a3b8; text-align:center;">No files available.</li>';
+                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet.</li>';
                         return;
                     }
                     container.innerHTML = files.map(file => `
                         <li class="file-item">
-                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank">${file}</a>
+                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
                             ${USER_ROLE === 'teacher' ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
                         </li>
                     `).join('');
+                })
+                .catch(err => {
+                    console.error("Failed to load files:", err);
                 });
         }
 
