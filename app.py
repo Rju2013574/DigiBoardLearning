@@ -9,15 +9,40 @@ import threading
 import re
 
 PORT = 8000
+DATA_FILE = "db.json"
 UPLOAD_DIR = "uploads"
 SESSIONS = {}
-BOARD_CACHE = "[]"
+BOARD_CACHE = "{}"
 CACHE_LOCK = threading.Lock()
 
-USERS = {
-    "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
-    "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
+# Initial database structure
+DEFAULT_DB = {
+    "users": {
+        "admin@digiboard.com": {
+            "password": "admin",
+            "role": "admin",
+            "name": "System Administrator"
+        }
+    },
+    "digiboards": {},
+    "teachers": {}
 }
+
+def load_db():
+    if not os.path.exists(DATA_FILE):
+        save_db(DEFAULT_DB)
+        return DEFAULT_DB
+    try:
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return DEFAULT_DB
+
+def save_db(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+DB = load_db()
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
@@ -25,7 +50,7 @@ LOGIN_HTML = """<!DOCTYPE html>
     <title>DigiBoard - Login</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 340px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
+        .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 360px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
         h2 { text-align: center; margin-top: 0; color: #38bdf8; font-size: 1.5rem; }
         label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 1rem; }
         input { width: 100%; padding: 0.65rem; margin-top: 0.3rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }
@@ -37,10 +62,10 @@ LOGIN_HTML = """<!DOCTYPE html>
 </head>
 <body>
     <div class="login-card">
-        <h2>DigiBoard Master Console</h2>
+        <h2>DigiBoard Portal Login</h2>
         <!--ERROR-->
         <form action="/login" method="POST">
-            <label>Username</label>
+            <label>Username / Email</label>
             <input type="text" name="username" placeholder="user@domain.com" required>
             <label>Password</label>
             <input type="password" name="password" required>
@@ -57,71 +82,44 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
-        header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }
-        .header-title { font-size: 1.25rem; font-weight: bold; letter-spacing: 0.5px; color: #ffffff; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }
+        .header-title { font-size: 1.25rem; font-weight: bold; color: #ffffff; }
         .user-section { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }
         .user-id { color: #ffffff; font-weight: 600; }
         .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+        .profile-tile { background: #0284c7; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; border: 1px solid #38bdf8; display: flex; align-items: center; gap: 0.4rem; }
+        .profile-tile:hover { background: #0369a1; }
         .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
         .logout-btn:hover { background: #1e293b; color: #fff; }
         .console-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 2rem; }
         .grid-wrapper { background: rgba(15, 23, 42, 0.6); border: 1px solid #172554; border-radius: 16px; padding: 2.5rem; display: flex; gap: 2rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
         .app-card { width: 150px; height: 150px; background: #091326; border: 1px solid #1e293b; border-radius: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; gap: 0.85rem; }
-        .app-card:hover { transform: translateY(-4px); border-color: #38bdf8; background: #0e1d38; box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2); }
+        .app-card:hover { transform: translateY(-4px); border-color: #38bdf8; background: #0e1d38; }
         .app-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; }
         .icon-wb { background: #2563eb; }
-        .icon-doc { background: #ef4444; }
         .icon-fm { background: #eab308; }
         .app-icon svg { width: 30px; height: 30px; fill: white; }
         .app-title { font-size: 0.85rem; font-weight: 600; color: #cbd5e1; text-align: center; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.9); justify-content: center; align-items: center; z-index: 100; }
-        .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 95%; max-width: 1150px; height: 88vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 95%; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; background: #070d19; }
-        .modal-header h3 { margin: 0; color: #38bdf8; font-size: 1.1rem; }
-        .header-actions { display: flex; align-items: center; gap: 1rem; }
-        .clear-all-btn { background: #ef4444; color: #ffffff; border: none; padding: 0.45rem 0.9rem; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s, transform 0.1s; }
-        .clear-all-btn:hover { background: #dc2626; transform: scale(1.02); }
-        .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; line-height: 1; }
-        .close-btn:hover { color: #fff; }
-        .modal-body { padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }
-        .wb-viewport { position: relative; width: 100%; height: 100%; flex: 1; background: #ffffff; border-radius: 8px; overflow: hidden; }
-        
-        canvas { 
-            display: block; 
-            width: 100%; 
-            height: 100%; 
-            background: radial-gradient(#d1d5db 1px, transparent 1px); 
-            background-size: 20px 20px; 
-            cursor: crosshair; 
-            touch-action: none; 
-        }
-        
-        .markup-palette { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 30px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); z-index: 20; width: 58px; }
-        .markup-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 0.15s, transform 0.15s; color: #334155; padding: 0; }
-        .markup-btn:hover { background: #e2e8f0; transform: scale(1.08); }
-        .markup-btn.active { background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid #0284c7; }
-        .palette-divider { width: 30px; height: 1px; background: #cbd5e1; margin: 2px 0; }
-        .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.15s; }
-        .color-dot:hover { transform: scale(1.15); }
-        .color-dot.active { transform: scale(1.2); border-color: #0284c7; }
-        .tool-config-popover { display: none; position: absolute; left: 85px; top: 50%; transform: translateY(-50%); background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 30; width: 220px; color: #1e293b; }
-        .tool-config-popover h4 { margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #475569; }
-        .stroke-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
-        .stroke-opt { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #cbd5e1; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-        .stroke-opt.active { border-color: #0284c7; background: #e0f2fe; }
-        .stroke-preview { background: #000; border-radius: 50%; }
+        .modal-header h3 { margin: 0; color: #38bdf8; }
+        .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; color: #f8fafc; }
+        form-group { display: block; margin-bottom: 1rem; }
+        label { font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 0.3rem; }
+        input, select { width: 100%; padding: 0.6rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }
+        .btn-submit { background: #10b981; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 1rem; }
+        .subject-teacher-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
         .file-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }
-        .file-item a { color: #38bdf8; text-decoration: none; font-weight: 500; font-size: 0.95rem; word-break: break-all; }
-        .file-item a:hover { text-decoration: underline; }
-        .delete-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
-        .delete-btn:hover { background: #ef4444; color: #fff; }
-        .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
+        .file-item a { color: #38bdf8; text-decoration: none; font-weight: 500; }
     </style>
 </head>
 <body>
     <header>
         <div class="header-title">DigiBoard Master Console</div>
         <div class="user-section">
+            <!--ADMIN_PROFILE_TILE-->
             User ID: <span class="user-id"><!--USERNAME--></span>
             <span class="user-role-badge"><!--USER_ROLE--></span>
             <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
@@ -130,18 +128,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     <div class="console-container">
         <div class="grid-wrapper">
-            <div class="app-card" onclick="openApp('whiteboard-modal')">
-                <div class="app-icon icon-wb">
-                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                </div>
-                <div class="app-title">WhiteBoard</div>
-            </div>
-            <div class="app-card" onclick="launchWPS()">
-                <div class="app-icon icon-doc">
-                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-                </div>
-                <div class="app-title">WPS Office</div>
-            </div>
             <div class="app-card" onclick="openFileManager()">
                 <div class="app-icon icon-fm">
                     <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
@@ -151,347 +137,179 @@ CONSOLE_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
-    <div class="modal" id="whiteboard-modal">
+    <!-- ADMIN ACCOUNT CREATION MODAL -->
+    <div class="modal" id="admin-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>DigiBoard Interactive Whiteboard</h3>
-                <div class="header-actions">
-                    <!--ROLE_TEACHER_ONLY-->
-                    <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard">
-                        <span>Clear All</span> 🗑️
-                    </button>
-                    <!--END_ROLE-->
-                    <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
-                </div>
+                <h3>Admin Console - Account Creation</h3>
+                <span class="close-btn" onclick="closeApp('admin-modal')">&times;</span>
             </div>
-            <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only Mode) - Live Syncing Teacher Board</div>
-            <!--END_STUDENT_ROLE-->
             <div class="modal-body">
-                <div class="wb-viewport" id="wb-container">
-                    <canvas id="board"></canvas>
-                    <!--ROLE_TEACHER_ONLY-->
-                    <div class="markup-palette">
-                        <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
-                        <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
-                        <div class="palette-divider"></div>
-                        <button class="markup-btn active" id="tool-pen" onclick="selectTool('pen')" title="Pen">✏️</button>
-                        <button class="markup-btn" id="tool-fountain" onclick="selectTool('fountain')" title="Fountain Pen">✒️</button>
-                        <button class="markup-btn" id="tool-marker" onclick="selectTool('marker')" title="Marker">🖊️</button>
-                        <button class="markup-btn" id="tool-highlighter" onclick="selectTool('highlighter')" title="Highlighter">🖍️</button>
-                        <button class="markup-btn" id="tool-tube" onclick="selectTool('tube')" title="Paint Tube">🎨</button>
-                        <button class="markup-btn" id="tool-eraser" onclick="selectTool('eraser')" title="Eraser">🧹</button>
-                        <div class="palette-divider"></div>
-                        <div class="color-dot active" style="background:#000000;" onclick="setColor('#000000', this)"></div>
-                        <div class="color-dot" style="background:#ef4444;" onclick="setColor('#ef4444', this)"></div>
-                        <div class="color-dot" style="background:#3b82f6;" onclick="setColor('#3b82f6', this)"></div>
-                        <div class="color-dot" style="background:#10b981;" onclick="setColor('#10b981', this)"></div>
-                        <div class="color-dot" style="background:#f59e0b;" onclick="setColor('#f59e0b', this)"></div>
-                        <input type="color" id="custom-color" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" onchange="setColor(this.value, null)">
-                        <div class="palette-divider"></div>
-                        <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">⚙️</button>
-                    </div>
-                    <div class="tool-config-popover" id="config-popover">
-                        <h4>Stroke Thickness</h4>
-                        <div class="stroke-options">
-                            <div class="stroke-opt" onclick="setStroke(2, this)"><div class="stroke-preview" style="width:3px; height:3px;"></div></div>
-                            <div class="stroke-opt active" onclick="setStroke(5, this)"><div class="stroke-preview" style="width:6px; height:6px;"></div></div>
-                            <div class="stroke-opt" onclick="setStroke(10, this)"><div class="stroke-preview" style="width:10px; height:10px;"></div></div>
-                            <div class="stroke-opt" onclick="setStroke(18, this)"><div class="stroke-preview" style="width:14px; height:14px;"></div></div>
-                        </div>
-                        <h4>Opacity</h4>
-                        <input type="range" id="opacity-range" min="0.1" max="1" step="0.1" value="1" style="width:100%;" onchange="setOpacity(this.value)">
-                    </div>
-                    <!--END_ROLE-->
+                <div style="display:flex; gap:1rem; margin-bottom:1.5rem; border-bottom:1px solid #1e293b; padding-bottom:1rem;">
+                    <button style="flex:1; padding:0.5rem; background:#0284c7; border:none; color:white; border-radius:6px; cursor:pointer;" onclick="switchTab('digiboard')">Create Digital Board Account</button>
+                    <button style="flex:1; padding:0.5rem; background:#334155; border:none; color:white; border-radius:6px; cursor:pointer;" onclick="switchTab('teacher')">Create Teacher Account</button>
                 </div>
+
+                <!-- Digital Board Form -->
+                <form id="form-digiboard" action="/admin/create-digiboard" method="POST">
+                    <h4>Digital Board Account Creation Format</h4>
+                    <label>Class Teacher Name</label>
+                    <input type="text" name="class_teacher_name" required>
+                    <label>Class</label>
+                    <input type="text" name="class_name" placeholder="e.g. Grade6" required>
+                    <label>Section</label>
+                    <input type="text" name="section_name" placeholder="e.g. E" required>
+                    <label>Room Number</label>
+                    <input type="text" name="room_number" required>
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                    <button type="submit" class="btn-submit">Create Digital Board Account</button>
+                </form>
+
+                <!-- Teacher Form -->
+                <form id="form-teacher" action="/admin/create-teacher" method="POST" style="display:none;">
+                    <h4>Teacher Account Creation Format</h4>
+                    <label>Class Teacher Name</label>
+                    <input type="text" name="class_teacher_name" required>
+                    
+                    <label>Subject Teachers (Can add up to 12+ teachers)</label>
+                    <div id="subject-teachers-container">
+                        <div class="subject-teacher-row">
+                            <input type="text" name="subject_name[]" placeholder="Subject Name (e.g., Math)" required>
+                            <input type="text" name="teacher_name[]" placeholder="Teacher Name" required>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addSubjectTeacherRow()" style="background:#1e293b; color:#38bdf8; border:1px solid #334155; padding:0.4rem; border-radius:4px; margin-bottom:1rem; cursor:pointer;">+ Add Subject Teacher</button>
+
+                    <label>Class</label>
+                    <input type="text" name="class_name" placeholder="e.g. Grade6" required>
+                    <label>Section</label>
+                    <input type="text" name="section_name" placeholder="e.g. E" required>
+                    <label>Room Number</label>
+                    <input type="text" name="room_number" required>
+                    <label>Username</label>
+                    <input type="text" name="username" required>
+                    <label>Password</label>
+                    <input type="password" name="password" required>
+                    <button type="submit" class="btn-submit">Create Teacher Account</button>
+                </form>
             </div>
         </div>
     </div>
 
+    <!-- FILE MANAGER MODAL -->
     <div class="modal" id="filemanager-modal">
-        <div class="modal-content" style="max-width: 650px; height:auto;">
+        <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
-                <h3>Class File Manager</h3>
+                <h3>Class File Manager (<span id="fm-scope">Loading...</span>)</h3>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
-            <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only) - View & Download Available Documents</div>
-            <!--END_STUDENT_ROLE-->
-            <div class="modal-body" style="height: 480px; overflow-y: auto;">
+            <div class="modal-body">
+                <!-- TEACHER UPLOAD SECTION -->
                 <!--ROLE_TEACHER_ONLY-->
-                <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
-                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload New Document:</label>
-                    <input type="file" name="file" required style="margin-bottom:0.75rem; color:white; width:100%;">
-                    <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Upload File</button>
+                <form action="/upload" method="POST" enctype="multipart/form-data" style="background:#070d19; padding:1rem; border-radius:6px; margin-bottom:1rem; border:1px solid #1e293b;">
+                    <label>Save File To Class:</label>
+                    <input type="text" id="upload_class" name="class_name" placeholder="Grade6" required>
+                    <label>Section:</label>
+                    <input type="text" id="upload_section" name="section_name" placeholder="E" required>
+                    <label>Subject:</label>
+                    <input type="text" name="subject_name" placeholder="Sanskrit / Math / Social" required>
+                    <label>Select Document:</label>
+                    <input type="file" name="file" required style="margin-bottom:0.5rem;">
+                    <button type="submit" class="btn-submit" style="margin-top:0.5rem;">Save Document</button>
                 </form>
                 <!--END_ROLE-->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                    <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">AVAILABLE DOCUMENTS</span>
-                    <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔄 Refresh</button>
+
+                <!-- SUBJECT SELECTOR -->
+                <div style="margin-bottom:1rem;">
+                    <label>Select Subject Folder:</label>
+                    <select id="subject-filter" onchange="loadFileList()">
+                        <option value="">-- Select Subject --</option>
+                    </select>
                 </div>
-                <ul id="file-list-container" style="list-style:none; padding:0; margin:0;">
-                    <li style="color:#94a3b8; text-align:center; padding: 2rem 0;">Loading files...</li>
-                </ul>
+
+                <div id="file-list-container">
+                    <p style="color:#94a3b8; text-align:center;">Select a subject folder to view files.</p>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         const USER_ROLE = "<!--USER_ROLE-->";
-        let filePollInterval = null;
+        const USER_CLASS = "<!--USER_CLASS-->";
+        const USER_SECTION = "<!--USER_SECTION-->";
 
-        function openApp(id) { 
-            document.getElementById(id).style.display = 'flex'; 
-            if(id === 'whiteboard-modal') { resizeCanvas(); }
-        }
-        
-        function closeApp(id) { 
-            document.getElementById(id).style.display = 'none'; 
-            if(id === 'filemanager-modal' && filePollInterval) {
-                clearInterval(filePollInterval);
-                filePollInterval = null;
+        function openApp(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeApp(id) { document.getElementById(id).style.display = 'none'; }
+
+        function openAdminModal() { openApp('admin-modal'); }
+
+        function switchTab(tab) {
+            if(tab === 'digiboard') {
+                document.getElementById('form-digiboard').style.display = 'block';
+                document.getElementById('form-teacher').style.display = 'none';
+            } else {
+                document.getElementById('form-digiboard').style.display = 'none';
+                document.getElementById('form-teacher').style.display = 'block';
             }
         }
-        
-        function launchWPS() { window.location.href = '/launch-wps'; }
 
-        function openFileManager() { 
-            openApp('filemanager-modal'); 
-            loadFileList();
-            if(!filePollInterval) {
-                filePollInterval = setInterval(loadFileList, 4000);
+        function addSubjectTeacherRow() {
+            const container = document.getElementById('subject-teachers-container');
+            const row = document.createElement('div');
+            row.className = 'subject-teacher-row';
+            row.innerHTML = `<input type="text" name="subject_name[]" placeholder="Subject Name" required>
+                             <input type="text" name="teacher_name[]" placeholder="Teacher Name" required>`;
+            container.appendChild(row);
+        }
+
+        function openFileManager() {
+            openApp('filemanager-modal');
+            document.getElementById('fm-scope').innerText = USER_ROLE === 'student' ? `${USER_CLASS} - ${USER_SECTION}` : "Teacher Portal";
+            
+            if(USER_ROLE === 'teacher') {
+                document.getElementById('upload_class').value = USER_CLASS;
+                document.getElementById('upload_section').value = USER_SECTION;
             }
+
+            fetch('/api/subjects')
+                .then(r => r.json())
+                .then(subjects => {
+                    const sel = document.getElementById('subject-filter');
+                    sel.innerHTML = '<option value="">-- Select Subject --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+                });
         }
 
         function loadFileList() {
-            fetch('/api/files?t=' + Date.now(), { cache: "no-store" })
-                .then(r => {
-                    if (!r.ok) throw new Error("HTTP error " + r.status);
-                    return r.json();
-                })
+            const subject = document.getElementById('subject-filter').value;
+            if(!subject) return;
+
+            fetch(`/api/files?subject=${encodeURIComponent(subject)}`)
+                .then(r => r.json())
                 .then(files => {
                     const container = document.getElementById('file-list-container');
-                    if (!container) return;
                     if (!files || files.length === 0) {
-                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet.</li>';
+                        container.innerHTML = '<p style="color:#94a3b8; text-align:center;">No files available in this subject directory.</p>';
                         return;
                     }
                     container.innerHTML = files.map(file => `
-                        <li class="file-item">
-                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
-                            ${USER_ROLE === 'teacher' ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
-                        </li>
+                        <div class="file-item">
+                            <a href="/uploads/${encodeURIComponent(file.path)}" target="_blank" download="${file.name}">📄 ${file.name}</a>
+                        </div>
                     `).join('');
-                })
-                .catch(err => {
-                    console.error("Failed to load files:", err);
                 });
-        }
-
-        function deleteFile(filename) {
-            if (!confirm('Delete file: ' + filename + '?')) return;
-            fetch('/api/delete-file?name=' + encodeURIComponent(filename), { method: 'DELETE' })
-                .then(r => r.json())
-                .then(() => loadFileList());
-        }
-
-        const canvas = document.getElementById('board');
-        const ctx = canvas.getContext('2d');
-        const container = document.getElementById('wb-container');
-
-        let isDrawing = false;
-        let lines = [];
-        let undoStack = [];
-        let activeTool = 'pen';
-        let currentColor = '#000000';
-        let currentLineWidth = 5;
-        let currentOpacity = 1.0;
-
-        function resizeCanvas() {
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-            redraw(lines);
-        }
-
-        window.addEventListener('resize', resizeCanvas);
-
-        if (USER_ROLE === 'teacher') {
-            canvas.addEventListener('pointerdown', (e) => {
-                isDrawing = true;
-                canvas.setPointerCapture(e.pointerId);
-                const rect = canvas.getBoundingClientRect();
-                let width = currentLineWidth;
-                let color = currentColor;
-                let opacity = currentOpacity;
-
-                if (activeTool === 'highlighter') {
-                    opacity = 0.4;
-                    width = Math.max(width, 18);
-                } else if (activeTool === 'eraser') {
-                    color = '#ffffff';
-                    width = 25;
-                    opacity = 1.0;
-                } else if (activeTool === 'marker') {
-                    width = Math.max(width, 10);
-                }
-
-                const newLine = {
-                    tool: activeTool,
-                    color: color,
-                    width: width,
-                    opacity: opacity,
-                    pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
-                };
-                lines.push(newLine);
-                undoStack = [];
-            });
-
-            canvas.addEventListener('pointermove', (e) => {
-                if (!isDrawing) return;
-                const rect = canvas.getBoundingClientRect();
-                const currentLine = lines[lines.length - 1];
-                currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                redraw(lines);
-            });
-
-            canvas.addEventListener('pointerup', (e) => { 
-                if (isDrawing) {
-                    isDrawing = false; 
-                    canvas.releasePointerCapture(e.pointerId);
-                    syncWhiteboard();
-                }
-            });
-            
-            canvas.addEventListener('pointercancel', (e) => {
-                if (isDrawing) {
-                    isDrawing = false;
-                    try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
-                    syncWhiteboard();
-                }
-            });
-        }
-
-        function redraw(linesToDraw) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (!linesToDraw) return;
-            
-            linesToDraw.forEach(line => {
-                if (!line || !line.pts || line.pts.length === 0) return;
-                ctx.save();
-                ctx.strokeStyle = line.color || "#000000";
-                ctx.lineWidth = line.width || 3;
-                ctx.globalAlpha = line.opacity || 1.0;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                
-                ctx.beginPath();
-                line.pts.forEach((pt, i) => {
-                    if (i === 0) ctx.moveTo(pt.x, pt.y);
-                    else ctx.lineTo(pt.x, pt.y);
-                });
-                ctx.stroke();
-                ctx.restore();
-            });
-        }
-
-        function selectTool(tool) {
-            activeTool = tool;
-            document.querySelectorAll('.markup-btn').forEach(b => b.classList.remove('active'));
-            const activeBtn = document.getElementById('tool-' + tool);
-            if(activeBtn) activeBtn.classList.add('active');
-        }
-
-        function setColor(hex, el) {
-            currentColor = hex;
-            if(el) {
-                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
-                el.classList.add('active');
-            }
-        }
-
-        function setStroke(width, el) {
-            currentLineWidth = width;
-            document.querySelectorAll('.stroke-opt').forEach(o => o.classList.remove('active'));
-            if(el) el.classList.add('active');
-        }
-
-        function setOpacity(val) { currentOpacity = parseFloat(val); }
-
-        function toggleConfigPopover() {
-            const pop = document.getElementById('config-popover');
-            pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
-        }
-
-        function undo() {
-            if (lines.length > 0) {
-                undoStack.push(lines.pop());
-                redraw(lines);
-                syncWhiteboard();
-            }
-        }
-
-        function redo() {
-            if (undoStack.length > 0) {
-                lines.push(undoStack.pop());
-                redraw(lines);
-                syncWhiteboard();
-            }
-        }
-
-        function clearBoard() {
-            if (lines.length === 0) return;
-            if (!confirm("Are you sure you want to clear the entire whiteboard?")) return;
-            undoStack.push(...lines);
-            lines = [];
-            redraw(lines);
-            syncWhiteboard();
-        }
-
-        function syncWhiteboard() {
-            if (USER_ROLE !== 'teacher') return;
-            fetch('/api/whiteboard', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(lines)
-            });
-        }
-
-        function pollWhiteboard() {
-            if (USER_ROLE === 'student') {
-                fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
-                    .then(r => r.json())
-                    .then(data => {
-                        lines = data;
-                        redraw(lines);
-                    })
-                    .catch(() => {})
-                    .finally(() => setTimeout(pollWhiteboard, 1000));
-            }
-        }
-
-        if (USER_ROLE === 'student') {
-            pollWhiteboard();
         }
     </script>
 </body>
 </html>"""
 
-def open_local_file(filepath):
-    import subprocess, sys
-    try:
-        if sys.platform.startswith('win'):
-            os.startfile(filepath)
-        elif sys.platform.startswith('darwin'):
-            subprocess.run(['open', filepath])
-        else:
-            subprocess.run(['xdg-open', filepath])
-    except Exception as e:
-        print(f"Error opening document: {e}")
-
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
     def set_no_cache_headers(self):
-        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
 
@@ -526,27 +344,35 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def parse_multipart(self):
-        """Parses multipart form-data for file uploads."""
         content_type = self.headers.get('Content-Type', '')
         if not content_type.startswith('multipart/form-data'):
-            return None, None
+            return {}, None, None
         
         boundary = content_type.split('boundary=')[1].encode('utf-8')
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
 
+        form_data = {}
+        file_name = None
+        file_bytes = None
+
         parts = body.split(b'--' + boundary)
         for part in parts:
-            if b'filename="' in part:
-                header_part, file_data = part.split(b'\r\n\r\n', 1)
-                file_data = file_data.rsplit(b'\r\n', 1)[0]
+            if b'Content-Disposition' in part:
+                headers_part, data = part.split(b'\r\n\r\n', 1)
+                data = data.rsplit(b'\r\n', 1)[0]
+                header_text = headers_part.decode('utf-8', errors='ignore')
                 
-                header_text = header_part.decode('utf-8', errors='ignore')
+                name_match = re.search(r'name="([^"]+)"', header_text)
                 filename_match = re.search(r'filename="([^"]+)"', header_text)
+
                 if filename_match:
-                    filename = filename_match.group(1)
-                    return os.path.basename(filename), file_data
-        return None, None
+                    file_name = os.path.basename(filename_match.group(1))
+                    file_bytes = data
+                elif name_match:
+                    form_data[name_match.group(1)] = data.decode('utf-8').strip()
+
+        return form_data, file_name, file_bytes
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -563,8 +389,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 cookie = cookies.SimpleCookie()
                 cookie.load(cookie_header)
                 if 'session_id' in cookie:
-                    sid = cookie['session_id'].value
-                    SESSIONS.pop(sid, None)
+                    SESSIONS.pop(cookie['session_id'].value, None)
             self.redirect("/login")
             return
 
@@ -575,53 +400,64 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             
             html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
-            
+            html = html.replace("<!--USER_CLASS-->", session.get('class', ''))
+            html = html.replace("<!--USER_SECTION-->", session.get('section', ''))
+
+            if session['role'] == 'admin':
+                tile_html = '<div class="profile-tile" onclick="openAdminModal()">👤 Profile / Admin Portal</div>'
+                html = html.replace("<!--ADMIN_PROFILE_TILE-->", tile_html)
+            else:
+                html = html.replace("<!--ADMIN_PROFILE_TILE-->", "")
+
             if session['role'] != 'teacher':
                 html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
-                html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
             else:
-                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
                 html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
                 
             self.send_html(html)
             return
 
-        if path == "/launch-wps":
+        if path == "/api/subjects":
             if not session:
-                self.redirect("/login")
+                self.send_json([], 401)
                 return
-            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
-            if files:
-                target = os.path.join(UPLOAD_DIR, files[0])
-                open_local_file(target)
-            self.redirect("/")
+            
+            cls, sec = session.get('class'), session.get('section')
+            target_dir = os.path.join(UPLOAD_DIR, cls, sec) if cls and sec else UPLOAD_DIR
+            
+            subjects = []
+            if os.path.exists(target_dir):
+                subjects = [d for d in os.listdir(target_dir) if os.path.isdir(os.path.join(target_dir, d))]
+            self.send_json(subjects)
             return
 
         if path == "/api/files":
             if not session:
-                self.send_json({"error": "Unauthorized"}, 401)
+                self.send_json([], 401)
                 return
-            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
+            
+            query = urllib.parse.parse_qs(parsed.query)
+            subject = query.get('subject', [''])[0]
+            cls, sec = session.get('class'), session.get('section')
+
+            if not cls or not sec or not subject:
+                self.send_json([])
+                return
+
+            subj_dir = os.path.join(UPLOAD_DIR, cls, sec, subject)
+            files = []
+            if os.path.exists(subj_dir):
+                for f in os.listdir(subj_dir):
+                    rel_path = f"{cls}/{sec}/{subject}/{f}"
+                    files.append({"name": f, "path": rel_path})
             self.send_json(files)
             return
 
-        if path == "/api/whiteboard":
-            global BOARD_CACHE
-            with CACHE_LOCK:
-                try:
-                    data = json.loads(BOARD_CACHE)
-                except Exception:
-                    data = []
-            self.send_json(data)
-            return
-
         if path.startswith("/uploads/"):
-            filename = urllib.parse.unquote(path[len("/uploads/"):])
-            filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
-            if os.path.exists(filepath):
+            filepath = os.path.join(UPLOAD_DIR, urllib.parse.unquote(path[len("/uploads/"):].lstrip('/')))
+            if os.path.exists(filepath) and os.path.isfile(filepath):
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
-                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
                 self.set_no_cache_headers()
                 self.end_headers()
                 with open(filepath, "rb") as f:
@@ -637,15 +473,21 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         path = parsed.path
 
         if path == "/login":
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length).decode('utf-8')
+            length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(length).decode('utf-8')
             params = urllib.parse.parse_qs(body)
             username = params.get('username', [''])[0]
             password = params.get('password', [''])[0]
 
-            if username in USERS and USERS[username]['password'] == password:
+            user_data = DB["users"].get(username)
+            if user_data and user_data['password'] == password:
                 sid = str(uuid.uuid4())
-                SESSIONS[sid] = {"username": username, "role": USERS[username]['role']}
+                SESSIONS[sid] = {
+                    "username": username,
+                    "role": user_data['role'],
+                    "class": user_data.get('class', ''),
+                    "section": user_data.get('section', '')
+                }
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
                 self.send_header("Location", "/")
@@ -661,59 +503,65 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
-        if path == "/upload":
-            if session['role'] != 'teacher':
-                self.send_json({"error": "Forbidden"}, 403)
-                return
-            filename, file_data = self.parse_multipart()
-            if filename and file_data:
-                if not os.path.exists(UPLOAD_DIR):
-                    os.makedirs(UPLOAD_DIR)
-                filepath = os.path.join(UPLOAD_DIR, filename)
-                with open(filepath, "wb") as f:
-                    f.write(file_data)
+        if path == "/admin/create-digiboard" and session['role'] == 'admin':
+            length = int(self.headers.get('Content-Length', 0))
+            params = urllib.parse.parse_qs(self.rfile.read(length).decode('utf-8'))
+            
+            username = params.get('username', [''])[0]
+            DB["users"][username] = {
+                "password": params.get('password', [''])[0],
+                "role": "student",
+                "class": params.get('class_name', [''])[0],
+                "section": params.get('section_name', [''])[0],
+                "room": params.get('room_number', [''])[0],
+                "class_teacher": params.get('class_teacher_name', [''])[0]
+            }
+            save_db(DB)
             self.redirect("/")
             return
 
-        if path == "/api/whiteboard":
-            if session['role'] != 'teacher':
-                self.send_json({"error": "Forbidden"}, 403)
-                return
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length).decode('utf-8')
-            global BOARD_CACHE
-            with CACHE_LOCK:
-                BOARD_CACHE = body
-            self.send_json({"status": "ok"})
+        if path == "/admin/create-teacher" and session['role'] == 'admin':
+            length = int(self.headers.get('Content-Length', 0))
+            params = urllib.parse.parse_qs(self.rfile.read(length).decode('utf-8'))
+            
+            username = params.get('username', [''])[0]
+            subjects = params.get('subject_name[]', [])
+            teachers = params.get('teacher_name[]', [])
+            
+            subject_teacher_map = dict(zip(subjects, teachers))
+
+            DB["users"][username] = {
+                "password": params.get('password', [''])[0],
+                "role": "teacher",
+                "class": params.get('class_name', [''])[0],
+                "section": params.get('section_name', [''])[0],
+                "room": params.get('room_number', [''])[0],
+                "class_teacher": params.get('class_teacher_name', [''])[0],
+                "subject_teachers": subject_teacher_map
+            }
+            save_db(DB)
+            self.redirect("/")
             return
 
-        self.send_error(404)
+        if path == "/upload" and session['role'] == 'teacher':
+            form_data, filename, file_data = self.parse_multipart()
+            cls = form_data.get('class_name')
+            sec = form_data.get('section_name')
+            subject = form_data.get('subject_name')
 
-    def do_DELETE(self):
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
-        session = self.get_session()
+            if cls and sec and subject and filename and file_data:
+                target_dir = os.path.join(UPLOAD_DIR, cls, sec, subject)
+                os.makedirs(target_dir, exist_ok=True)
+                with open(os.path.join(target_dir, filename), "wb") as f:
+                    f.write(file_data)
 
-        if not session or session['role'] != 'teacher':
-            self.send_json({"error": "Forbidden"}, 403)
-            return
-
-        if path == "/api/delete-file":
-            params = urllib.parse.parse_qs(parsed.query)
-            filename = params.get('name', [''])[0]
-            if filename:
-                filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-            self.send_json({"status": "deleted"})
+            self.redirect("/")
             return
 
         self.send_error(404)
 
 if __name__ == "__main__":
-    if not os.path.exists(UPLOAD_DIR):
-        os.makedirs(UPLOAD_DIR)
-    
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
-        print(f"DigiBoard Master Console running at http://localhost:{PORT}")
+        print(f"DigiBoard Portal active at http://localhost:{PORT}")
         httpd.serve_forever()
