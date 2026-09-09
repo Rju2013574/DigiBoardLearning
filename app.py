@@ -12,6 +12,8 @@ PORT = 8000
 DATA_FILE = "db.json"
 UPLOAD_DIR = "uploads"
 SESSIONS = {}
+
+# Whiteboard Cache & Locks
 BOARD_CACHE = "{}"
 CACHE_LOCK = threading.Lock()
 
@@ -23,9 +25,7 @@ DEFAULT_DB = {
             "role": "admin",
             "name": "System Administrator"
         }
-    },
-    "digiboards": {},
-    "teachers": {}
+    }
 }
 
 def load_db():
@@ -106,13 +106,19 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .modal-header h3 { margin: 0; color: #38bdf8; }
         .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
         .modal-body { padding: 1.5rem; overflow-y: auto; flex: 1; color: #f8fafc; }
-        form-group { display: block; margin-bottom: 1rem; }
         label { font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 0.3rem; }
         input, select { width: 100%; padding: 0.6rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }
         .btn-submit { background: #10b981; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 1rem; }
         .subject-teacher-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
         .file-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }
         .file-item a { color: #38bdf8; text-decoration: none; font-weight: 500; }
+
+        /* Whiteboard Specific Styles */
+        .wb-toolbar { display: flex; gap: 0.5rem; align-items: center; padding: 0.5rem 1rem; background: #070d19; border-bottom: 1px solid #1e293b; flex-wrap: wrap; }
+        .wb-tool-btn { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        .wb-tool-btn.active { background: #0284c7; border-color: #38bdf8; }
+        .wb-canvas-container { flex: 1; background: #000; position: relative; overflow: hidden; }
+        canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
     </style>
 </head>
 <body>
@@ -128,6 +134,15 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     <div class="console-container">
         <div class="grid-wrapper">
+            <!-- WHITEBOARD CARD -->
+            <div class="app-card" onclick="openWhiteboard()">
+                <div class="app-icon icon-wb">
+                    <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"/></svg>
+                </div>
+                <div class="app-title">Interactive Whiteboard</div>
+            </div>
+
+            <!-- FILE MANAGER CARD -->
             <div class="app-card" onclick="openFileManager()">
                 <div class="app-icon icon-fm">
                     <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
@@ -150,7 +165,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <button style="flex:1; padding:0.5rem; background:#334155; border:none; color:white; border-radius:6px; cursor:pointer;" onclick="switchTab('teacher')">Create Teacher Account</button>
                 </div>
 
-                <!-- Digital Board Form -->
                 <form id="form-digiboard" action="/admin/create-digiboard" method="POST">
                     <h4>Digital Board Account Creation Format</h4>
                     <label>Class Teacher Name</label>
@@ -168,12 +182,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <button type="submit" class="btn-submit">Create Digital Board Account</button>
                 </form>
 
-                <!-- Teacher Form -->
                 <form id="form-teacher" action="/admin/create-teacher" method="POST" style="display:none;">
                     <h4>Teacher Account Creation Format</h4>
                     <label>Class Teacher Name</label>
                     <input type="text" name="class_teacher_name" required>
-                    
                     <label>Subject Teachers (Can add up to 12+ teachers)</label>
                     <div id="subject-teachers-container">
                         <div class="subject-teacher-row">
@@ -182,7 +194,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         </div>
                     </div>
                     <button type="button" onclick="addSubjectTeacherRow()" style="background:#1e293b; color:#38bdf8; border:1px solid #334155; padding:0.4rem; border-radius:4px; margin-bottom:1rem; cursor:pointer;">+ Add Subject Teacher</button>
-
                     <label>Class</label>
                     <input type="text" name="class_name" placeholder="e.g. Grade6" required>
                     <label>Section</label>
@@ -199,6 +210,28 @@ CONSOLE_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- WHITEBOARD MODAL -->
+    <div class="modal" id="whiteboard-modal">
+        <div class="modal-content" style="width: 95vw; height: 90vh; max-width: none;">
+            <div class="modal-header">
+                <h3>Interactive Whiteboard</h3>
+                <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
+            </div>
+            <div class="wb-toolbar">
+                <button class="wb-tool-btn active" id="btn-pen" onclick="setTool('pen')">✏️ Pen</button>
+                <button class="wb-tool-btn" id="btn-eraser" onclick="setTool('eraser')">🧹 Eraser</button>
+                <label style="margin:0 0 0 0.5rem;">Color:</label>
+                <input type="color" id="wb-color" value="#ffffff" style="width:40px; height:30px; padding:0; border:none; cursor:pointer;">
+                <label style="margin:0 0 0 0.5rem;">Size:</label>
+                <input type="range" id="wb-size" min="1" max="50" value="3" style="width:100px;">
+                <button class="wb-tool-btn" style="margin-left:auto; background:#ef4444;" onclick="clearWhiteboard()">Clear All</button>
+            </div>
+            <div class="wb-canvas-container" id="canvas-container">
+                <canvas id="wb-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- FILE MANAGER MODAL -->
     <div class="modal" id="filemanager-modal">
         <div class="modal-content" style="max-width: 700px;">
@@ -207,7 +240,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
             <div class="modal-body">
-                <!-- TEACHER UPLOAD SECTION -->
                 <!--ROLE_TEACHER_ONLY-->
                 <form action="/upload" method="POST" enctype="multipart/form-data" style="background:#070d19; padding:1rem; border-radius:6px; margin-bottom:1rem; border:1px solid #1e293b;">
                     <label>Save File To Class:</label>
@@ -222,7 +254,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 </form>
                 <!--END_ROLE-->
 
-                <!-- SUBJECT SELECTOR -->
                 <div style="margin-bottom:1rem;">
                     <label>Select Subject Folder:</label>
                     <select id="subject-filter" onchange="loadFileList()">
@@ -244,17 +275,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         function openApp(id) { document.getElementById(id).style.display = 'flex'; }
         function closeApp(id) { document.getElementById(id).style.display = 'none'; }
-
         function openAdminModal() { openApp('admin-modal'); }
 
         function switchTab(tab) {
-            if(tab === 'digiboard') {
-                document.getElementById('form-digiboard').style.display = 'block';
-                document.getElementById('form-teacher').style.display = 'none';
-            } else {
-                document.getElementById('form-digiboard').style.display = 'none';
-                document.getElementById('form-teacher').style.display = 'block';
-            }
+            document.getElementById('form-digiboard').style.display = tab === 'digiboard' ? 'block' : 'none';
+            document.getElementById('form-teacher').style.display = tab === 'teacher' ? 'block' : 'none';
         }
 
         function addSubjectTeacherRow() {
@@ -266,6 +291,97 @@ CONSOLE_HTML = """<!DOCTYPE html>
             container.appendChild(row);
         }
 
+        /* --- WHITEBOARD SCRIPT --- */
+        let canvas, ctx, drawing = false, currentTool = 'pen', pollInterval;
+
+        function openWhiteboard() {
+            openApp('whiteboard-modal');
+            canvas = document.getElementById('wb-canvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+
+            canvas.onmousedown = startDrawing;
+            canvas.onmousemove = draw;
+            canvas.onmouseup = stopDrawing;
+            canvas.onmouseleave = stopDrawing;
+
+            syncBoard();
+            if(!pollInterval) pollInterval = setInterval(syncBoard, 1000);
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            if(container && canvas) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+            }
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.getElementById('btn-pen').classList.toggle('active', tool === 'pen');
+            document.getElementById('btn-eraser').classList.toggle('active', tool === 'eraser');
+        }
+
+        function startDrawing(e) {
+            drawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+        }
+
+        function draw(e) {
+            if(!drawing) return;
+            ctx.lineWidth = document.getElementById('wb-size').value;
+            ctx.lineCap = 'round';
+
+            if(currentTool === 'eraser') {
+                ctx.strokeStyle = '#000000';
+            } else {
+                ctx.strokeStyle = document.getElementById('wb-color').value;
+            }
+
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if(drawing) {
+                drawing = false;
+                saveBoardState();
+            }
+        }
+
+        function saveBoardState() {
+            const dataURL = canvas.toDataURL();
+            fetch('/api/whiteboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: dataURL })
+            });
+        }
+
+        function syncBoard() {
+            if(drawing) return;
+            fetch('/api/whiteboard')
+                .then(r => r.json())
+                .then(data => {
+                    if(data.image) {
+                        const img = new Image();
+                        img.onload = () => {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0);
+                        };
+                        img.src = data.image;
+                    }
+                });
+        }
+
+        function clearWhiteboard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            saveBoardState();
+        }
+
+        /* --- FILE MANAGER SCRIPT --- */
         function openFileManager() {
             openApp('filemanager-modal');
             document.getElementById('fm-scope').innerText = USER_ROLE === 'student' ? `${USER_CLASS} - ${USER_SECTION}` : "Teacher Portal";
@@ -319,8 +435,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             cookie = cookies.SimpleCookie()
             cookie.load(cookie_header)
             if 'session_id' in cookie:
-                sid = cookie['session_id'].value
-                return SESSIONS.get(sid)
+                return SESSIONS.get(cookie['session_id'].value)
         return None
 
     def send_html(self, content, status=200):
@@ -352,10 +467,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
 
-        form_data = {}
-        file_name = None
-        file_bytes = None
-
+        form_data, file_name, file_bytes = {}, None, None
         parts = body.split(b'--' + boundary)
         for part in parts:
             if b'Content-Disposition' in part:
@@ -417,6 +529,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_html(html)
             return
 
+        if path == "/api/whiteboard":
+            global BOARD_CACHE
+            with CACHE_LOCK:
+                self.send_json({"image": BOARD_CACHE})
+            return
+
         if path == "/api/subjects":
             if not session:
                 self.send_json([], 401)
@@ -474,8 +592,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/login":
             length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(length).decode('utf-8')
-            params = urllib.parse.parse_qs(body)
+            params = urllib.parse.parse_qs(self.rfile.read(length).decode('utf-8'))
             username = params.get('username', [''])[0]
             password = params.get('password', [''])[0]
 
@@ -503,6 +620,15 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
+        if path == "/api/whiteboard":
+            global BOARD_CACHE
+            length = int(self.headers.get('Content-Length', 0))
+            data = json.loads(self.rfile.read(length).decode('utf-8'))
+            with CACHE_LOCK:
+                BOARD_CACHE = data.get('image', '')
+            self.send_json({"status": "ok"})
+            return
+
         if path == "/admin/create-digiboard" and session['role'] == 'admin':
             length = int(self.headers.get('Content-Length', 0))
             params = urllib.parse.parse_qs(self.rfile.read(length).decode('utf-8'))
@@ -528,8 +654,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             subjects = params.get('subject_name[]', [])
             teachers = params.get('teacher_name[]', [])
             
-            subject_teacher_map = dict(zip(subjects, teachers))
-
             DB["users"][username] = {
                 "password": params.get('password', [''])[0],
                 "role": "teacher",
@@ -537,7 +661,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 "section": params.get('section_name', [''])[0],
                 "room": params.get('room_number', [''])[0],
                 "class_teacher": params.get('class_teacher_name', [''])[0],
-                "subject_teachers": subject_teacher_map
+                "subject_teachers": dict(zip(subjects, teachers))
             }
             save_db(DB)
             self.redirect("/")
@@ -545,9 +669,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/upload" and session['role'] == 'teacher':
             form_data, filename, file_data = self.parse_multipart()
-            cls = form_data.get('class_name')
-            sec = form_data.get('section_name')
-            subject = form_data.get('subject_name')
+            cls, sec, subject = form_data.get('class_name'), form_data.get('section_name'), form_data.get('subject_name')
 
             if cls and sec and subject and filename and file_data:
                 target_dir = os.path.join(UPLOAD_DIR, cls, sec, subject)
