@@ -10,31 +10,14 @@ import re
 
 PORT = 8000
 UPLOAD_DIR = "uploads"
-DATA_FILE = "users_db.json"
 SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
-# Load or initialize persistent user database
-DEFAULT_USERS = {
-    "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher", "class": "", "section": "", "teacher_name": "Ju Raghav"},
-    "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student", "class": "Grade6", "section": "E", "teacher_name": ""}
+USERS = {
+    "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
+    "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
-
-def load_users():
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return DEFAULT_USERS.copy()
-
-def save_users():
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(USERS, f, indent=4)
-
-USERS = load_users()
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
@@ -77,8 +60,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
         header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }
         .header-title { font-size: 1.25rem; font-weight: bold; letter-spacing: 0.5px; color: #ffffff; }
         .user-section { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }
-        .profile-tile { background: #0369a1; border: 1px solid #38bdf8; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s; }
-        .profile-tile:hover { background: #0284c7; }
         .user-id { color: #ffffff; font-weight: 600; }
         .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
         .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
@@ -135,22 +116,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .delete-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
         .delete-btn:hover { background: #ef4444; color: #fff; }
         .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
-        
-        /* Admin Form Styling */
-        .admin-form-group { margin-bottom: 0.8rem; }
-        .admin-form-group label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.2rem; }
-        .admin-form-group input, .admin-form-group textarea { width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: #fff; border-radius: 4px; }
-        .admin-tab-btn { padding: 0.5rem 1rem; background: #1e293b; color: #94a3b8; border: none; cursor: pointer; border-radius: 4px 4px 0 0; }
-        .admin-tab-btn.active { background: #0284c7; color: #fff; }
     </style>
 </head>
 <body>
     <header>
         <div class="header-title">DigiBoard Master Console</div>
         <div class="user-section">
-            <!--ROLE_ADMIN_ONLY-->
-            <button class="profile-tile" onclick="openApp('admin-modal')">👤 Admin Profile Tile</button>
-            <!--END_ADMIN_ROLE-->
             User ID: <span class="user-id"><!--USERNAME--></span>
             <span class="user-role-badge"><!--USER_ROLE--></span>
             <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
@@ -176,44 +147,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
                 </div>
                 <div class="app-title">File Manager</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ADMIN ACCOUNT CREATION MODAL -->
-    <div class="modal" id="admin-modal">
-        <div class="modal-content" style="max-width: 600px; height: auto;">
-            <div class="modal-header">
-                <h3>Admin Account & Classroom Creation</h3>
-                <span class="close-btn" onclick="closeApp('admin-modal')">&times;</span>
-            </div>
-            <div style="display:flex; gap:0.5rem; padding: 1rem 1rem 0 1rem; border-bottom: 1px solid #1e293b;">
-                <button class="admin-tab-btn active" id="tab-digi" onclick="switchAdminTab('digi')">Digital Board Account</button>
-                <button class="admin-tab-btn" id="tab-teacher" onclick="switchAdminTab('teacher')">Teacher Account</button>
-            </div>
-            <div class="modal-body" style="height: auto; max-height: 500px; overflow-y: auto;">
-                <form id="form-digi" action="/admin/create-account" method="POST">
-                    <input type="hidden" name="account_type" value="digital_board">
-                    <div class="admin-form-group"><label>Class Teacher Name :</label><input type="text" name="class_teacher_name" required></div>
-                    <div class="admin-form-group"><label>Class :</label><input type="text" name="class" placeholder="e.g. Grade6" required></div>
-                    <div class="admin-form-group"><label>Section :</label><input type="text" name="section" placeholder="e.g. E" required></div>
-                    <div class="admin-form-group"><label>Room.number :</label><input type="text" name="room_number" required></div>
-                    <div class="admin-form-group"><label>Username :</label><input type="text" name="username" required></div>
-                    <div class="admin-form-group"><label>Password :</label><input type="password" name="password" required></div>
-                    <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Save Digital Board Account</button>
-                </form>
-
-                <form id="form-teacher" action="/admin/create-account" method="POST" style="display:none;">
-                    <input type="hidden" name="account_type" value="teacher">
-                    <div class="admin-form-group"><label>Class Teacher Name :</label><input type="text" name="class_teacher_name" required></div>
-                    <div class="admin-form-group"><label>All Subject Teacher Name (Comma or multi-line separated for >12 names) :</label><textarea name="subject_teachers" rows="3"></textarea></div>
-                    <div class="admin-form-group"><label>Class :</label><input type="text" name="class" placeholder="e.g. Grade6" required></div>
-                    <div class="admin-form-group"><label>Section :</label><input type="text" name="section" placeholder="e.g. E" required></div>
-                    <div class="admin-form-group"><label>Room.number :</label><input type="text" name="room_number" required></div>
-                    <div class="admin-form-group"><label>Username (Supports multi-line for mass user creation) :</label><textarea name="username" rows="2" required></textarea></div>
-                    <div class="admin-form-group"><label>Password :</label><input type="password" name="password" required></div>
-                    <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Save Teacher Account</button>
-                </form>
             </div>
         </div>
     </div>
@@ -282,17 +215,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
             <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only) - View & Download Verified Class Documents</div>
+            <div class="readonly-banner">Student View (Read-Only) - View & Download Available Documents</div>
             <!--END_STUDENT_ROLE-->
             <div class="modal-body" style="height: 480px; overflow-y: auto;">
                 <!--ROLE_TEACHER_ONLY-->
                 <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
-                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload New Class Document:</label>
-                    <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
-                        <input type="text" name="target_class" placeholder="Class (e.g. Grade6)" required style="flex:1; padding:0.4rem; background:#050a14; border:1px solid #334155; color:white; border-radius:4px;">
-                        <input type="text" name="target_section" placeholder="Section (e.g. E)" required style="flex:1; padding:0.4rem; background:#050a14; border:1px solid #334155; color:white; border-radius:4px;">
-                        <input type="text" name="target_subject" placeholder="Subject (e.g. Math)" required style="flex:1; padding:0.4rem; background:#050a14; border:1px solid #334155; color:white; border-radius:4px;">
-                    </div>
+                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload New Document:</label>
                     <input type="file" name="file" required style="margin-bottom:0.75rem; color:white; width:100%;">
                     <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Upload File</button>
                 </form>
@@ -311,21 +239,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <script>
         const USER_ROLE = "<!--USER_ROLE-->";
         let filePollInterval = null;
-
-        function switchAdminTab(tab) {
-            document.getElementById('tab-digi').classList.remove('active');
-            document.getElementById('tab-teacher').classList.remove('active');
-            document.getElementById('form-digi').style.display = 'none';
-            document.getElementById('form-teacher').style.display = 'none';
-            
-            if (tab === 'digi') {
-                document.getElementById('tab-digi').classList.add('active');
-                document.getElementById('form-digi').style.display = 'block';
-            } else {
-                document.getElementById('tab-teacher').classList.add('active');
-                document.getElementById('form-teacher').style.display = 'block';
-            }
-        }
 
         function openApp(id) { 
             document.getElementById(id).style.display = 'flex'; 
@@ -360,13 +273,13 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     const container = document.getElementById('file-list-container');
                     if (!container) return;
                     if (!files || files.length === 0) {
-                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet for your section.</li>';
+                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet.</li>';
                         return;
                     }
                     container.innerHTML = files.map(file => `
                         <li class="file-item">
                             <a href="/uploads/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
-                            ${USER_ROLE === 'teacher' || USER_ROLE === 'admin' ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
+                            ${USER_ROLE === 'teacher' ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
                         </li>
                     `).join('');
                 })
@@ -402,7 +315,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        if (USER_ROLE === 'teacher' || USER_ROLE === 'admin') {
+        if (USER_ROLE === 'teacher') {
             canvas.addEventListener('pointerdown', (e) => {
                 isDrawing = true;
                 canvas.setPointerCapture(e.pointerId);
@@ -535,7 +448,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function syncWhiteboard() {
-            if (USER_ROLE !== 'teacher' && USER_ROLE !== 'admin') return;
+            if (USER_ROLE !== 'teacher') return;
             fetch('/api/whiteboard', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -616,37 +529,24 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         """Parses multipart form-data for file uploads."""
         content_type = self.headers.get('Content-Type', '')
         if not content_type.startswith('multipart/form-data'):
-            return None, None, {}
+            return None, None
         
         boundary = content_type.split('boundary=')[1].encode('utf-8')
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
 
-        form_fields = {}
-        filename = None
-        file_data = None
-
         parts = body.split(b'--' + boundary)
         for part in parts:
-            if not part or part == b'--\r\n':
-                continue
             if b'filename="' in part:
                 header_part, file_data = part.split(b'\r\n\r\n', 1)
                 file_data = file_data.rsplit(b'\r\n', 1)[0]
+                
                 header_text = header_part.decode('utf-8', errors='ignore')
                 filename_match = re.search(r'filename="([^"]+)"', header_text)
                 if filename_match:
                     filename = filename_match.group(1)
-            else:
-                if b'\r\n\r\n' in part:
-                    header_part, field_data = part.split(b'\r\n\r\n', 1)
-                    field_data = field_data.rsplit(b'\r\n', 1)[0]
-                    header_text = header_part.decode('utf-8', errors='ignore')
-                    name_match = re.search(r'name="([^"]+)"', header_text)
-                    if name_match:
-                        form_fields[name_match.group(1)] = field_data.decode('utf-8', errors='ignore')
-
-        return filename, file_data, form_fields
+                    return os.path.basename(filename), file_data
+        return None, None
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -675,19 +575,13 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             
             html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
-
-            if session['role'] == 'admin':
-                html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
-                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
-                html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
-            elif session['role'] == 'teacher':
-                html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
-                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
-                html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
-            else:
-                html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
+            
+            if session['role'] != 'teacher':
                 html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
                 html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
+            else:
+                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
+                html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
                 
             self.send_html(html)
             return
@@ -708,16 +602,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"error": "Unauthorized"}, 401)
                 return
             files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
-            
-            # Auto verify student class and section
-            if session['role'] == 'student':
-                u_class = session.get('class', '')
-                u_section = session.get('section', '')
-                prefix = f"[{u_class}_{u_section}]"
-                filtered = [f for f in files if f.startswith(prefix)]
-                self.send_json(filtered)
-            else:
-                self.send_json(files)
+            self.send_json(files)
             return
 
         if path == "/api/whiteboard":
@@ -755,19 +640,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
             params = urllib.parse.parse_qs(body)
-            username = params.get('username', [''])[0].strip()
-            password = params.get('password', [''])[0].strip()
+            username = params.get('username', [''])[0]
+            password = params.get('password', [''])[0]
 
-            # Master admin account or stored user login
-            if (username == "admin@Digiboardleaning.com" and password == "admin123") or (username in USERS and USERS[username]['password'] == password):
+            if username in USERS and USERS[username]['password'] == password:
                 sid = str(uuid.uuid4())
-                user_info = USERS.get(username, {"role": "admin", "class": "", "section": ""})
-                SESSIONS[sid] = {
-                    "username": username,
-                    "role": user_info['role'],
-                    "class": user_info.get('class', ''),
-                    "section": user_info.get('section', '')
-                }
+                SESSIONS[sid] = {"username": username, "role": USERS[username]['role']}
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
                 self.send_header("Location", "/")
@@ -783,59 +661,22 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
-        if path == "/admin/create-account":
-            if session['role'] != 'admin':
-                self.send_json({"error": "Forbidden"}, 403)
-                return
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length).decode('utf-8')
-            params = urllib.parse.parse_qs(body)
-
-            acc_type = params.get('account_type', [''])[0]
-            cls = params.get('class', [''])[0].strip()
-            sec = params.get('section', [''])[0].strip()
-            pwd = params.get('password', [''])[0].strip()
-            raw_usernames = params.get('username', [''])[0].strip().splitlines()
-
-            role = "student" if acc_type == "digital_board" else "teacher"
-
-            for un in raw_usernames:
-                un = un.strip()
-                if un:
-                    USERS[un] = {
-                        "password": pwd,
-                        "role": role,
-                        "class": cls,
-                        "section": sec,
-                        "teacher_name": params.get('class_teacher_name', [''])[0]
-                    }
-            save_users()
-            self.redirect("/")
-            return
-
         if path == "/upload":
-            if session['role'] not in ('teacher', 'admin'):
+            if session['role'] != 'teacher':
                 self.send_json({"error": "Forbidden"}, 403)
                 return
-            filename, file_data, form_fields = self.parse_multipart()
+            filename, file_data = self.parse_multipart()
             if filename and file_data:
-                target_cls = form_fields.get('target_class', 'Grade6').strip()
-                target_sec = form_fields.get('target_section', 'E').strip()
-                target_sub = form_fields.get('target_subject', 'General').strip()
-
-                prefix = f"[{target_cls}_{target_sec}][{target_sub}]_"
-                tagged_filename = prefix + filename
-
                 if not os.path.exists(UPLOAD_DIR):
                     os.makedirs(UPLOAD_DIR)
-                filepath = os.path.join(UPLOAD_DIR, tagged_filename)
+                filepath = os.path.join(UPLOAD_DIR, filename)
                 with open(filepath, "wb") as f:
                     f.write(file_data)
             self.redirect("/")
             return
 
         if path == "/api/whiteboard":
-            if session['role'] not in ('teacher', 'admin'):
+            if session['role'] != 'teacher':
                 self.send_json({"error": "Forbidden"}, 403)
                 return
             content_length = int(self.headers.get('Content-Length', 0))
@@ -853,7 +694,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         path = parsed.path
         session = self.get_session()
 
-        if not session or session['role'] not in ('teacher', 'admin'):
+        if not session or session['role'] != 'teacher':
             self.send_json({"error": "Forbidden"}, 403)
             return
 
