@@ -15,8 +15,8 @@ BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
 USERS = {
-    "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
-    "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
+    "juraghav": {"password": "2013*2810@963", "role": "teacher"},
+    "class7E": {"password": "Hrnps@24679", "role": "student"}
 }
 
 LOGIN_HTML = """<!DOCTYPE html>
