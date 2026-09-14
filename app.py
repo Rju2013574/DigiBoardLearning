@@ -7,13 +7,8 @@ import os
 import uuid
 import threading
 import re
-
-# Safely attempt import of psutil for hardware scanning / USB drive support
-try:
-    import psutil
-    HAS_PSUTIL = True
-except ImportError:
-    HAS_PSUTIL = False
+import sys
+import platform
 
 PORT = 8000
 UPLOAD_DIR = "uploads"
@@ -21,13 +16,44 @@ SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
-# Expected SSH Key configuration for USB Drive authentication
-EXPECTED_SUPER_KEY = "9910-3345-5672-8790-456-RJU-456"
-
 USERS = {
     "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
+
+def scan_usb_for_key():
+    """Scans all attached removable drives/mount points for an admin_key.json SSH verification key."""
+    system = platform.system()
+    possible_paths = []
+
+    if system == "Windows":
+        import string
+        for letter in string.ascii_uppercase:
+            if letter != 'C':
+                possible_paths.append(f"{letter}:\\")
+    elif system == "Darwin":
+        volumes = "/Volumes"
+        if os.path.exists(volumes):
+            possible_paths = [os.path.join(volumes, d) for d in os.listdir(volumes)]
+    else:  # Linux
+        for base in ["/media", "/run/media"]:
+            if os.path.exists(base):
+                for root, dirs, _ in os.walk(base):
+                    for d in dirs:
+                        possible_paths.append(os.path.join(root, d))
+
+    for path in possible_paths:
+        key_file = os.path.join(path, "admin_key.json")
+        if os.path.isfile(key_file):
+            try:
+                with open(key_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if data.get("super_key"):
+                        data["drive_path"] = path
+                        return data
+            except Exception as e:
+                print(f"Error reading SSH key: {e}")
+    return None
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
@@ -35,14 +61,17 @@ LOGIN_HTML = """<!DOCTYPE html>
     <title>DigiBoard - Login</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 340px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
+        .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 360px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
         h2 { text-align: center; margin-top: 0; color: #38bdf8; font-size: 1.5rem; }
         label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 1rem; }
         input { width: 100%; padding: 0.65rem; margin-top: 0.3rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }
         input:focus { outline: none; border-color: #38bdf8; }
-        button { width: 100%; padding: 0.75rem; margin-top: 1.5rem; background: #0284c7; border: none; color: white; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button { width: 100%; padding: 0.75rem; margin-top: 1.2rem; background: #0284c7; border: none; color: white; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
         button:hover { background: #0369a1; }
+        .admin-btn { background: #4f46e5; margin-top: 0.75rem; }
+        .admin-btn:hover { background: #4338ca; }
         .error { color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; }
+        .divider { border-top: 1px solid #1e293b; margin: 1.5rem 0 0.5rem 0; text-align: center; position: relative; }
     </style>
 </head>
 <body>
@@ -55,6 +84,11 @@ LOGIN_HTML = """<!DOCTYPE html>
             <label>Password</label>
             <input type="password" name="password" required>
             <button type="submit">Sign In</button>
+        </form>
+
+        <div class="divider"></div>
+        <form action="/login-admin" method="POST">
+            <button type="submit" class="admin-btn">🔑 Authenticate Admin Mode (USB Hardware Key)</button>
         </form>
     </div>
 </body>
@@ -72,6 +106,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .user-section { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }
         .user-id { color: #ffffff; font-weight: 600; }
         .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+        .admin-badge { background: #4f46e5 !important; color: #fff !important; }
         .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
         .logout-btn:hover { background: #1e293b; color: #fff; }
         .console-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 2rem; }
@@ -82,6 +117,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .icon-wb { background: #2563eb; }
         .icon-doc { background: #ef4444; }
         .icon-fm { background: #eab308; }
+        .icon-admin { background: #4f46e5; }
         .app-icon svg { width: 30px; height: 30px; fill: white; }
         .app-title { font-size: 0.85rem; font-weight: 600; color: #cbd5e1; text-align: center; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.9); justify-content: center; align-items: center; z-index: 100; }
@@ -126,6 +162,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .delete-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
         .delete-btn:hover { background: #ef4444; color: #fff; }
         .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
+        
+        .admin-form-group { margin-bottom: 1rem; }
+        .admin-form-group label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.85rem; }
+        .admin-form-group input, .admin-form-group select { width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
+        .user-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; }
     </style>
 </head>
 <body>
@@ -133,7 +174,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         <div class="header-title">DigiBoard Master Console</div>
         <div class="user-section">
             User ID: <span class="user-id"><!--USERNAME--></span>
-            <span class="user-role-badge"><!--USER_ROLE--></span>
+            <span class="user-role-badge <!--ADMIN_CLASS-->"><!--USER_ROLE--></span>
             <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
         </div>
     </header>
@@ -158,8 +199,71 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 </div>
                 <div class="app-title">File Manager</div>
             </div>
+
+            <!--ROLE_ADMIN_ONLY-->
+            <div class="app-card" onclick="openApp('admin-modal')">
+                <div class="app-icon icon-admin">
+                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8s0 0 0 0z"/></svg>
+                </div>
+                <div class="app-title">Admin Console</div>
+            </div>
+            <!--END_ADMIN_ROLE-->
         </div>
     </div>
+
+    <!-- ADMIN MODAL -->
+    <!--ROLE_ADMIN_ONLY-->
+    <div class="modal" id="admin-modal">
+        <div class="modal-content" style="max-width: 800px; height:auto;">
+            <div class="modal-header">
+                <h3>Admin Management & Provisioning Console</h3>
+                <span class="close-btn" onclick="closeApp('admin-modal')">&times;</span>
+            </div>
+            <div class="modal-body" style="height: 520px; overflow-y: auto;">
+                <div style="display:flex; align-items:center; gap:1.5rem; background:#070d19; padding:1rem; border-radius:8px; margin-bottom:1.5rem; border:1px solid #1e293b;">
+                    <img src="<!--ADMIN_PHOTO-->" class="user-photo" alt="Admin Photo" onerror="this.src='https://via.placeholder.com/64'">
+                    <div>
+                        <h4 style="margin:0; color:#38bdf8;"><!--ADMIN_NAME--> (Admin Mode Active)</h4>
+                        <p style="margin:0.2rem 0 0 0; font-size:0.8rem; color:#94a3b8;">Key Serial ID: <!--SUPER_KEY--></p>
+                        <p style="margin:0.2rem 0 0 0; font-size:0.75rem; color:#10b981;">🔒 Hardware Security Token Verified (Active Drive Session)</p>
+                    </div>
+                </div>
+
+                <div style="background:#070d19; padding:1.2rem; border-radius:8px; border:1px solid #1e293b;">
+                    <h4 style="margin-top:0; color:#cbd5e1;">Mass Provision Accounts</h4>
+                    <form onsubmit="handleMassCreate(event)">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                            <div class="admin-form-group">
+                                <label>Account Role Type</label>
+                                <select id="mass-role">
+                                    <option value="teacher">Teacher Accounts</option>
+                                    <option value="student">Digital Boards / Class Accounts</option>
+                                </select>
+                            </div>
+                            <div class="admin-form-group">
+                                <label>Prefix Name (e.g. board / teacher)</label>
+                                <input type="text" id="mass-prefix" placeholder="digitalboard" required>
+                            </div>
+                            <div class="admin-form-group">
+                                <label>Number of Accounts</label>
+                                <input type="number" id="mass-count" min="1" max="100" value="5" required>
+                            </div>
+                            <div class="admin-form-group">
+                                <label>Default Password</label>
+                                <input type="password" id="mass-password" required value="2234269580">
+                            </div>
+                        </div>
+                        <button type="submit" style="width:100%; padding:0.6rem; background:#4f46e5; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Generate Accounts Batch</button>
+                    </form>
+                </div>
+
+                <h4 style="margin-top:1.5rem; color:#cbd5e1;">Active System Users (<span id="user-count">0</span>)</h4>
+                <div id="users-table-container" style="background:#070d19; border:1px solid #1e293b; border-radius:6px; max-height:180px; overflow-y:auto; padding:0.5rem;">
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--END_ADMIN_ROLE-->
 
     <div class="modal" id="whiteboard-modal">
         <div class="modal-content">
@@ -250,6 +354,58 @@ CONSOLE_HTML = """<!DOCTYPE html>
         const USER_ROLE = "<!--USER_ROLE-->";
         let filePollInterval = null;
 
+        // Admin Heartbeat to ensure physical pen drive stays plugged in
+        if (USER_ROLE === 'admin') {
+            setInterval(() => {
+                fetch('/api/admin-heartbeat')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.valid) {
+                            alert('⚠️ Hardware SSH Key Pen Drive Disconnected! Logging out for security...');
+                            window.location.href = '/logout';
+                        }
+                    })
+                    .catch(() => { window.location.href = '/logout'; });
+            }, 3000);
+
+            function loadUsers() {
+                fetch('/api/admin/users')
+                    .then(r => r.json())
+                    .then(users => {
+                        document.getElementById('user-count').innerText = Object.keys(users).length;
+                        let html = '<table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">';
+                        html += '<tr style="border-bottom:1px solid #334155; color:#94a3b8;"><th>Username</th><th>Role</th></tr>';
+                        for (let u in users) {
+                            html += `<tr style="border-bottom:1px solid #1e293b; color:#cbd5e1;"><td style="padding:0.4rem 0;">${u}</td><td><span class="user-role-badge">${users[u].role}</span></td></tr>`;
+                        }
+                        html += '</table>';
+                        document.getElementById('users-table-container').innerHTML = html;
+                    });
+            }
+
+            function handleMassCreate(e) {
+                e.preventDefault();
+                const payload = {
+                    role: document.getElementById('mass-role').value,
+                    prefix: document.getElementById('mass-prefix').value,
+                    count: parseInt(document.getElementById('mass-count').value),
+                    password: document.getElementById('mass-password').value
+                };
+                fetch('/api/admin/mass-create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                })
+                .then(r => r.json())
+                .then(res => {
+                    alert(`Successfully created ${res.created} accounts!`);
+                    loadUsers();
+                });
+            }
+            
+            setTimeout(loadUsers, 500);
+        }
+
         function openApp(id) { 
             document.getElementById(id).style.display = 'flex'; 
             if(id === 'whiteboard-modal') { resizeCanvas(); }
@@ -289,7 +445,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     container.innerHTML = files.map(file => `
                         <li class="file-item">
                             <a href="/uploads/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
-                            ${USER_ROLE === 'teacher' ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
+                            ${(USER_ROLE === 'teacher' || USER_ROLE === 'admin') ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
                         </li>
                     `).join('');
                 })
@@ -325,7 +481,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        if (USER_ROLE === 'teacher') {
+        if (USER_ROLE === 'teacher' || USER_ROLE === 'admin') {
             canvas.addEventListener('pointerdown', (e) => {
                 isDrawing = true;
                 canvas.setPointerCapture(e.pointerId);
@@ -458,7 +614,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function syncWhiteboard() {
-            if (USER_ROLE !== 'teacher') return;
+            if (USER_ROLE !== 'teacher' && USER_ROLE !== 'admin') return;
             fetch('/api/whiteboard', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -536,7 +692,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def parse_multipart(self):
-        """Parses multipart form-data for file uploads."""
         content_type = self.headers.get('Content-Type', '')
         if not content_type.startswith('multipart/form-data'):
             return None, None
@@ -586,14 +741,52 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
             
-            if session['role'] != 'teacher':
-                html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
-                html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
-            else:
+            if session['role'] == 'admin':
+                html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
+                html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
+                html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
+                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
+                
+                key_info = session.get('key_info', {})
+                html = html.replace("<!--ADMIN_NAME-->", key_info.get("name", "System Administrator"))
+                html = html.replace("<!--SUPER_KEY-->", key_info.get("super_key", "UNKNOWN"))
+                html = html.replace("<!--ADMIN_PHOTO-->", key_info.get("photo_url", ""))
+            elif session['role'] == 'teacher':
+                html = html.replace("<!--ADMIN_CLASS-->", "")
+                html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
                 html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
                 html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
+            else:
+                html = html.replace("<!--ADMIN_CLASS-->", "")
+                html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
+                html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
+                html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
                 
             self.send_html(html)
+            return
+
+        if path == "/api/admin-heartbeat":
+            if not session or session.get('role') != 'admin':
+                self.send_json({"valid": False}, 401)
+                return
+            key_data = scan_usb_for_key()
+            if key_data and key_data.get("super_key") == session.get('key_info', {}).get('super_key'):
+                self.send_json({"valid": True})
+            else:
+                cookie_header = self.headers.get('Cookie')
+                if cookie_header:
+                    cookie = cookies.SimpleCookie()
+                    cookie.load(cookie_header)
+                    if 'session_id' in cookie:
+                        SESSIONS.pop(cookie['session_id'].value, None)
+                self.send_json({"valid": False})
+            return
+
+        if path == "/api/admin/users":
+            if not session or session.get('role') != 'admin':
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+            self.send_json(USERS)
             return
 
         if path == "/launch-wps":
@@ -646,6 +839,31 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
+        if path == "/login-admin":
+            key_data = scan_usb_for_key()
+            if key_data:
+                sid = str(uuid.uuid4())
+                admin_email = key_data.get("email", "admin@Digiboardleaning.com")
+                SESSIONS[sid] = {
+                    "username": admin_email,
+                    "role": "admin",
+                    "key_info": key_data
+                }
+                USERS[admin_email] = {"password": "", "role": "admin"}
+
+                self.send_response(302)
+                self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
+                self.send_header("Location", "/")
+                self.set_no_cache_headers()
+                self.end_headers()
+            else:
+                err_html = LOGIN_HTML.replace(
+                    "<!--ERROR-->", 
+                    '<div class="error">❌ Hardware Security Key Not Detected! Connect your USB drive containing admin_key.json.</div>'
+                )
+                self.send_html(err_html, 401)
+            return
+
         if path == "/login":
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
@@ -671,8 +889,29 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
+        if path == "/api/admin/mass-create":
+            if session.get('role') != 'admin':
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = json.loads(self.rfile.read(content_length).decode('utf-8'))
+            
+            role = body.get('role', 'student')
+            prefix = body.get('prefix', 'board')
+            count = int(body.get('count', 1))
+            password = body.get('password', '2234269580')
+
+            created = 0
+            for i in range(1, count + 1):
+                acc_email = f"{prefix}{i:02d}@Digiboardleaning.com"
+                USERS[acc_email] = {"password": password, "role": role}
+                created += 1
+
+            self.send_json({"status": "ok", "created": created})
+            return
+
         if path == "/upload":
-            if session['role'] != 'teacher':
+            if session['role'] not in ['teacher', 'admin']:
                 self.send_json({"error": "Forbidden"}, 403)
                 return
             filename, file_data = self.parse_multipart()
@@ -686,7 +925,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/whiteboard":
-            if session['role'] != 'teacher':
+            if session['role'] not in ['teacher', 'admin']:
                 self.send_json({"error": "Forbidden"}, 403)
                 return
             content_length = int(self.headers.get('Content-Length', 0))
@@ -704,7 +943,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         path = parsed.path
         session = self.get_session()
 
-        if not session or session['role'] != 'teacher':
+        if not session or session['role'] not in ['teacher', 'admin']:
             self.send_json({"error": "Forbidden"}, 403)
             return
 
