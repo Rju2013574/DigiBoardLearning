@@ -23,43 +23,33 @@ USERS = {
 }
 
 def scan_usb_for_key():
-    """Scans all attached removable drives/mount points for an admin_key.json SSH verification key."""
     system = platform.system()
     possible_paths = []
 
     if system == "Windows":
-        # Only add drive letters that are actually mounted and exist on the system
         for letter in string.ascii_uppercase:
             drive_path = f"{letter}:\\"
             if os.path.exists(drive_path):
                 possible_paths.append(drive_path)
 
-    elif system == "Darwin":  # macOS
-        volumes = "/Volumes"
-        if os.path.exists(volumes):
-            possible_paths = [os.path.join(volumes, d) for d in os.listdir(volumes)]
-
-    else:  # Linux
-        for base in ["/media", "/run/media"]:
-            if os.path.exists(base):
-                for root, dirs, _ in os.walk(base):
-                    for d in dirs:
-                        possible_paths.append(os.path.join(root, d))
-
-    # Also check the current working directory as a local fallback
-    possible_paths.append(os.getcwd())
+    # Print out detected drive paths in your terminal/console
+    print(f"[DEBUG] Active Windows Drives Found: {possible_paths}")
 
     for path in possible_paths:
         key_file = os.path.join(path, "admin_key.json")
-        try:
-            if os.path.isfile(key_file):
+        print(f"[DEBUG] Checking path: {key_file} | Exists: {os.path.exists(key_file)}")
+        if os.path.exists(key_file):
+            try:
                 with open(key_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                    print(f"[DEBUG] File read successfully! Keys in file: {list(data.keys())}")
                     if data.get("super_key"):
                         data["drive_path"] = path
                         return data
-        except Exception as e:
-            print(f"Error reading SSH key: {e}")
+                    else:
+                        print("[DEBUG] 'super_key' field missing or empty in JSON.")
+            except Exception as e:
+                print(f"[DEBUG] Failed to read JSON file at {key_file}: {e}")
 
     return None
 LOGIN_HTML = """<!DOCTYPE html>
