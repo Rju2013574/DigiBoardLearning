@@ -9,6 +9,7 @@ import threading
 import re
 import sys
 import platform
+import string
 
 PORT = 8000
 UPLOAD_DIR = "uploads"
@@ -27,14 +28,17 @@ def scan_usb_for_key():
     possible_paths = []
 
     if system == "Windows":
-        import string
+        # Only add drive letters that are actually mounted and exist on the system
         for letter in string.ascii_uppercase:
-            if letter != 'C':
-                possible_paths.append(f"{letter}:\\")
-    elif system == "Darwin":
+            drive_path = f"{letter}:\\"
+            if os.path.exists(drive_path):
+                possible_paths.append(drive_path)
+
+    elif system == "Darwin":  # macOS
         volumes = "/Volumes"
         if os.path.exists(volumes):
             possible_paths = [os.path.join(volumes, d) for d in os.listdir(volumes)]
+
     else:  # Linux
         for base in ["/media", "/run/media"]:
             if os.path.exists(base):
@@ -42,19 +46,22 @@ def scan_usb_for_key():
                     for d in dirs:
                         possible_paths.append(os.path.join(root, d))
 
+    # Also check the current working directory as a local fallback
+    possible_paths.append(os.getcwd())
+
     for path in possible_paths:
         key_file = os.path.join(path, "admin_key.json")
-        if os.path.isfile(key_file):
-            try:
+        try:
+            if os.path.isfile(key_file):
                 with open(key_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     if data.get("super_key"):
                         data["drive_path"] = path
                         return data
-            except Exception as e:
-                print(f"Error reading SSH key: {e}")
-    return None
+        except Exception as e:
+            print(f"Error reading SSH key: {e}")
 
+    return None
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
