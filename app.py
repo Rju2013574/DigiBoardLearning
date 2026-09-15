@@ -22,6 +22,7 @@ USERS = {
     "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
 }
 
+
 def scan_usb_for_key():
     system = platform.system()
     possible_paths = []
@@ -32,26 +33,34 @@ def scan_usb_for_key():
             if os.path.exists(drive_path):
                 possible_paths.append(drive_path)
 
-    # Print out detected drive paths in your terminal/console
-    print(f"[DEBUG] Active Windows Drives Found: {possible_paths}")
+    # Include local working directory as fallback
+    possible_paths.append(os.getcwd())
+
+    # Check for both standard and potential hidden extension names
+    target_filenames = ["admin_key.json", "admin_key.json.json", "admin_key"]
 
     for path in possible_paths:
-        key_file = os.path.join(path, "admin_key.json")
-        print(f"[DEBUG] Checking path: {key_file} | Exists: {os.path.exists(key_file)}")
-        if os.path.exists(key_file):
-            try:
-                with open(key_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    print(f"[DEBUG] File read successfully! Keys in file: {list(data.keys())}")
-                    if data.get("super_key"):
-                        data["drive_path"] = path
-                        return data
-                    else:
-                        print("[DEBUG] 'super_key' field missing or empty in JSON.")
-            except Exception as e:
-                print(f"[DEBUG] Failed to read JSON file at {key_file}: {e}")
+        for filename in target_filenames:
+            key_file = os.path.join(path, filename)
+            if os.path.exists(key_file):
+                try:
+                    # utf-8-sig handles UTF-8 files created by Windows Notepad
+                    with open(key_file, "r", encoding="utf-8-sig") as f:
+                        data = json.load(f)
+                        
+                        if data.get("super_key"):
+                            data["drive_path"] = path
+                            return data
+                        else:
+                            st.warning(f"File found at '{key_file}', but key 'super_key' is missing inside.")
+                except json.JSONDecodeError as e:
+                    st.error(f"Found '{key_file}', but the JSON syntax is invalid: {e}")
+                except Exception as e:
+                    st.error(f"Could not read '{key_file}': {e}")
 
     return None
+
+
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
