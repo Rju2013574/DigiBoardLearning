@@ -1,2 +1,2 @@
-streamlit as st
+streamlit
 psutil
