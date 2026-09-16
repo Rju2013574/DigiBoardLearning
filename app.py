@@ -163,3 +163,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 err_html = LOGIN_HTML.replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
                 self.send_html(err_html, 401)
             return
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
