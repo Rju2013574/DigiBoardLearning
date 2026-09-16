@@ -23,8 +23,6 @@ USERS = {
 }
 
 
-
-
 def scan_usb_for_key():
     system = platform.system()
     possible_paths = []
@@ -34,31 +32,61 @@ def scan_usb_for_key():
             drive_path = f"{letter}:\\"
             if os.path.exists(drive_path):
                 possible_paths.append(drive_path)
+    elif system == "Linux":
+        # Scan standard Linux USB mount directories
+        user_media = f"/media/{os.getenv('USER', '')}"
+        if os.path.exists(user_media):
+            for entry in os.listdir(user_media):
+                possible_paths.append(os.path.join(user_media, entry))
+        if os.path.exists("/mnt"):
+            possible_paths.append("/mnt")
+    elif system == "Darwin":
+        # Scan macOS volume mounts
+        if os.path.exists("/Volumes"):
+            for entry in os.listdir("/Volumes"):
+                possible_paths.append(os.path.join("/Volumes", entry))
 
     # Include local working directory as fallback
     possible_paths.append(os.getcwd())
 
-    # Check for both standard and potential hidden extension names
-    target_filenames = ["admin_key.json", "admin_key.json.json", "admin_key"]
+    # Check for both standard and SSH key file names
+    target_filenames = [
+        "admin_key.json", 
+        "admin_key.json.json", 
+        "admin_key", 
+        "id_rsa", 
+        "id_ed25519", 
+        "id_rsa.pub", 
+        "id_ed25519.pub", 
+        "admin_ssh_key"
+    ]
 
     for path in possible_paths:
         for filename in target_filenames:
             key_file = os.path.join(path, filename)
             if os.path.exists(key_file):
                 try:
-                    # utf-8-sig handles UTF-8 files created by Windows Notepad
-                    with open(key_file, "r", encoding="utf-8-sig") as f:
-                        data = json.load(f)
-                        
-                        if data.get("super_key"):
-                            data["drive_path"] = path
-                            return data
-                        else:
-                            st.warning(f"File found at '{key_file}', but key 'super_key' is missing inside.")
-                except json.JSONDecodeError as e:
-                    st.error(f"Found '{key_file}', but the JSON syntax is invalid: {e}")
+                    # UTF-8 handling for JSON key files
+                    if filename.endswith(".json"):
+                        with open(key_file, "r", encoding="utf-8-sig") as f:
+                            data = json.load(f)
+                            if data.get("super_key"):
+                                data["drive_path"] = path
+                                return data
+                    else:
+                        # Plain text SSH Key File verification
+                        with open(key_file, "r", encoding="utf-8") as f:
+                            content = f.read().strip()
+                            if content.startswith("-----BEGIN") or content.startswith("ssh-"):
+                                return {
+                                    "super_key": f"SSH-{filename}",
+                                    "name": "SSH Authenticated Admin",
+                                    "email": "admin@Digiboardleaning.com",
+                                    "photo_url": "",
+                                    "drive_path": path
+                                }
                 except Exception as e:
-                    st.error(f"Could not read '{key_file}': {e}")
+                    print(f"Error reading key file '{key_file}': {e}")
 
     return None
 
@@ -96,7 +124,7 @@ LOGIN_HTML = """<!DOCTYPE html>
 
         <div class="divider"></div>
         <form action="/login-admin" method="POST">
-            <button type="submit" class="admin-btn">🔑 Authenticate Admin Mode (USB Hardware Key)</button>
+            <button type="submit" class="admin-btn">🔑 Authenticate Admin Mode (USB SSH Key)</button>
         </form>
     </div>
 </body>
@@ -233,7 +261,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <div>
                         <h4 style="margin:0; color:#38bdf8;"><!--ADMIN_NAME--> (Admin Mode Active)</h4>
                         <p style="margin:0.2rem 0 0 0; font-size:0.8rem; color:#94a3b8;">Key Serial ID: <!--SUPER_KEY--></p>
-                        <p style="margin:0.2rem 0 0 0; font-size:0.75rem; color:#10b981;">🔒 Hardware Security Token Verified (Active Drive Session)</p>
+                        <p style="margin:0.2rem 0 0 0; font-size:0.75rem; color:#10b981;">🔒 SSH / Hardware Security Token Verified (Active Drive Session)</p>
                     </div>
                 </div>
 
@@ -867,7 +895,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             else:
                 err_html = LOGIN_HTML.replace(
                     "<!--ERROR-->", 
-                    '<div class="error">❌ Hardware Security Key Not Detected! Connect your USB drive containing admin_key.json.</div>'
+                    '<div class="error">❌ Hardware SSH Security Key Not Detected! Insert drive containing admin key file.</div>'
                 )
                 self.send_html(err_html, 401)
             return
