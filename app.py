@@ -10,7 +10,6 @@ import re
 import sys
 import platform
 import string
-import streamlit as st
 
 PORT = 8000
 UPLOAD_DIR = "uploads"
