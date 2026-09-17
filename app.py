@@ -2,6 +2,7 @@ import http.server
 import socketserver
 import json
 import urllib.parse
+import urllib.request
 from http import cookies
 import os
 import uuid
@@ -10,12 +11,32 @@ import re
 import sys
 import platform
 import string
+import time
 
 PORT = 8000
 UPLOAD_DIR = "uploads"
 SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
+CHAT_HISTORIES = {}
+
+# Locally set Gemini API Key or get from Environment Variable
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
+
+# Structured Classes and Sections Setup (PRKG to 10th, Sections A to G)
+GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
+SECTIONS = ["A", "B", "C", "D", "E", "F", "G"]
+
+def ensure_file_manager_structure():
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+    for g in GRADES:
+        for s in SECTIONS:
+            folder_path = os.path.join(UPLOAD_DIR, g, s)
+            if not os.path.exists(folder_path):
+                os.makedirs(folder_path)
+
+ensure_file_manager_structure()
 
 # Authorized Admin SSH Keys
 ADMIN_KEYS = {
@@ -32,8 +53,8 @@ ADMIN_KEYS = {
 }
 
 USERS = {
-    "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher"},
-    "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student"}
+    "juraghav@Digiboardleaning.com": {"password": "2234269580", "role": "teacher", "grade": "10th", "section": "A"},
+    "socialstudiesclass@Digiboardleaning.com": {"password": "2234269580", "role": "student", "grade": "10th", "section": "A"}
 }
 
 LOGIN_HTML = """<!DOCTYPE html>
@@ -98,7 +119,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .app-card:hover { transform: translateY(-4px); border-color: #38bdf8; background: #0e1d38; box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2); }
         .app-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; }
         .icon-wb { background: #2563eb; }
-        .icon-doc { background: #ef4444; }
+        .icon-ai { background: #8b5cf6; }
         .icon-fm { background: #eab308; }
         .icon-admin { background: #4f46e5; }
         .app-icon svg { width: 30px; height: 30px; fill: white; }
@@ -150,6 +171,19 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .admin-form-group label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.85rem; }
         .admin-form-group input, .admin-form-group select { width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
         .user-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; }
+
+        /* AI Bot Styling */
+        .chat-container { display: flex; flex-direction: column; height: 100%; background: #070d19; border-radius: 8px; border: 1px solid #1e293b; }
+        .chat-messages { flex: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; }
+        .chat-msg { max-width: 80%; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem; line-height: 1.4; }
+        .chat-msg.user { align-self: flex-end; background: #0284c7; color: white; border-bottom-right-radius: 2px; }
+        .chat-msg.bot { align-self: flex-start; background: #1e293b; color: #f1f5f9; border-bottom-left-radius: 2px; border: 1px solid #334155; white-space: pre-wrap; }
+        .chat-input-area { padding: 1rem; border-top: 1px solid #1e293b; background: #0f172a; display: flex; flex-direction: column; gap: 0.5rem; position: relative; }
+        .chat-input-row { display: flex; gap: 0.5rem; }
+        .chat-input-row input { flex: 1; padding: 0.75rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
+        .attach-menu { display: none; position: absolute; bottom: 70px; left: 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 50; width: 200px; }
+        .attach-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.8rem; color: #f8fafc; font-size: 0.85rem; border-radius: 6px; cursor: pointer; }
+        .attach-item:hover { background: #1e293b; color: #38bdf8; }
     </style>
 </head>
 <body>
@@ -170,12 +204,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 </div>
                 <div class="app-title">WhiteBoard</div>
             </div>
-            <div class="app-card" onclick="launchWPS()">
-                <div class="app-icon icon-doc">
-                    <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+
+            <div class="app-card" onclick="openApp('aibot-modal')">
+                <div class="app-icon icon-ai">
+                    <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m8 7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h16m-12 3a1.5 1.5 0 0 0-1.5 1.5 1.5 1.5 0 0 0 1.5 1.5 1.5 1.5 0 0 0 1.5-1.5A1.5 1.5 0 0 0 8 12m8 0a1.5 1.5 0 0 0-1.5 1.5 1.5 1.5 0 0 0 1.5 1.5 1.5 1.5 0 0 0 1.5-1.5A1.5 1.5 0 0 0 16 12z"/></svg>
                 </div>
-                <div class="app-title">WPS Office</div>
+                <div class="app-title">AI Assistant Bot</div>
             </div>
+
             <div class="app-card" onclick="openFileManager()">
                 <div class="app-icon icon-fm">
                     <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
@@ -191,6 +227,39 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="app-title">Admin Console</div>
             </div>
             <!--END_ADMIN_ROLE-->
+        </div>
+    </div>
+
+    <!-- AI BOT MODAL -->
+    <div class="modal" id="aibot-modal">
+        <div class="modal-content" style="max-width: 850px; height:85vh;">
+            <div class="modal-header">
+                <h3>🤖 DigiBoard AI Assistant (Powered by Gemini)</h3>
+                <span class="close-btn" onclick="closeApp('aibot-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages-container">
+                        <div class="chat-msg bot">Hello! I am your AI Teaching & Learning Assistant. Ask me to generate mind maps for any lesson or document, and I will automatically upload it directly into your Class File Manager!</div>
+                    </div>
+                    
+                    <div class="chat-input-area">
+                        <div class="attach-menu" id="attach-menu">
+                            <div class="attach-item" onclick="triggerAttach('Upload files')">📎 Upload files</div>
+                            <div class="attach-item" onclick="triggerAttach('Add from Drive')">🔺 Add from Drive</div>
+                            <div class="attach-item" onclick="triggerAttach('Photos')">🌸 Photos</div>
+                            <div class="attach-item" onclick="triggerAttach('Canvas')">🎨 Canvas</div>
+                            <div class="attach-item" onclick="triggerAttach('Guided learning')">📖 Guided learning</div>
+                        </div>
+
+                        <div class="chat-input-row">
+                            <button onclick="toggleAttachMenu()" style="background:#1e293b; border:1px solid #334155; color:#38bdf8; padding:0.6rem; border-radius:6px; cursor:pointer;">📎</button>
+                            <input type="text" id="user-chat-input" placeholder="Ask AI to generate a mind map, explain a topic, or analyze a lesson..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+                            <button onclick="sendChatMessage()" style="background:#0284c7; border:none; color:white; padding:0.6rem 1.2rem; border-radius:6px; font-weight:bold; cursor:pointer;">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -213,7 +282,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 </div>
 
                 <div style="background:#070d19; padding:1.2rem; border-radius:8px; border:1px solid #1e293b;">
-                    <h4 style="margin-top:0; color:#cbd5e1;">Mass Provision Accounts</h4>
+                    <h4 style="margin-top:0; color:#cbd5e1;">Mass Provision Accounts & Class Linking</h4>
                     <form onsubmit="handleMassCreate(event)">
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                             <div class="admin-form-group">
@@ -226,6 +295,18 @@ CONSOLE_HTML = """<!DOCTYPE html>
                             <div class="admin-form-group">
                                 <label>Prefix Name (e.g. board / teacher)</label>
                                 <input type="text" id="mass-prefix" placeholder="digitalboard" required>
+                            </div>
+                            <div class="admin-form-group">
+                                <label>Link to Grade / Class</label>
+                                <select id="mass-grade">
+                                    <!--GRADES_OPTIONS-->
+                                </select>
+                            </div>
+                            <div class="admin-form-group">
+                                <label>Link to Section</label>
+                                <select id="mass-section">
+                                    <!--SECTIONS_OPTIONS-->
+                                </select>
                             </div>
                             <div class="admin-form-group">
                                 <label>Number of Accounts</label>
@@ -306,24 +387,41 @@ CONSOLE_HTML = """<!DOCTYPE html>
     </div>
 
     <div class="modal" id="filemanager-modal">
-        <div class="modal-content" style="max-width: 650px; height:auto;">
+        <div class="modal-content" style="max-width: 750px; height:auto;">
             <div class="modal-header">
                 <h3>Class File Manager</h3>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
             <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only) - View & Download Available Documents</div>
+            <div class="readonly-banner">Student View (Read-Only) - View & Download Available Class Documents</div>
             <!--END_STUDENT_ROLE-->
-            <div class="modal-body" style="height: 480px; overflow-y: auto;">
+            <div class="modal-body" style="height: 520px; overflow-y: auto;">
+                <div style="display:flex; gap:1rem; margin-bottom:1rem; background:#070d19; padding:0.75rem; border-radius:6px; border:1px solid #1e293b;">
+                    <div style="flex:1;">
+                        <label style="color:#94a3b8; font-size:0.8rem; display:block;">Grade / Class:</label>
+                        <select id="fm-grade" onchange="loadFileList()" style="width:100%; padding:0.4rem; background:#0f172a; color:white; border:1px solid #334155; border-radius:4px;">
+                            <!--GRADES_OPTIONS-->
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="color:#94a3b8; font-size:0.8rem; display:block;">Section:</label>
+                        <select id="fm-section" onchange="loadFileList()" style="width:100%; padding:0.4rem; background:#0f172a; color:white; border:1px solid #334155; border-radius:4px;">
+                            <!--SECTIONS_OPTIONS-->
+                        </select>
+                    </div>
+                </div>
+
                 <!--ROLE_TEACHER_ONLY-->
-                <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
+                <form id="upload-form" action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
                     <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload New Document:</label>
+                    <input type="hidden" name="grade" id="upload-grade">
+                    <input type="hidden" name="section" id="upload-section">
                     <input type="file" name="file" required style="margin-bottom:0.75rem; color:white; width:100%;">
-                    <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Upload File</button>
+                    <button type="submit" onclick="prepareUpload()" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Upload File</button>
                 </form>
                 <!--END_ROLE-->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                    <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">AVAILABLE DOCUMENTS</span>
+                    <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">AVAILABLE CLASS DOCUMENTS</span>
                     <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔄 Refresh</button>
                 </div>
                 <ul id="file-list-container" style="list-style:none; padding:0; margin:0;">
@@ -344,9 +442,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     .then(users => {
                         document.getElementById('user-count').innerText = Object.keys(users).length;
                         let html = '<table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">';
-                        html += '<tr style="border-bottom:1px solid #334155; color:#94a3b8;"><th>Username</th><th>Role</th></tr>';
+                        html += '<tr style="border-bottom:1px solid #334155; color:#94a3b8;"><th>Username</th><th>Role</th><th>Class & Section</th></tr>';
                         for (let u in users) {
-                            html += `<tr style="border-bottom:1px solid #1e293b; color:#cbd5e1;"><td style="padding:0.4rem 0;">${u}</td><td><span class="user-role-badge">${users[u].role}</span></td></tr>`;
+                            html += `<tr style="border-bottom:1px solid #1e293b; color:#cbd5e1;"><td style="padding:0.4rem 0;">${u}</td><td><span class="user-role-badge">${users[u].role}</span></td><td>${users[u].grade || 'N/A'} - ${users[u].section || 'N/A'}</td></tr>`;
                         }
                         html += '</table>';
                         document.getElementById('users-table-container').innerHTML = html;
@@ -358,6 +456,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 const payload = {
                     role: document.getElementById('mass-role').value,
                     prefix: document.getElementById('mass-prefix').value,
+                    grade: document.getElementById('mass-grade').value,
+                    section: document.getElementById('mass-section').value,
                     count: parseInt(document.getElementById('mass-count').value),
                     password: document.getElementById('mass-password').value
                 };
@@ -368,7 +468,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 })
                 .then(r => r.json())
                 .then(res => {
-                    alert(`Successfully created ${res.created} accounts!`);
+                    alert(`Successfully created ${res.created} accounts linked to Class ${payload.grade} Section ${payload.section}!`);
                     loadUsers();
                 });
             }
@@ -376,9 +476,63 @@ CONSOLE_HTML = """<!DOCTYPE html>
             setTimeout(loadUsers, 500);
         }
 
+        function toggleAttachMenu() {
+            const menu = document.getElementById('attach-menu');
+            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function triggerAttach(type) {
+            toggleAttachMenu();
+            const input = document.getElementById('user-chat-input');
+            input.value = `[Attachment: ${type}] ` + input.value;
+            input.focus();
+        }
+
+        function loadChatHistory() {
+            fetch('/api/chat/history')
+                .then(r => r.json())
+                .then(messages => {
+                    if (!messages || messages.length === 0) return;
+                    const container = document.getElementById('chat-messages-container');
+                    container.innerHTML = messages.map(m => `
+                        <div class="chat-msg ${m.role === 'user' ? 'user' : 'bot'}">${m.text}</div>
+                    `).join('');
+                    container.scrollTop = container.scrollHeight;
+                });
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('user-chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const container = document.getElementById('chat-messages-container');
+            container.innerHTML += `<div class="chat-msg user">${message}</div>`;
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+
+            const grade = document.getElementById('fm-grade') ? document.getElementById('fm-grade').value : '10th';
+            const section = document.getElementById('fm-section') ? document.getElementById('fm-section').value : 'A';
+
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: message, grade: grade, section: section })
+            })
+            .then(r => r.json())
+            .then(data => {
+                container.innerHTML += `<div class="chat-msg bot">${data.reply}</div>`;
+                container.scrollTop = container.scrollHeight;
+                if (data.file_saved) {
+                    loadFileList();
+                }
+            });
+        }
+
         function openApp(id) { 
             document.getElementById(id).style.display = 'flex'; 
             if(id === 'whiteboard-modal') { resizeCanvas(); }
+            if(id === 'aibot-modal') { loadChatHistory(); }
         }
         
         function closeApp(id) { 
@@ -388,8 +542,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 filePollInterval = null;
             }
         }
-        
-        function launchWPS() { window.location.href = '/launch-wps'; }
 
         function openFileManager() { 
             openApp('filemanager-modal'); 
@@ -399,22 +551,26 @@ CONSOLE_HTML = """<!DOCTYPE html>
             }
         }
 
+        function prepareUpload() {
+            document.getElementById('upload-grade').value = document.getElementById('fm-grade').value;
+            document.getElementById('upload-section').value = document.getElementById('fm-section').value;
+        }
+
         function loadFileList() {
-            fetch('/api/files?t=' + Date.now(), { cache: "no-store" })
-                .then(r => {
-                    if (!r.ok) throw new Error("HTTP error " + r.status);
-                    return r.json();
-                })
+            const g = document.getElementById('fm-grade').value;
+            const s = document.getElementById('fm-section').value;
+            fetch(`/api/files?grade=${encodeURIComponent(g)}&section=${encodeURIComponent(s)}&t=` + Date.now(), { cache: "no-store" })
+                .then(r => r.json())
                 .then(files => {
                     const container = document.getElementById('file-list-container');
                     if (!container) return;
                     if (!files || files.length === 0) {
-                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet.</li>';
+                        container.innerHTML = `<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet for Grade ${g} - Sec ${s}.</li>`;
                         return;
                     }
                     container.innerHTML = files.map(file => `
                         <li class="file-item">
-                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
+                            <a href="/uploads/${encodeURIComponent(g)}/${encodeURIComponent(s)}/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
                             ${(USER_ROLE === 'teacher' || USER_ROLE === 'admin') ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
                         </li>
                     `).join('');
@@ -425,8 +581,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function deleteFile(filename) {
+            const g = document.getElementById('fm-grade').value;
+            const s = document.getElementById('fm-section').value;
             if (!confirm('Delete file: ' + filename + '?')) return;
-            fetch('/api/delete-file?name=' + encodeURIComponent(filename), { method: 'DELETE' })
+            fetch(`/api/delete-file?name=${encodeURIComponent(filename)}&grade=${encodeURIComponent(g)}&section=${encodeURIComponent(s)}`, { method: 'DELETE' })
                 .then(r => r.json())
                 .then(() => loadFileList());
         }
@@ -612,17 +770,26 @@ CONSOLE_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-def open_local_file(filepath):
-    import subprocess
+def call_gemini_api(prompt):
+    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
+        return "⚠️ Gemini API key is missing. Please configure your key locally in app.py or as an environment variable."
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+
     try:
-        if sys.platform.startswith('win'):
-            os.startfile(filepath)
-        elif sys.platform.startswith('darwin'):
-            subprocess.run(['open', filepath])
-        else:
-            subprocess.run(['xdg-open', filepath])
+        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            text_response = res_data['candidates'][0]['content']['parts'][0]['text']
+            return text_response
     except Exception as e:
-        print(f"Error opening document: {e}")
+        return f"Error contacting Gemini API: {str(e)}"
 
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
@@ -664,24 +831,28 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
     def parse_multipart(self):
         content_type = self.headers.get('Content-Type', '')
         if not content_type.startswith('multipart/form-data'):
-            return None, None
+            return None, None, '10th', 'A'
         
         boundary = content_type.split('boundary=')[1].encode('utf-8')
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
 
+        filename, file_data, grade, section = None, None, '10th', 'A'
         parts = body.split(b'--' + boundary)
         for part in parts:
-            if b'filename="' in part:
+            if b'name="grade"' in part:
+                grade = part.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0].decode('utf-8', errors='ignore')
+            elif b'name="section"' in part:
+                section = part.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0].decode('utf-8', errors='ignore')
+            elif b'filename="' in part:
                 header_part, file_data = part.split(b'\r\n\r\n', 1)
                 file_data = file_data.rsplit(b'\r\n', 1)[0]
-                
                 header_text = header_part.decode('utf-8', errors='ignore')
                 filename_match = re.search(r'filename="([^"]+)"', header_text)
                 if filename_match:
-                    filename = filename_match.group(1)
-                    return os.path.basename(filename), file_data
-        return None, None
+                    filename = os.path.basename(filename_match.group(1))
+
+        return filename, file_data, grade, section
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -710,6 +881,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             
             html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
+
+            grade_opts = "".join([f'<option value="{g}" {"selected" if g == session.get("grade","10th") else ""}>{g}</option>' for g in GRADES])
+            sec_opts = "".join([f'<option value="{s}" {"selected" if s == session.get("section","A") else ""}>Section {s}</option>' for s in SECTIONS])
+            html = html.replace("<!--GRADES_OPTIONS-->", grade_opts).replace("<!--SECTIONS_OPTIONS-->", sec_opts)
             
             if session['role'] == 'admin':
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
@@ -735,6 +910,14 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_html(html)
             return
 
+        if path == "/api/chat/history":
+            if not session:
+                self.send_json([])
+                return
+            user_chats = CHAT_HISTORIES.get(session['username'], [])
+            self.send_json(user_chats)
+            return
+
         if path == "/api/admin/users":
             if not session or session.get('role') != 'admin':
                 self.send_json({"error": "Forbidden"}, 403)
@@ -742,22 +925,15 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json(USERS)
             return
 
-        if path == "/launch-wps":
-            if not session:
-                self.redirect("/login")
-                return
-            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
-            if files:
-                target = os.path.join(UPLOAD_DIR, files[0])
-                open_local_file(target)
-            self.redirect("/")
-            return
-
         if path == "/api/files":
             if not session:
                 self.send_json({"error": "Unauthorized"}, 401)
                 return
-            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
+            params = urllib.parse.parse_qs(parsed.query)
+            g = params.get('grade', [session.get('grade', '10th')])[0]
+            s = params.get('section', [session.get('section', 'A')])[0]
+            target_dir = os.path.join(UPLOAD_DIR, g, s)
+            files = os.listdir(target_dir) if os.path.exists(target_dir) else []
             self.send_json(files)
             return
 
@@ -772,18 +948,20 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path.startswith("/uploads/"):
-            filename = urllib.parse.unquote(path[len("/uploads/"):])
-            filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
-            if os.path.exists(filepath):
-                self.send_response(200)
-                self.send_header("Content-Type", "application/octet-stream")
-                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
-                self.set_no_cache_headers()
-                self.end_headers()
-                with open(filepath, "rb") as f:
-                    self.wfile.write(f.read())
-            else:
-                self.send_error(404, "File Not Found")
+            parts = path[len("/uploads/"):].split('/')
+            if len(parts) >= 3:
+                g, s, filename = parts[0], parts[1], urllib.parse.unquote('/'.join(parts[2:]))
+                filepath = os.path.join(UPLOAD_DIR, g, s, os.path.basename(filename))
+                if os.path.exists(filepath):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                    self.set_no_cache_headers()
+                    self.end_headers()
+                    with open(filepath, "rb") as f:
+                        self.wfile.write(f.read())
+                    return
+            self.send_error(404, "File Not Found")
             return
 
         self.send_error(404)
@@ -798,7 +976,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             params = urllib.parse.parse_qs(body)
             admin_key_entered = params.get('admin_key', [''])[0].strip()
 
-            # Verify entered SSH Key ID directly against stored ADMIN_KEYS
             if admin_key_entered in ADMIN_KEYS:
                 admin_info = ADMIN_KEYS[admin_key_entered]
                 sid = str(uuid.uuid4())
@@ -806,13 +983,15 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 SESSIONS[sid] = {
                     "username": admin_info["email"],
                     "role": "admin",
+                    "grade": "10th",
+                    "section": "A",
                     "key_info": {
                         "name": admin_info["name"],
                         "super_key": admin_key_entered,
                         "photo_url": admin_info["photo_url"]
                     }
                 }
-                USERS[admin_info["email"]] = {"password": "", "role": "admin"}
+                USERS[admin_info["email"]] = {"password": "", "role": "admin", "grade": "10th", "section": "A"}
 
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
@@ -836,7 +1015,13 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
             if username in USERS and USERS[username]['password'] == password:
                 sid = str(uuid.uuid4())
-                SESSIONS[sid] = {"username": username, "role": USERS[username]['role']}
+                user_data = USERS[username]
+                SESSIONS[sid] = {
+                    "username": username, 
+                    "role": user_data['role'],
+                    "grade": user_data.get('grade', '10th'),
+                    "section": user_data.get('section', 'A')
+                }
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
                 self.send_header("Location", "/")
@@ -852,6 +1037,38 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_json({"error": "Unauthorized"}, 401)
             return
 
+        if path == "/api/chat":
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = json.loads(self.rfile.read(content_length).decode('utf-8'))
+            user_msg = body.get('message', '')
+            g = body.get('grade', session.get('grade', '10th'))
+            s = body.get('section', session.get('section', 'A'))
+
+            username = session['username']
+            if username not in CHAT_HISTORIES:
+                CHAT_HISTORIES[username] = []
+
+            CHAT_HISTORIES[username].append({"role": "user", "text": user_msg})
+
+            reply = call_gemini_api(user_msg)
+            file_saved = False
+
+            if "mind map" in user_msg.lower() or "mindmap" in user_msg.lower():
+                filename = f"MindMap_{int(time.time())}.txt"
+                file_dir = os.path.join(UPLOAD_DIR, g, s)
+                if not os.path.exists(file_dir):
+                    os.makedirs(file_dir)
+                filepath = os.path.join(file_dir, filename)
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(f"=== MIND MAP GENERATED FOR CLASS {g} SEC {s} ===\n\n" + reply)
+                
+                reply += f"\n\n📂 **Automatic Upload Success:** The mind map file (`{filename}`) has been automatically uploaded into Class {g} Section {s} File Manager."
+                file_saved = True
+
+            CHAT_HISTORIES[username].append({"role": "model", "text": reply})
+            self.send_json({"reply": reply, "file_saved": file_saved})
+            return
+
         if path == "/api/admin/mass-create":
             if session.get('role') != 'admin':
                 self.send_json({"error": "Forbidden"}, 403)
@@ -861,13 +1078,15 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             
             role = body.get('role', 'student')
             prefix = body.get('prefix', 'board')
+            grade = body.get('grade', '10th')
+            sec = body.get('section', 'A')
             count = int(body.get('count', 1))
             password = body.get('password', '2234269580')
 
             created = 0
             for i in range(1, count + 1):
                 acc_email = f"{prefix}{i:02d}@Digiboardleaning.com"
-                USERS[acc_email] = {"password": password, "role": role}
+                USERS[acc_email] = {"password": password, "role": role, "grade": grade, "section": sec}
                 created += 1
 
             self.send_json({"status": "ok", "created": created})
@@ -877,11 +1096,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if session['role'] not in ['teacher', 'admin']:
                 self.send_json({"error": "Forbidden"}, 403)
                 return
-            filename, file_data = self.parse_multipart()
+            filename, file_data, grade, section = self.parse_multipart()
             if filename and file_data:
-                if not os.path.exists(UPLOAD_DIR):
-                    os.makedirs(UPLOAD_DIR)
-                filepath = os.path.join(UPLOAD_DIR, filename)
+                target_dir = os.path.join(UPLOAD_DIR, grade, section)
+                if not os.path.exists(target_dir):
+                    os.makedirs(target_dir)
+                filepath = os.path.join(target_dir, filename)
                 with open(filepath, "wb") as f:
                     f.write(file_data)
             self.redirect("/")
@@ -913,8 +1133,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/delete-file":
             params = urllib.parse.parse_qs(parsed.query)
             filename = params.get('name', [''])[0]
+            g = params.get('grade', ['10th'])[0]
+            s = params.get('section', ['A'])[0]
             if filename:
-                filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+                filepath = os.path.join(UPLOAD_DIR, g, s, os.path.basename(filename))
                 if os.path.exists(filepath):
                     os.remove(filepath)
             self.send_json({"status": "deleted"})
