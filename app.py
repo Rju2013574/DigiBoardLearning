@@ -20,10 +20,8 @@ BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 CHAT_HISTORIES = {}
 
-# Locally set Gemini API Key or get from Environment Variable
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
 
-# Structured Classes and Sections Setup (PRKG to 10th, Sections A to G)
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
 SECTIONS = ["A", "B", "C", "D", "E", "F", "G"]
 
@@ -38,7 +36,6 @@ def ensure_file_manager_structure():
 
 ensure_file_manager_structure()
 
-# Authorized Admin SSH Keys
 ADMIN_KEYS = {
     "9080-3456-7890-3456-7280-4562-8729-RJU-2013-2810-4568-6573": {
         "email": "juraghav@gmail.com",
@@ -180,10 +177,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .chat-msg.bot { align-self: flex-start; background: #1e293b; color: #f1f5f9; border-bottom-left-radius: 2px; border: 1px solid #334155; white-space: pre-wrap; }
         .chat-input-area { padding: 1rem; border-top: 1px solid #1e293b; background: #0f172a; display: flex; flex-direction: column; gap: 0.5rem; position: relative; }
         .chat-input-row { display: flex; gap: 0.5rem; }
-        .chat-input-row input { flex: 1; padding: 0.75rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
-        .attach-menu { display: none; position: absolute; bottom: 70px; left: 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 50; width: 200px; }
+        .chat-input-row input[type="text"] { flex: 1; padding: 0.75rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
+        .attach-menu { display: none; position: absolute; bottom: 70px; left: 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 50; width: 220px; }
         .attach-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.8rem; color: #f8fafc; font-size: 0.85rem; border-radius: 6px; cursor: pointer; }
         .attach-item:hover { background: #1e293b; color: #38bdf8; }
+        .redirect-link { color: #38bdf8; text-decoration: underline; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -240,15 +238,18 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="modal-body">
                 <div class="chat-container">
                     <div class="chat-messages" id="chat-messages-container">
-                        <div class="chat-msg bot">Hello! I am your AI Teaching & Learning Assistant. Ask me to generate mind maps for any lesson or document, and I will automatically upload it directly into your Class File Manager!</div>
+                        <div class="chat-msg bot">Hello! I am your AI Teaching & Learning Assistant. Ask me to generate mind maps, or use the 📎 button to upload files directly into your File Manager!</div>
                     </div>
                     
                     <div class="chat-input-area">
+                        <!-- Hidden Native File Input Trigger -->
+                        <input type="file" id="ai-file-input" style="display:none;" onchange="handleAiFileUpload(event)">
+
                         <div class="attach-menu" id="attach-menu">
-                            <div class="attach-item" onclick="triggerAttach('Upload files')">📎 Upload files</div>
+                            <div class="attach-item" onclick="openAiFileSelector()">📎 Upload files</div>
+                            <div class="attach-item" onclick="redirectToFileManager()">📂 Go to File Manager</div>
                             <div class="attach-item" onclick="triggerAttach('Add from Drive')">🔺 Add from Drive</div>
                             <div class="attach-item" onclick="triggerAttach('Photos')">🌸 Photos</div>
-                            <div class="attach-item" onclick="triggerAttach('Canvas')">🎨 Canvas</div>
                             <div class="attach-item" onclick="triggerAttach('Guided learning')">📖 Guided learning</div>
                         </div>
 
@@ -479,6 +480,54 @@ CONSOLE_HTML = """<!DOCTYPE html>
         function toggleAttachMenu() {
             const menu = document.getElementById('attach-menu');
             menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function openAiFileSelector() {
+            toggleAttachMenu();
+            document.getElementById('ai-file-input').click();
+        }
+
+        function redirectToFileManager() {
+            toggleAttachMenu();
+            closeApp('aibot-modal');
+            openFileManager();
+        }
+
+        function handleAiFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const grade = document.getElementById('fm-grade') ? document.getElementById('fm-grade').value : '10th';
+            const section = document.getElementById('fm-section') ? document.getElementById('fm-section').value : 'A';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('grade', grade);
+            formData.append('section', section);
+
+            const container = document.getElementById('chat-messages-container');
+            container.innerHTML += `<div class="chat-msg user">📎 Uploading document: ${file.name}...</div>`;
+            container.scrollTop = container.scrollHeight;
+
+            fetch('/api/chat/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    container.innerHTML += `<div class="chat-msg bot">✅ File <b>${data.filename}</b> uploaded successfully to Class ${data.grade} Section ${data.section} File Manager!<br><br>👉 <span class="redirect-link" onclick="redirectToFileManager()">Click here to open File Manager</span></div>`;
+                } else {
+                    container.innerHTML += `<div class="chat-msg bot">❌ Upload failed: ${data.error || 'Unknown error'}</div>`;
+                }
+                container.scrollTop = container.scrollHeight;
+                event.target.value = ''; // Reset input
+            })
+            .catch(err => {
+                container.innerHTML += `<div class="chat-msg bot">❌ Error uploading file.</div>`;
+                container.scrollTop = container.scrollHeight;
+                event.target.value = '';
+            });
         }
 
         function triggerAttach(type) {
@@ -1035,6 +1084,20 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         session = self.get_session()
         if not session:
             self.send_json({"error": "Unauthorized"}, 401)
+            return
+
+        if path == "/api/chat/upload":
+            filename, file_data, grade, section = self.parse_multipart()
+            if filename and file_data:
+                target_dir = os.path.join(UPLOAD_DIR, grade, section)
+                if not os.path.exists(target_dir):
+                    os.makedirs(target_dir)
+                filepath = os.path.join(target_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(file_data)
+                self.send_json({"status": "ok", "filename": filename, "grade": grade, "section": section})
+            else:
+                self.send_json({"error": "No file uploaded"}, 400)
             return
 
         if path == "/api/chat":
