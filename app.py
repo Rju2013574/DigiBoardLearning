@@ -20,7 +20,7 @@ BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 CHAT_HISTORIES = {}
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6J-yO8rxDJAcCcM7EHM2_c_POYdGhFoNmetjTi6vue-2A")
 
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
 SECTIONS = ["A", "B", "C", "D", "E", "F", "G"]
