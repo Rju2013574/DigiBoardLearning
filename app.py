@@ -207,7 +207,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="app-icon icon-wb">
                     <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                 </div>
-                <div class="app-title">WhiteBoard</div>
+                <div class="app-title">Interactive WhiteBoard</div>
             </div>
 
             <div class="app-card" onclick="openApp('aibot-modal')">
@@ -342,6 +342,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="modal-header">
                 <h3>DigiBoard Interactive Whiteboard</h3>
                 <div class="header-actions">
+                    <!--STUDENT & ADMIN CLEAR BUTTON-->
+                    <!--ROLE_STUDENT_ONLY-->
+                    <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard">
+                        <span>Clear All</span> 🗑️
+                    </button>
+                    <!--END_STUDENT_ROLE-->
                     <!--ROLE_TEACHER_ONLY-->
                     <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard">
                         <span>Clear All</span> 🗑️
@@ -350,13 +356,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
                 </div>
             </div>
-            <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only Mode) - Live Syncing Teacher Board</div>
-            <!--END_STUDENT_ROLE-->
+            
             <div class="modal-body">
                 <div class="wb-viewport" id="wb-container">
                     <canvas id="board"></canvas>
-                    <!--ROLE_TEACHER_ONLY-->
+                    
+                    <!-- FULL INTERACTIVE TOOL PALETTE FOR STUDENTS & TEACHERS -->
                     <div class="markup-palette">
                         <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
                         <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
@@ -388,7 +393,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         <h4>Opacity</h4>
                         <input type="range" id="opacity-range" min="0.1" max="1" step="0.1" value="1" style="width:100%;" onchange="setOpacity(this.value)">
                     </div>
-                    <!--END_ROLE-->
                 </div>
             </div>
         </div>
@@ -401,7 +405,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
             <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only) - View & Download Available Class Documents</div>
+            <div class="readonly-banner">Student View - View & Download Available Class Documents</div>
             <!--END_STUDENT_ROLE-->
             <div class="modal-body" style="height: 520px; overflow-y: auto;">
                 <div style="display:flex; gap:1rem; margin-bottom:1rem; background:#070d19; padding:0.75rem; border-radius:6px; border:1px solid #1e293b;">
@@ -687,61 +691,60 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        if (USER_ROLE === 'teacher' || USER_ROLE === 'admin') {
-            canvas.addEventListener('pointerdown', (e) => {
-                isDrawing = true;
-                canvas.setPointerCapture(e.pointerId);
-                const rect = canvas.getBoundingClientRect();
-                let width = currentLineWidth;
-                let color = currentColor;
-                let opacity = currentOpacity;
+        // ENABLE INTERACTIVE DRAWING FOR STUDENT, TEACHER, AND ADMIN
+        canvas.addEventListener('pointerdown', (e) => {
+            isDrawing = true;
+            canvas.setPointerCapture(e.pointerId);
+            const rect = canvas.getBoundingClientRect();
+            let width = currentLineWidth;
+            let color = currentColor;
+            let opacity = currentOpacity;
 
-                if (activeTool === 'highlighter') {
-                    opacity = 0.4;
-                    width = Math.max(width, 18);
-                } else if (activeTool === 'eraser') {
-                    color = '#ffffff';
-                    width = 25;
-                    opacity = 1.0;
-                } else if (activeTool === 'marker') {
-                    width = Math.max(width, 10);
-                }
+            if (activeTool === 'highlighter') {
+                opacity = 0.4;
+                width = Math.max(width, 18);
+            } else if (activeTool === 'eraser') {
+                color = '#ffffff';
+                width = 25;
+                opacity = 1.0;
+            } else if (activeTool === 'marker') {
+                width = Math.max(width, 10);
+            }
 
-                const newLine = {
-                    tool: activeTool,
-                    color: color,
-                    width: width,
-                    opacity: opacity,
-                    pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
-                };
-                lines.push(newLine);
-                undoStack = [];
-            });
+            const newLine = {
+                tool: activeTool,
+                color: color,
+                width: width,
+                opacity: opacity,
+                pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
+            };
+            lines.push(newLine);
+            undoStack = [];
+        });
 
-            canvas.addEventListener('pointermove', (e) => {
-                if (!isDrawing) return;
-                const rect = canvas.getBoundingClientRect();
-                const currentLine = lines[lines.length - 1];
-                currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                redraw(lines);
-            });
+        canvas.addEventListener('pointermove', (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const currentLine = lines[lines.length - 1];
+            currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+            redraw(lines);
+        });
 
-            canvas.addEventListener('pointerup', (e) => { 
-                if (isDrawing) {
-                    isDrawing = false; 
-                    canvas.releasePointerCapture(e.pointerId);
-                    syncWhiteboard();
-                }
-            });
-            
-            canvas.addEventListener('pointercancel', (e) => {
-                if (isDrawing) {
-                    isDrawing = false;
-                    try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
-                    syncWhiteboard();
-                }
-            });
-        }
+        canvas.addEventListener('pointerup', (e) => { 
+            if (isDrawing) {
+                isDrawing = false; 
+                canvas.releasePointerCapture(e.pointerId);
+                syncWhiteboard();
+            }
+        });
+        
+        canvas.addEventListener('pointercancel', (e) => {
+            if (isDrawing) {
+                isDrawing = false;
+                try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
+                syncWhiteboard();
+            }
+        });
 
         function redraw(linesToDraw) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -820,7 +823,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function syncWhiteboard() {
-            if (USER_ROLE !== 'teacher' && USER_ROLE !== 'admin') return;
+            // Allow all roles (students, teachers, admins) to save whiteboard state
             fetch('/api/whiteboard', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -829,21 +832,21 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function pollWhiteboard() {
-            if (USER_ROLE === 'student') {
-                fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
-                    .then(r => r.json())
-                    .then(data => {
+            // Polling sync for live updates across accounts
+            fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
+                .then(r => r.json())
+                .then(data => {
+                    if (!isDrawing) {
                         lines = data;
                         redraw(lines);
-                    })
-                    .catch(() => {})
-                    .finally(() => setTimeout(pollWhiteboard, 1000));
-            }
+                    }
+                })
+                .catch(() => {})
+                .finally(() => setTimeout(pollWhiteboard, 2000));
         }
 
-        if (USER_ROLE === 'student') {
-            pollWhiteboard();
-        }
+        // Live polling active for all roles
+        pollWhiteboard();
     </script>
 </body>
 </html>"""
@@ -855,14 +858,12 @@ def call_gemini_api_with_history(history_list):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     
-    # System instruction to act as a full-featured Gemini assistant
     system_instruction = {
         "parts": [{
             "text": "You are Gemini, a helpful, encouraging, and highly intelligent AI assistant integrated into the DigiBoard school platform. You assist students and teachers by answering questions thoroughly, explaining complex topics clearly, generating mind maps, writing code, creating study guides, and providing detailed information on any subject requested."
         }]
     }
 
-    # Format full message history into Gemini API format
     contents = []
     for m in history_list:
         role = "user" if m["role"] == "user" else "model"
@@ -984,7 +985,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
                 html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
                 html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
-                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
+                html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
                 
                 key_info = session.get('key_info', {})
                 html = html.replace("<!--ADMIN_NAME-->", key_info.get("name", "System Administrator"))
@@ -1156,10 +1157,8 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if username not in CHAT_HISTORIES:
                 CHAT_HISTORIES[username] = []
 
-            # Append current user prompt to history
             CHAT_HISTORIES[username].append({"role": "user", "text": user_msg})
 
-            # Send full conversation history to Gemini API
             reply = call_gemini_api_with_history(CHAT_HISTORIES[username])
             file_saved = False
 
@@ -1175,7 +1174,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 reply += f"\n\n📂 **Automatic Upload Success:** The mind map file (`{filename}`) has been automatically uploaded into Class {g} Section {s} File Manager."
                 file_saved = True
 
-            # Append model reply to history
             CHAT_HISTORIES[username].append({"role": "model", "text": reply})
             self.send_json({"reply": reply, "file_saved": file_saved})
             return
@@ -1219,9 +1217,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/whiteboard":
-            if session['role'] not in ['teacher', 'admin']:
-                self.send_json({"error": "Forbidden"}, 403)
-                return
+            # Allow all roles (student, teacher, admin) to update the whiteboard backend
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
             global BOARD_CACHE
