@@ -99,6 +99,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard Master Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
@@ -172,9 +173,15 @@ CONSOLE_HTML = """<!DOCTYPE html>
         /* AI Bot Styling */
         .chat-container { display: flex; flex-direction: column; height: 100%; background: #070d19; border-radius: 8px; border: 1px solid #1e293b; }
         .chat-messages { flex: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; }
-        .chat-msg { max-width: 80%; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem; line-height: 1.4; }
+        .chat-msg { max-width: 85%; padding: 0.75rem 1rem; border-radius: 10px; font-size: 0.9rem; line-height: 1.5; }
         .chat-msg.user { align-self: flex-end; background: #0284c7; color: white; border-bottom-right-radius: 2px; }
-        .chat-msg.bot { align-self: flex-start; background: #1e293b; color: #f1f5f9; border-bottom-left-radius: 2px; border: 1px solid #334155; white-space: pre-wrap; }
+        .chat-msg.bot { align-self: flex-start; background: #1e293b; color: #f1f5f9; border-bottom-left-radius: 2px; border: 1px solid #334155; }
+        .chat-msg.bot p { margin: 0 0 0.5rem 0; }
+        .chat-msg.bot p:last-child { margin-bottom: 0; }
+        .chat-msg.bot ul, .chat-msg.bot ol { margin: 0.2rem 0 0.5rem 1.2rem; padding: 0; }
+        .chat-msg.bot code { background: #0f172a; padding: 0.1rem 0.3rem; border-radius: 4px; font-family: monospace; color: #38bdf8; }
+        .chat-msg.bot pre { background: #0f172a; padding: 0.6rem; border-radius: 6px; overflow-x: auto; }
+        .chat-msg.bot pre code { background: none; padding: 0; color: #f8fafc; }
         .chat-input-area { padding: 1rem; border-top: 1px solid #1e293b; background: #0f172a; display: flex; flex-direction: column; gap: 0.5rem; position: relative; }
         .chat-input-row { display: flex; gap: 0.5rem; }
         .chat-input-row input[type="text"] { flex: 1; padding: 0.75rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
@@ -207,7 +214,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="app-icon icon-ai">
                     <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m8 7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h16m-12 3a1.5 1.5 0 0 0-1.5 1.5 1.5 1.5 0 0 0 1.5 1.5 1.5 1.5 0 0 0 1.5-1.5A1.5 1.5 0 0 0 8 12m8 0a1.5 1.5 0 0 0-1.5 1.5 1.5 1.5 0 0 0 1.5 1.5 1.5 1.5 0 0 0 1.5-1.5A1.5 1.5 0 0 0 16 12z"/></svg>
                 </div>
-                <div class="app-title">AI Assistant Bot</div>
+                <div class="app-title">Gemini AI Assistant</div>
             </div>
 
             <div class="app-card" onclick="openFileManager()">
@@ -232,13 +239,13 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <div class="modal" id="aibot-modal">
         <div class="modal-content" style="max-width: 850px; height:85vh;">
             <div class="modal-header">
-                <h3>🤖 DigiBoard AI Assistant (Powered by Gemini)</h3>
+                <h3>✨ Gemini AI Assistant (Live)</h3>
                 <span class="close-btn" onclick="closeApp('aibot-modal')">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="chat-container">
                     <div class="chat-messages" id="chat-messages-container">
-                        <div class="chat-msg bot">Hello! I am your AI Teaching & Learning Assistant. Ask me to generate mind maps, or use the 📎 button to upload files directly into your File Manager!</div>
+                        <div class="chat-msg bot">Hello! I am your Gemini AI Assistant. Ask me anything—I can answer questions, explain complex concepts, generate code, create mind maps, or help with school lessons!</div>
                     </div>
                     
                     <div class="chat-input-area">
@@ -255,7 +262,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
                         <div class="chat-input-row">
                             <button onclick="toggleAttachMenu()" style="background:#1e293b; border:1px solid #334155; color:#38bdf8; padding:0.6rem; border-radius:6px; cursor:pointer;">📎</button>
-                            <input type="text" id="user-chat-input" placeholder="Ask AI to generate a mind map, explain a topic, or analyze a lesson..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+                            <input type="text" id="user-chat-input" placeholder="Ask Gemini anything..." onkeypress="if(event.key==='Enter') sendChatMessage()">
                             <button onclick="sendChatMessage()" style="background:#0284c7; border:none; color:white; padding:0.6rem 1.2rem; border-radius:6px; font-weight:bold; cursor:pointer;">Send</button>
                         </div>
                     </div>
@@ -521,7 +528,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     container.innerHTML += `<div class="chat-msg bot">❌ Upload failed: ${data.error || 'Unknown error'}</div>`;
                 }
                 container.scrollTop = container.scrollHeight;
-                event.target.value = ''; // Reset input
+                event.target.value = ''; 
             })
             .catch(err => {
                 container.innerHTML += `<div class="chat-msg bot">❌ Error uploading file.</div>`;
@@ -537,6 +544,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
             input.focus();
         }
 
+        function renderMarkdown(text) {
+            try {
+                return marked.parse(text);
+            } catch(e) {
+                return text;
+            }
+        }
+
         function loadChatHistory() {
             fetch('/api/chat/history')
                 .then(r => r.json())
@@ -544,7 +559,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     if (!messages || messages.length === 0) return;
                     const container = document.getElementById('chat-messages-container');
                     container.innerHTML = messages.map(m => `
-                        <div class="chat-msg ${m.role === 'user' ? 'user' : 'bot'}">${m.text}</div>
+                        <div class="chat-msg ${m.role === 'user' ? 'user' : 'bot'}">${m.role === 'user' ? m.text : renderMarkdown(m.text)}</div>
                     `).join('');
                     container.scrollTop = container.scrollHeight;
                 });
@@ -563,6 +578,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
             const grade = document.getElementById('fm-grade') ? document.getElementById('fm-grade').value : '10th';
             const section = document.getElementById('fm-section') ? document.getElementById('fm-section').value : 'A';
 
+            // Show typing indicator
+            const loadingId = 'loading-' + Date.now();
+            container.innerHTML += `<div class="chat-msg bot" id="${loadingId}"><i>Gemini is thinking...</i></div>`;
+            container.scrollTop = container.scrollHeight;
+
             fetch('/api/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -570,11 +590,20 @@ CONSOLE_HTML = """<!DOCTYPE html>
             })
             .then(r => r.json())
             .then(data => {
-                container.innerHTML += `<div class="chat-msg bot">${data.reply}</div>`;
+                const loadingElem = document.getElementById(loadingId);
+                if (loadingElem) loadingElem.remove();
+
+                container.innerHTML += `<div class="chat-msg bot">${renderMarkdown(data.reply)}</div>`;
                 container.scrollTop = container.scrollHeight;
                 if (data.file_saved) {
                     loadFileList();
                 }
+            })
+            .catch(err => {
+                const loadingElem = document.getElementById(loadingId);
+                if (loadingElem) loadingElem.remove();
+                container.innerHTML += `<div class="chat-msg bot">❌ Error connecting to Gemini API.</div>`;
+                container.scrollTop = container.scrollHeight;
             });
         }
 
@@ -819,21 +848,37 @@ CONSOLE_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-def call_gemini_api(prompt):
+def call_gemini_api_with_history(history_list):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
-        return "⚠️ Gemini API key is missing. Please configure your key locally in app.py or as an environment variable."
+        return "⚠️ Gemini API key is missing. Please configure your GEMINI_API_KEY environment variable."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
-    payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
+    
+    # System instruction to act as a full-featured Gemini assistant
+    system_instruction = {
+        "parts": [{
+            "text": "You are Gemini, a helpful, encouraging, and highly intelligent AI assistant integrated into the DigiBoard school platform. You assist students and teachers by answering questions thoroughly, explaining complex topics clearly, generating mind maps, writing code, creating study guides, and providing detailed information on any subject requested."
         }]
+    }
+
+    # Format full message history into Gemini API format
+    contents = []
+    for m in history_list:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append({
+            "role": role,
+            "parts": [{"text": m["text"]}]
+        })
+
+    payload = {
+        "system_instruction": system_instruction,
+        "contents": contents
     }
 
     try:
         req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as response:
+        with urllib.request.urlopen(req, timeout=20) as response:
             res_data = json.loads(response.read().decode('utf-8'))
             text_response = res_data['candidates'][0]['content']['parts'][0]['text']
             return text_response
@@ -1111,9 +1156,11 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if username not in CHAT_HISTORIES:
                 CHAT_HISTORIES[username] = []
 
+            # Append current user prompt to history
             CHAT_HISTORIES[username].append({"role": "user", "text": user_msg})
 
-            reply = call_gemini_api(user_msg)
+            # Send full conversation history to Gemini API
+            reply = call_gemini_api_with_history(CHAT_HISTORIES[username])
             file_saved = False
 
             if "mind map" in user_msg.lower() or "mindmap" in user_msg.lower():
@@ -1128,6 +1175,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 reply += f"\n\n📂 **Automatic Upload Success:** The mind map file (`{filename}`) has been automatically uploaded into Class {g} Section {s} File Manager."
                 file_saved = True
 
+            # Append model reply to history
             CHAT_HISTORIES[username].append({"role": "model", "text": reply})
             self.send_json({"reply": reply, "file_saved": file_saved})
             return
