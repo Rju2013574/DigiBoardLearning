@@ -28,7 +28,7 @@ CHAT_HISTORIES = {}
 
 # Retrieve the secret decryption key from environment variables (GitHub Secrets / Render / Local)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6J-yO8rxDJAcCcM7EHM2_c_POYdGhFoNmetjTi6vue-2A")
-CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "HwHL7WMhRl65vW16Ax958ilVyBGvjwKNrWL7_uN5tZU=")
+CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
 SECTIONS = ["A", "B", "C", "D", "E", "F", "G"]
