@@ -398,7 +398,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     </div>
 
     <div class="modal" id="filemanager-modal">
-        <div class="modal-content" style="max-width: 650px; height:auto;">
+        <div class="modal-content" style="max-width: 700px; height:auto;">
             <div class="modal-header">
                 <h3>Class File Manager</h3>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
@@ -406,20 +406,34 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <!--ROLE_STUDENT_ONLY-->
             <div class="readonly-banner">Student View (Read-Only) - View & Download Available Documents</div>
             <!--END_STUDENT_ROLE-->
-            <div class="modal-body" style="height: 480px; overflow-y: auto;">
+            <div class="modal-body" style="height: 520px; overflow-y: auto;">
+                <div style="display:flex; gap:1rem; margin-bottom:1rem; background:#070d19; padding:0.75rem; border-radius:6px; border:1px solid #1e293b;">
+                    <div style="flex:1;">
+                        <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:0.2rem;">Select Grade / Class</label>
+                        <select id="filter-grade" onchange="loadFileList()" style="width:100%; padding:0.4rem; background:#050a14; color:white; border:1px solid #334155; border-radius:4px;"><!--GRADES_OPTIONS--></select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:0.2rem;">Select Section</label>
+                        <select id="filter-section" onchange="loadFileList()" style="width:100%; padding:0.4rem; background:#050a14; color:white; border:1px solid #334155; border-radius:4px;"><!--SECTIONS_OPTIONS--></select>
+                    </div>
+                </div>
+
                 <!--ROLE_TEACHER_ONLY-->
-                <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
-                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload New Document:</label>
+                <form action="/upload" method="POST" enctype="multipart/form-data" onsubmit="prepareUpload(event)" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
+                    <input type="hidden" name="grade" id="upload-grade">
+                    <input type="hidden" name="section" id="upload-section">
+                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload Document to Selected Class:</label>
                     <input type="file" name="file" required style="margin-bottom:0.75rem; color:white; width:100%;">
                     <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Upload File</button>
                 </form>
                 <!--END_ROLE-->
+
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                    <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">AVAILABLE DOCUMENTS</span>
+                    <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">DOCUMENTS FOR SELECTED CLASS</span>
                     <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔄 Refresh</button>
                 </div>
                 <ul id="file-list-container" style="list-style:none; padding:0; margin:0;">
-                    <li style="color:#94a3b8; text-align:center; padding: 2rem 0;">Loading files...</li>
+                    <li style="color:#94a3b8; text-align:center; padding: 2rem 0;">Select a grade and section to view documents.</li>
                 </ul>
             </div>
         </div>
@@ -508,7 +522,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function loadFileList() {
-            fetch('/api/files?t=' + Date.now(), { cache: "no-store" })
+            const grade = document.getElementById('filter-grade').value;
+            const section = document.getElementById('filter-section').value;
+            if(!grade || !section) return;
+
+            fetch(`/api/files?grade=${encodeURIComponent(grade)}&section=${encodeURIComponent(section)}&t=` + Date.now(), { cache: "no-store" })
                 .then(r => {
                     if (!r.ok) throw new Error("HTTP error " + r.status);
                     return r.json();
@@ -517,12 +535,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     const container = document.getElementById('file-list-container');
                     if (!container) return;
                     if (!files || files.length === 0) {
-                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet.</li>';
+                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded for Grade ' + grade + ' - Section ' + section + ' yet.</li>';
                         return;
                     }
                     container.innerHTML = files.map(file => `
                         <li class="file-item">
-                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
+                            <a href="/uploads/${grade}/${section}/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
                             ${(USER_ROLE === 'teacher' || USER_ROLE === 'admin') ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
                         </li>
                     `).join('');
@@ -532,9 +550,16 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 });
         }
 
+        function prepareUpload(e) {
+            document.getElementById('upload-grade').value = document.getElementById('filter-grade').value;
+            document.getElementById('upload-section').value = document.getElementById('filter-section').value;
+        }
+
         function deleteFile(filename) {
+            const grade = document.getElementById('filter-grade').value;
+            const section = document.getElementById('filter-section').value;
             if (!confirm('Delete file: ' + filename + '?')) return;
-            fetch('/api/delete-file?name=' + encodeURIComponent(filename), { method: 'DELETE' })
+            fetch(`/api/delete-file?grade=${encodeURIComponent(grade)}&section=${encodeURIComponent(section)}&name=` + encodeURIComponent(filename), { method: 'DELETE' })
                 .then(r => r.json())
                 .then(() => loadFileList());
         }
@@ -772,28 +797,37 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
     def parse_multipart(self):
         content_type = self.headers.get('Content-Type', '')
         if not content_type.startswith('multipart/form-data'):
-            return None, None
+            return None, None, None, None
         
         boundary = content_type.split('boundary=')[1].encode('utf-8')
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
 
         parts = body.split(b'--' + boundary)
+        filename = None
+        file_data = None
+        grade = "10th"
+        section = "A"
+
         for part in parts:
-            if b'filename="' in part:
+            if b'name="grade"' in part:
+                grade = part.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0].decode('utf-8').strip()
+            elif b'name="section"' in part:
+                section = part.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0].decode('utf-8').strip()
+            elif b'filename="' in part:
                 header_part, file_data = part.split(b'\r\n\r\n', 1)
                 file_data = file_data.rsplit(b'\r\n', 1)[0]
-                
                 header_text = header_part.decode('utf-8', errors='ignore')
                 filename_match = re.search(r'filename="([^"]+)"', header_text)
                 if filename_match:
-                    filename = filename_match.group(1)
-                    return os.path.basename(filename), file_data
-        return None, None
+                    filename = os.path.basename(filename_match.group(1))
+
+        return filename, file_data, grade, section
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        query_params = urllib.parse.parse_qs(parsed.query)
         session = self.get_session()
 
         if path == "/login":
@@ -849,9 +883,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if not session:
                 self.redirect("/login")
                 return
-            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
+            target_dir = os.path.join(UPLOAD_DIR, session.get('grade', '10th'), session.get('section', 'A'))
+            files = os.listdir(target_dir) if os.path.exists(target_dir) else []
             if files:
-                target = os.path.join(UPLOAD_DIR, files[0])
+                target = os.path.join(target_dir, files[0])
                 open_local_file(target)
             self.redirect("/")
             return
@@ -860,7 +895,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if not session:
                 self.send_json({"error": "Unauthorized"}, 401)
                 return
-            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
+            grade = query_params.get('grade', ['10th'])[0]
+            section = query_params.get('section', ['A'])[0]
+            target_dir = os.path.join(UPLOAD_DIR, grade, section)
+            files = os.listdir(target_dir) if os.path.exists(target_dir) else []
             self.send_json(files)
             return
 
@@ -875,9 +913,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path.startswith("/uploads/"):
-            filename = urllib.parse.unquote(path[len("/uploads/"):])
-            filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+            rel_path = path[len("/uploads/"):].strip('/')
+            filepath = os.path.join(UPLOAD_DIR, rel_path)
             if os.path.exists(filepath):
+                filename = os.path.basename(filepath)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -1011,11 +1050,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if session['role'] not in ['teacher', 'admin']:
                 self.send_json({"error": "Forbidden"}, 403)
                 return
-            filename, file_data = self.parse_multipart()
+            filename, file_data, grade, section = self.parse_multipart()
             if filename and file_data:
-                if not os.path.exists(UPLOAD_DIR):
-                    os.makedirs(UPLOAD_DIR)
-                filepath = os.path.join(UPLOAD_DIR, filename)
+                target_dir = os.path.join(UPLOAD_DIR, grade, section)
+                if not os.path.exists(target_dir):
+                    os.makedirs(target_dir)
+                filepath = os.path.join(target_dir, filename)
                 with open(filepath, "wb") as f:
                     f.write(file_data)
             self.redirect("/")
@@ -1038,6 +1078,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
     def do_DELETE(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        query_params = urllib.parse.parse_qs(parsed.query)
         session = self.get_session()
 
         if not session or session.get('role') != 'admin':
@@ -1045,8 +1086,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/admin/users":
-            params = urllib.parse.parse_qs(parsed.query)
-            username = params.get('username', [''])[0].strip()
+            username = query_params.get('username', [''])[0].strip()
             if username:
                 users = load_users_from_encrypted_csv()
                 if username in users:
@@ -1056,10 +1096,11 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 return
 
         if path == "/api/delete-file":
-            params = urllib.parse.parse_qs(parsed.query)
-            filename = params.get('name', [''])[0]
+            grade = query_params.get('grade', ['10th'])[0]
+            section = query_params.get('section', ['A'])[0]
+            filename = query_params.get('name', [''])[0]
             if filename:
-                filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+                filepath = os.path.join(UPLOAD_DIR, grade, section, os.path.basename(filename))
                 if os.path.exists(filepath):
                     os.remove(filepath)
             self.send_json({"status": "deleted"})
@@ -1068,9 +1109,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         self.send_error(404)
 
 if __name__ == "__main__":
-    if not os.path.exists(UPLOAD_DIR):
-        os.makedirs(UPLOAD_DIR)
-    
+    ensure_file_manager_structure()
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
         print(f"DigiBoard Master Console running at http://localhost:{PORT}")
         httpd.serve_forever()
