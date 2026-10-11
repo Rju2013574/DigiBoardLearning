@@ -218,17 +218,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .close-btn:hover { color: #fff; }
         .modal-body { padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }
         .wb-viewport { position: relative; width: 100%; height: 100%; flex: 1; background: #ffffff; border-radius: 8px; overflow: hidden; }
-        
-        canvas { 
-            display: block; 
-            width: 100%; 
-            height: 100%; 
-            background: radial-gradient(#d1d5db 1px, transparent 1px); 
-            background-size: 20px 20px; 
-            cursor: crosshair; 
-            touch-action: none; 
-        }
-        
+        canvas { display: block; width: 100%; height: 100%; background: radial-gradient(#d1d5db 1px, transparent 1px); background-size: 20px 20px; cursor: crosshair; touch-action: none; }
         .markup-palette { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 30px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); z-index: 20; width: 58px; }
         .markup-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 0.15s, transform 0.15s; color: #334155; padding: 0; }
         .markup-btn:hover { background: #e2e8f0; transform: scale(1.08); }
@@ -249,7 +239,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .delete-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
         .delete-btn:hover { background: #ef4444; color: #fff; }
         .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
-        
         .admin-form-group { margin-bottom: 1rem; }
         .admin-form-group label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.85rem; }
         .admin-form-group input, .admin-form-group select { width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
@@ -418,4 +407,670 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="readonly-banner">Student View (Read-Only) - View & Download Available Documents</div>
             <!--END_STUDENT_ROLE-->
             <div class="modal-body" style="height: 480px; overflow-y: auto;">
-                <!--ROLE_TEACHER_ONLY
+                <!--ROLE_TEACHER_ONLY-->
+                <form action="/upload" method="POST" enctype="multipart/form-data" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
+                    <label style="display:block; margin-bottom: 0.5rem; color:#94a3b8; font-weight:600;">Upload New Document:</label>
+                    <input type="file" name="file" required style="margin-bottom:0.75rem; color:white; width:100%;">
+                    <button type="submit" style="width:100%; padding:0.6rem; background:#10b981; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Upload File</button>
+                </form>
+                <!--END_ROLE-->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                    <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">AVAILABLE DOCUMENTS</span>
+                    <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔄 Refresh</button>
+                </div>
+                <ul id="file-list-container" style="list-style:none; padding:0; margin:0;">
+                    <li style="color:#94a3b8; text-align:center; padding: 2rem 0;">Loading files...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const USER_ROLE = "<!--USER_ROLE-->";
+        let filePollInterval = null;
+
+        if (USER_ROLE === 'admin') {
+            function loadUsers() {
+                fetch('/api/admin/users')
+                    .then(r => r.json())
+                    .then(users => {
+                        document.getElementById('user-count').innerText = Object.keys(users).length;
+                        let html = '<table style="width:100%; border-collapse:collapse; text-align:left; font-size:0.85rem;">';
+                        html += '<tr style="border-bottom:1px solid #334155; color:#94a3b8;"><th>Username</th><th>Role</th><th>Class & Section</th><th>Action</th></tr>';
+                        for (let u in users) {
+                            html += `<tr style="border-bottom:1px solid #1e293b; color:#cbd5e1;">
+                                <td style="padding:0.4rem 0;">${u}</td>
+                                <td><span class="user-role-badge">${users[u].role}</span></td>
+                                <td>${users[u].grade || 'N/A'} - ${users[u].section || 'N/A'}</td>
+                                <td><button class="delete-btn" onclick="deleteAccount('${u}')">Delete</button></td>
+                            </tr>`;
+                        }
+                        html += '</table>';
+                        document.getElementById('users-table-container').innerHTML = html;
+                    });
+            }
+
+            function deleteAccount(username) {
+                if (!confirm(`Are you sure you want to delete user account: ${username}?`)) return;
+                fetch('/api/admin/users?username=' + encodeURIComponent(username), { method: 'DELETE' })
+                    .then(r => r.json())
+                    .then(res => {
+                        alert(`Successfully deleted account: ${username}`);
+                        loadUsers();
+                    });
+            }
+
+            function handleMassCreate(e) {
+                e.preventDefault();
+                const payload = {
+                    role: document.getElementById('mass-role').value,
+                    prefix: document.getElementById('mass-prefix').value,
+                    grade: document.getElementById('mass-grade').value,
+                    section: document.getElementById('mass-section').value,
+                    count: parseInt(document.getElementById('mass-count').value),
+                    password: document.getElementById('mass-password').value
+                };
+                fetch('/api/admin/mass-create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                })
+                .then(r => r.json())
+                .then(res => {
+                    alert(`Successfully created ${res.created} accounts saved into encrypted CSV!`);
+                    loadUsers();
+                });
+            }
+            setTimeout(loadUsers, 500);
+        }
+
+        function openApp(id) { 
+            document.getElementById(id).style.display = 'flex'; 
+            if(id === 'whiteboard-modal') { resizeCanvas(); }
+        }
+        
+        function closeApp(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if(id === 'filemanager-modal' && filePollInterval) {
+                clearInterval(filePollInterval);
+                filePollInterval = null;
+            }
+        }
+        
+        function launchWPS() { window.location.href = '/launch-wps'; }
+
+        function openFileManager() { 
+            openApp('filemanager-modal'); 
+            loadFileList();
+            if(!filePollInterval) {
+                filePollInterval = setInterval(loadFileList, 4000);
+            }
+        }
+
+        function loadFileList() {
+            fetch('/api/files?t=' + Date.now(), { cache: "no-store" })
+                .then(r => {
+                    if (!r.ok) throw new Error("HTTP error " + r.status);
+                    return r.json();
+                })
+                .then(files => {
+                    const container = document.getElementById('file-list-container');
+                    if (!container) return;
+                    if (!files || files.length === 0) {
+                        container.innerHTML = '<li style="color:#94a3b8; text-align:center; padding:2rem 0; background:#070d19; border:1px solid #1e293b; border-radius:6px;">No documents uploaded yet.</li>';
+                        return;
+                    }
+                    container.innerHTML = files.map(file => `
+                        <li class="file-item">
+                            <a href="/uploads/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
+                            ${(USER_ROLE === 'teacher' || USER_ROLE === 'admin') ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
+                        </li>
+                    `).join('');
+                })
+                .catch(err => {
+                    console.error("Failed to load files:", err);
+                });
+        }
+
+        function deleteFile(filename) {
+            if (!confirm('Delete file: ' + filename + '?')) return;
+            fetch('/api/delete-file?name=' + encodeURIComponent(filename), { method: 'DELETE' })
+                .then(r => r.json())
+                .then(() => loadFileList());
+        }
+
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('wb-container');
+
+        let isDrawing = false;
+        let lines = [];
+        let undoStack = [];
+        let activeTool = 'pen';
+        let currentColor = '#000000';
+        let currentLineWidth = 5;
+        let currentOpacity = 1.0;
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            redraw(lines);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        if (USER_ROLE === 'teacher' || USER_ROLE === 'admin') {
+            canvas.addEventListener('pointerdown', (e) => {
+                isDrawing = true;
+                canvas.setPointerCapture(e.pointerId);
+                const rect = canvas.getBoundingClientRect();
+                let width = currentLineWidth;
+                let color = currentColor;
+                let opacity = currentOpacity;
+
+                if (activeTool === 'highlighter') {
+                    opacity = 0.4;
+                    width = Math.max(width, 18);
+                } else if (activeTool === 'eraser') {
+                    color = '#ffffff';
+                    width = 25;
+                    opacity = 1.0;
+                } else if (activeTool === 'marker') {
+                    width = Math.max(width, 10);
+                }
+
+                const newLine = {
+                    tool: activeTool,
+                    color: color,
+                    width: width,
+                    opacity: opacity,
+                    pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
+                };
+                lines.push(newLine);
+                undoStack = [];
+            });
+
+            canvas.addEventListener('pointermove', (e) => {
+                if (!isDrawing) return;
+                const rect = canvas.getBoundingClientRect();
+                const currentLine = lines[lines.length - 1];
+                currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                redraw(lines);
+            });
+
+            canvas.addEventListener('pointerup', (e) => { 
+                if (isDrawing) {
+                    isDrawing = false; 
+                    canvas.releasePointerCapture(e.pointerId);
+                    syncWhiteboard();
+                }
+            });
+            
+            canvas.addEventListener('pointercancel', (e) => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
+                    syncWhiteboard();
+                }
+            });
+        }
+
+        function redraw(linesToDraw) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!linesToDraw) return;
+            
+            linesToDraw.forEach(line => {
+                if (!line || !line.pts || line.pts.length === 0) return;
+                ctx.save();
+                ctx.strokeStyle = line.color || "#000000";
+                ctx.lineWidth = line.width || 3;
+                ctx.globalAlpha = line.opacity || 1.0;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                ctx.beginPath();
+                line.pts.forEach((pt, i) => {
+                    if (i === 0) ctx.moveTo(pt.x, pt.y);
+                    else ctx.lineTo(pt.x, pt.y);
+                });
+                ctx.stroke();
+                ctx.restore();
+            });
+        }
+
+        function selectTool(tool) {
+            activeTool = tool;
+            document.querySelectorAll('.markup-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.getElementById('tool-' + tool);
+            if(activeBtn) activeBtn.classList.add('active');
+        }
+
+        function setColor(hex, el) {
+            currentColor = hex;
+            if(el) {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                el.classList.add('active');
+            }
+        }
+
+        function setStroke(width, el) {
+            currentLineWidth = width;
+            document.querySelectorAll('.stroke-opt').forEach(o => o.classList.remove('active'));
+            if(el) el.classList.add('active');
+        }
+
+        function setOpacity(val) { currentOpacity = parseFloat(val); }
+
+        function toggleConfigPopover() {
+            const pop = document.getElementById('config-popover');
+            pop.style.display = pop.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function undo() {
+            if (lines.length > 0) {
+                undoStack.push(lines.pop());
+                redraw(lines);
+                syncWhiteboard();
+            }
+        }
+
+        function redo() {
+            if (undoStack.length > 0) {
+                lines.push(undoStack.pop());
+                redraw(lines);
+                syncWhiteboard();
+            }
+        }
+
+        function clearBoard() {
+            if (lines.length === 0) return;
+            if (!confirm("Are you sure you want to clear the entire whiteboard?")) return;
+            undoStack.push(...lines);
+            lines = [];
+            redraw(lines);
+            syncWhiteboard();
+        }
+
+        function syncWhiteboard() {
+            if (USER_ROLE !== 'teacher' && USER_ROLE !== 'admin') return;
+            fetch('/api/whiteboard', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(lines)
+            });
+        }
+
+        function pollWhiteboard() {
+            if (USER_ROLE === 'student') {
+                fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
+                    .then(r => r.json())
+                    .then(data => {
+                        lines = data;
+                        redraw(lines);
+                    })
+                    .catch(() => {})
+                    .finally(() => setTimeout(pollWhiteboard, 1000));
+            }
+        }
+
+        if (USER_ROLE === 'student') {
+            pollWhiteboard();
+        }
+    </script>
+</body>
+</html>"""
+
+def open_local_file(filepath):
+    import subprocess
+    try:
+        if sys.platform.startswith('win'):
+            os.startfile(filepath)
+        elif sys.platform.startswith('darwin'):
+            subprocess.run(['open', filepath])
+        else:
+            subprocess.run(['xdg-open', filepath])
+    except Exception as e:
+        print(f"Error opening document: {e}")
+
+class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
+
+    def set_no_cache_headers(self):
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+
+    def get_session(self):
+        cookie_header = self.headers.get('Cookie')
+        if cookie_header:
+            cookie = cookies.SimpleCookie()
+            cookie.load(cookie_header)
+            if 'session_id' in cookie:
+                sid = cookie['session_id'].value
+                return SESSIONS.get(sid)
+        return None
+
+    def send_html(self, content, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.set_no_cache_headers()
+        self.end_headers()
+        self.wfile.write(content.encode('utf-8'))
+
+    def send_json(self, data, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.set_no_cache_headers()
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode('utf-8'))
+
+    def redirect(self, location):
+        self.send_response(302)
+        self.send_header("Location", location)
+        self.set_no_cache_headers()
+        self.end_headers()
+
+    def parse_multipart(self):
+        content_type = self.headers.get('Content-Type', '')
+        if not content_type.startswith('multipart/form-data'):
+            return None, None
+        
+        boundary = content_type.split('boundary=')[1].encode('utf-8')
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+
+        parts = body.split(b'--' + boundary)
+        for part in parts:
+            if b'filename="' in part:
+                header_part, file_data = part.split(b'\r\n\r\n', 1)
+                file_data = file_data.rsplit(b'\r\n', 1)[0]
+                
+                header_text = header_part.decode('utf-8', errors='ignore')
+                filename_match = re.search(r'filename="([^"]+)"', header_text)
+                if filename_match:
+                    filename = filename_match.group(1)
+                    return os.path.basename(filename), file_data
+        return None, None
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        session = self.get_session()
+
+        if path == "/login":
+            self.send_html(LOGIN_HTML.replace("<!--ERROR-->", ""))
+            return
+
+        if path == "/logout":
+            cookie_header = self.headers.get('Cookie')
+            if cookie_header:
+                cookie = cookies.SimpleCookie()
+                cookie.load(cookie_header)
+                if 'session_id' in cookie:
+                    sid = cookie['session_id'].value
+                    SESSIONS.pop(sid, None)
+            self.redirect("/login")
+            return
+
+        if path in ("/", "/dashboard"):
+            if not session:
+                self.redirect("/login")
+                return
+            
+            html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
+            html = html.replace("<!--USER_ROLE-->", session['role'])
+
+            grade_opts = "".join([f'<option value="{g}" {"selected" if g == session.get("grade","10th") else ""}>{g}</option>' for g in GRADES])
+            sec_opts = "".join([f'<option value="{s}" {"selected" if s == session.get("section","A") else ""}>Section {s}</option>' for s in SECTIONS])
+            html = html.replace("<!--GRADES_OPTIONS-->", grade_opts).replace("<!--SECTIONS_OPTIONS-->", sec_opts)
+            
+            if session['role'] == 'admin':
+                html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
+                html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
+                key_info = session.get('key_info', {})
+                html = html.replace("<!--ADMIN_NAME-->", key_info.get("name", "System Administrator"))
+                html = html.replace("<!--SUPER_KEY-->", key_info.get("super_key", "UNKNOWN"))
+                html = html.replace("<!--ADMIN_PHOTO-->", key_info.get("photo_url", ""))
+            else:
+                html = html.replace("<!--ADMIN_CLASS-->", "")
+                html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
+                
+            self.send_html(html)
+            return
+
+        if path == "/api/admin/users":
+            if not session or session.get('role') != 'admin':
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+            users = load_users_from_encrypted_csv()
+            self.send_json(users)
+            return
+
+        if path == "/launch-wps":
+            if not session:
+                self.redirect("/login")
+                return
+            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
+            if files:
+                target = os.path.join(UPLOAD_DIR, files[0])
+                open_local_file(target)
+            self.redirect("/")
+            return
+
+        if path == "/api/files":
+            if not session:
+                self.send_json({"error": "Unauthorized"}, 401)
+                return
+            files = os.listdir(UPLOAD_DIR) if os.path.exists(UPLOAD_DIR) else []
+            self.send_json(files)
+            return
+
+        if path == "/api/whiteboard":
+            global BOARD_CACHE
+            with CACHE_LOCK:
+                try:
+                    data = json.loads(BOARD_CACHE)
+                except Exception:
+                    data = []
+            self.send_json(data)
+            return
+
+        if path.startswith("/uploads/"):
+            filename = urllib.parse.unquote(path[len("/uploads/"):])
+            filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+            if os.path.exists(filepath):
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.set_no_cache_headers()
+                self.end_headers()
+                with open(filepath, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_error(404, "File Not Found")
+            return
+
+        self.send_error(404)
+
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        if path == "/login-admin":
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            params = urllib.parse.parse_qs(body)
+            admin_key_entered = params.get('admin_key', [''])[0].strip()
+
+            if admin_key_entered in ADMIN_KEYS:
+                admin_info = ADMIN_KEYS[admin_key_entered]
+                sid = str(uuid.uuid4())
+
+                SESSIONS[sid] = {
+                    "username": admin_info["email"],
+                    "role": "admin",
+                    "grade": "10th",
+                    "section": "A",
+                    "key_info": {
+                        "name": admin_info["name"],
+                        "super_key": admin_key_entered,
+                        "photo_url": admin_info["photo_url"]
+                    }
+                }
+
+                users = load_users_from_encrypted_csv()
+                users[admin_info["email"]] = {"password": "", "role": "admin", "grade": "10th", "section": "A"}
+                save_users_to_encrypted_csv(users)
+
+                log_login_event(admin_info["email"], "admin", "10th", "A", "Admin SSH Key")
+
+                self.send_response(302)
+                self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
+                self.send_header("Location", "/")
+                self.set_no_cache_headers()
+                self.end_headers()
+            else:
+                err_html = LOGIN_HTML.replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
+                self.send_html(err_html, 401)
+            return
+
+        if path == "/login":
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            params = urllib.parse.parse_qs(body)
+            username = params.get('username', [''])[0].strip()
+            password = params.get('password', [''])[0].strip()
+
+            users = load_users_from_encrypted_csv()
+
+            if username in users and users[username]['password'] == password:
+                sid = str(uuid.uuid4())
+                user_data = users[username]
+                SESSIONS[sid] = {
+                    "username": username, 
+                    "role": user_data['role'],
+                    "grade": user_data.get('grade', '10th'),
+                    "section": user_data.get('section', 'A')
+                }
+
+                log_login_event(
+                    username=username,
+                    role=user_data['role'],
+                    grade=user_data.get('grade', '10th'),
+                    section=user_data.get('section', 'A'),
+                    auth_method="Password"
+                )
+
+                self.send_response(302)
+                self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
+                self.send_header("Location", "/")
+                self.set_no_cache_headers()
+                self.end_headers()
+            else:
+                err_html = LOGIN_HTML.replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
+                self.send_html(err_html, 401)
+            return
+
+        session = self.get_session()
+        if not session:
+            self.send_json({"error": "Unauthorized"}, 401)
+            return
+
+        if path == "/api/admin/mass-create":
+            if session.get('role') != 'admin':
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = json.loads(self.rfile.read(content_length).decode('utf-8'))
+            
+            role = body.get('role', 'student')
+            prefix = body.get('prefix', 'digitalboard')
+            grade = body.get('grade', '10th')
+            sec = body.get('section', 'A')
+            count = int(body.get('count', 1))
+            password = body.get('password', '2234269580')
+
+            users = load_users_from_encrypted_csv()
+
+            created_count = 0
+            for i in range(1, count + 1):
+                acc_email = f"{prefix}{i:03d}@Digiboardleaning.com"
+                users[acc_email] = {
+                    "password": password,
+                    "role": role,
+                    "grade": grade,
+                    "section": sec
+                }
+                created_count += 1
+
+            save_users_to_encrypted_csv(users)
+
+            self.send_json({"status": "ok", "created": created_count})
+            return
+
+        if path == "/upload":
+            if session['role'] not in ['teacher', 'admin']:
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+            filename, file_data = self.parse_multipart()
+            if filename and file_data:
+                if not os.path.exists(UPLOAD_DIR):
+                    os.makedirs(UPLOAD_DIR)
+                filepath = os.path.join(UPLOAD_DIR, filename)
+                with open(filepath, "wb") as f:
+                    f.write(file_data)
+            self.redirect("/")
+            return
+
+        if path == "/api/whiteboard":
+            if session['role'] not in ['teacher', 'admin']:
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            global BOARD_CACHE
+            with CACHE_LOCK:
+                BOARD_CACHE = body
+            self.send_json({"status": "ok"})
+            return
+
+        self.send_error(404)
+
+    def do_DELETE(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        session = self.get_session()
+
+        if not session or session.get('role') != 'admin':
+            self.send_json({"error": "Forbidden"}, 403)
+            return
+
+        if path == "/api/admin/users":
+            params = urllib.parse.parse_qs(parsed.query)
+            username = params.get('username', [''])[0].strip()
+            if username:
+                users = load_users_from_encrypted_csv()
+                if username in users:
+                    del users[username]
+                    save_users_to_encrypted_csv(users)
+                self.send_json({"status": "deleted"})
+                return
+
+        if path == "/api/delete-file":
+            params = urllib.parse.parse_qs(parsed.query)
+            filename = params.get('name', [''])[0]
+            if filename:
+                filepath = os.path.join(UPLOAD_DIR, os.path.basename(filename))
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            self.send_json({"status": "deleted"})
+            return
+
+        self.send_error(404)
+
+if __name__ == "__main__":
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+    
+    with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
+        print(f"DigiBoard Master Console running at http://localhost:{PORT}")
+        httpd.serve_forever()
