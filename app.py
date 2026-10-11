@@ -43,29 +43,43 @@ def ensure_file_manager_structure():
 
 ensure_file_manager_structure()
 
-# --- GEMINI AI QUERY HELPER ---
+# --- GEMINI AI QUERY HELPER (FIXED ENDPOINT & FALLBACK) ---
 def query_gemini(prompt):
-    """Sends prompt to Google Gemini API using standard library."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    """Sends prompt to Google Gemini API using standard library with endpoint fix and model fallback."""
+    models_to_try = ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"]
+    
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
         }]
     }
-    try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'},
-            method='POST'
-        )
-        with urllib.request.urlopen(req) as response:
-            res_data = json.loads(response.read().decode('utf-8'))
-            candidate = res_data.get('candidates', [{}])[0]
-            text = candidate.get('content', {}).get('parts', [{}])[0].get('text', 'No response generated.')
-            return text
-    except Exception as e:
-        return f"Error connecting to Gemini AI: {str(e)}"
+
+    last_error = ""
+
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                candidates = res_data.get('candidates', [])
+                if candidates:
+                    text = candidates[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+                    if text:
+                        return text
+        except urllib.error.HTTPError as e:
+            last_error = f"HTTP {e.code}: {e.reason}"
+            continue
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    return f"Error connecting to Gemini AI ({last_error}). Please check your GEMINI_API_KEY."
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
