@@ -26,7 +26,7 @@ BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 CHAT_HISTORIES = {}
 
-# Retrieve the secret decryption key from environment variables (GitHub Secrets / Render / Local)[cite: 6]
+# Retrieve secrets from environment variables (GitHub Secrets / Render / Local)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6J-yO8rxDJAcCcM7EHM2_c_POYdGhFoNmetjTi6vue-2A")
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
@@ -46,18 +46,18 @@ ensure_file_manager_structure()
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
-    """Initializes and returns the Fernet encryption instance."""[cite: 6]
+    """Initializes and returns the Fernet encryption instance."""
     if not CSV_ENCRYPTION_KEY:
         return Fernet(b'VlD8h2tEiJkQpKKnDNKnu8ya2fpIBMOo5oc7JKNasvk=')
     return Fernet(CSV_ENCRYPTION_KEY.encode())
 
 def init_encrypted_csv():
-    """Initializes accounts_encrypted.csv with an empty structure (headers only) if it does not exist."""[cite: 6]
+    """Initializes accounts_encrypted.csv with an empty structure (headers only) if it does not exist."""
     if not os.path.exists(ENCRYPTED_CSV_FILE):
         save_users_to_encrypted_csv({})
 
 def load_users_from_encrypted_csv():
-    """Decrypts accounts_encrypted.csv in memory and loads all user credentials."""[cite: 6]
+    """Decrypts accounts_encrypted.csv in memory and loads all user credentials."""
     users = {}
     if os.path.exists(ENCRYPTED_CSV_FILE):
         try:
@@ -86,7 +86,7 @@ def load_users_from_encrypted_csv():
     return users
 
 def save_users_to_encrypted_csv(users_dict):
-    """Takes the complete users dictionary, formats to CSV, encrypts, and saves to disk."""[cite: 6]
+    """Takes the complete users dictionary, formats to CSV, encrypts, and saves to disk."""
     try:
         fernet = get_fernet()
         output = io.StringIO()
@@ -118,7 +118,7 @@ def save_users_to_encrypted_csv(users_dict):
 init_encrypted_csv()
 
 def log_login_event(username, role, grade, section, auth_method):
-    """Logs login activity to login_logs.csv audit trail."""[cite: 6]
+    """Logs login activity to login_logs.csv audit trail."""
     file_exists = os.path.exists(LOGIN_LOGS_CSV)
     with open(LOGIN_LOGS_CSV, mode="a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -831,23 +831,13 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if session['role'] == 'admin':
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
                 html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
-                html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
-                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
-                
                 key_info = session.get('key_info', {})
                 html = html.replace("<!--ADMIN_NAME-->", key_info.get("name", "System Administrator"))
                 html = html.replace("<!--SUPER_KEY-->", key_info.get("super_key", "UNKNOWN"))
                 html = html.replace("<!--ADMIN_PHOTO-->", key_info.get("photo_url", ""))
-            elif session['role'] == 'teacher':
-                html = html.replace("<!--ADMIN_CLASS-->", "")
-                html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
-                html = re.sub(r'<!--ROLE_STUDENT_ONLY-->.*?<!--END_STUDENT_ROLE-->', '', html, flags=re.DOTALL)
-                html = html.replace("<!--ROLE_TEACHER_ONLY-->", "").replace("<!--END_ROLE-->", "")
             else:
                 html = html.replace("<!--ADMIN_CLASS-->", "")
                 html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
-                html = re.sub(r'<!--ROLE_TEACHER_ONLY-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
-                html = html.replace("<!--ROLE_STUDENT_ONLY-->", "").replace("<!--END_STUDENT_ROLE-->", "")
                 
             self.send_html(html)
             return
