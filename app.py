@@ -56,7 +56,7 @@ def query_gemini(prompt):
             "parts": [{"text": prompt}]
         }],
         "systemInstruction": {
-            "parts": [{"text": "You are a classroom AI assistant for DigiBoard. Keep answers clear, well-structured, easy to understand for Grade 7 students, and concise."}]
+            "parts": [{"text": "You are a classroom AI assistant for DigiBoard at Hill Rock National Public School. Keep answers clear, well-structured, easy to understand for Grade 7 students, and concise."}]
         },
         "generationConfig": {
             "maxOutputTokens": 800,
@@ -408,15 +408,21 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="modal-header">
                 <h3>DigiBoard Interactive Whiteboard</h3>
                 <div class="header-actions">
+                    <!--ROLE_TEACHER_ONLY-->
                     <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard">
                         <span>Clear All</span> 🗑️
                     </button>
+                    <!--END_ROLE-->
                     <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
                 </div>
             </div>
+            <!--ROLE_STUDENT_ONLY-->
+            <div class="readonly-banner">Student View (Read-Only Mode) - Live Syncing Teacher Board</div>
+            <!--END_STUDENT_ROLE-->
             <div class="modal-body">
                 <div class="wb-viewport" id="wb-container">
                     <canvas id="board"></canvas>
+                    <!--ROLE_TEACHER_ONLY-->
                     <div class="markup-palette">
                         <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
                         <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
@@ -448,6 +454,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         <h4>Opacity</h4>
                         <input type="range" id="opacity-range" min="0.1" max="1" step="0.1" value="1" style="width:100%;" onchange="setOpacity(this.value)">
                     </div>
+                    <!--END_ROLE-->
                 </div>
             </div>
         </div>
@@ -694,59 +701,61 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        canvas.addEventListener('pointerdown', (e) => {
-            isDrawing = true;
-            canvas.setPointerCapture(e.pointerId);
-            const rect = canvas.getBoundingClientRect();
-            let width = currentLineWidth;
-            let color = currentColor;
-            let opacity = currentOpacity;
+        if (USER_ROLE === 'teacher' || USER_ROLE === 'admin') {
+            canvas.addEventListener('pointerdown', (e) => {
+                isDrawing = true;
+                canvas.setPointerCapture(e.pointerId);
+                const rect = canvas.getBoundingClientRect();
+                let width = currentLineWidth;
+                let color = currentColor;
+                let opacity = currentOpacity;
 
-            if (activeTool === 'highlighter') {
-                opacity = 0.4;
-                width = Math.max(width, 18);
-            } else if (activeTool === 'eraser') {
-                color = '#ffffff';
-                width = 25;
-                opacity = 1.0;
-            } else if (activeTool === 'marker') {
-                width = Math.max(width, 10);
-            }
+                if (activeTool === 'highlighter') {
+                    opacity = 0.4;
+                    width = Math.max(width, 18);
+                } else if (activeTool === 'eraser') {
+                    color = '#ffffff';
+                    width = 25;
+                    opacity = 1.0;
+                } else if (activeTool === 'marker') {
+                    width = Math.max(width, 10);
+                }
 
-            const newLine = {
-                tool: activeTool,
-                color: color,
-                width: width,
-                opacity: opacity,
-                pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
-            };
-            lines.push(newLine);
-            undoStack = [];
-        });
+                const newLine = {
+                    tool: activeTool,
+                    color: color,
+                    width: width,
+                    opacity: opacity,
+                    pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
+                };
+                lines.push(newLine);
+                undoStack = [];
+            });
 
-        canvas.addEventListener('pointermove', (e) => {
-            if (!isDrawing) return;
-            const rect = canvas.getBoundingClientRect();
-            const currentLine = lines[lines.length - 1];
-            currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-            redraw(lines);
-        });
+            canvas.addEventListener('pointermove', (e) => {
+                if (!isDrawing) return;
+                const rect = canvas.getBoundingClientRect();
+                const currentLine = lines[lines.length - 1];
+                currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                redraw(lines);
+            });
 
-        canvas.addEventListener('pointerup', (e) => { 
-            if (isDrawing) {
-                isDrawing = false; 
-                canvas.releasePointerCapture(e.pointerId);
-                syncWhiteboard();
-            }
-        });
-        
-        canvas.addEventListener('pointercancel', (e) => {
-            if (isDrawing) {
-                isDrawing = false;
-                try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
-                syncWhiteboard();
-            }
-        });
+            canvas.addEventListener('pointerup', (e) => { 
+                if (isDrawing) {
+                    isDrawing = false; 
+                    canvas.releasePointerCapture(e.pointerId);
+                    syncWhiteboard();
+                }
+            });
+            
+            canvas.addEventListener('pointercancel', (e) => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
+                    syncWhiteboard();
+                }
+            });
+        }
 
         function redraw(linesToDraw) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -825,6 +834,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function syncWhiteboard() {
+            if (USER_ROLE !== 'teacher' && USER_ROLE !== 'admin') return;
             fetch('/api/whiteboard', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -833,19 +843,23 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function pollWhiteboard() {
-            fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
-                .then(r => r.json())
-                .then(data => {
-                    if (JSON.stringify(data) !== JSON.stringify(lines)) {
-                        lines = data;
-                        redraw(lines);
-                    }
-                })
-                .catch(() => {})
-                .finally(() => setTimeout(pollWhiteboard, 1000));
+            if (USER_ROLE === 'student') {
+                fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (JSON.stringify(data) !== JSON.stringify(lines)) {
+                            lines = data;
+                            redraw(lines);
+                        }
+                    })
+                    .catch(() => {})
+                    .finally(() => setTimeout(pollWhiteboard, 1000));
+            }
         }
 
-        pollWhiteboard();
+        if (USER_ROLE === 'student') {
+            pollWhiteboard();
+        }
     </script>
 </body>
 </html>"""
@@ -1096,11 +1110,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/gemini":
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = json.loads(self.rfile.read(content_length).decode('utf-8'))
-            prompt = body.get('prompt', '')
-            ai_response = query_gemini(prompt)
-            self.send_json({"response": ai_response})
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                raw_body = self.rfile.read(content_length).decode('utf-8')
+                body = json.loads(raw_body) if raw_body else {}
+                prompt = body.get('prompt', '')
+                
+                ai_response = query_gemini(prompt)
+                self.send_json({"response": ai_response})
+            except Exception as e:
+                print(f"❌ API GEMINI ROUTE EXCEPTION: {str(e)}")
+                self.send_json({"response": f"❌ Server Error processing AI request: {str(e)}"}, 500)
             return
 
         if path == "/api/admin/mass-create":
@@ -1150,6 +1170,9 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/whiteboard":
+            if session['role'] not in ['teacher', 'admin']:
+                self.send_json({"error": "Forbidden"}, 403)
+                return
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
             global BOARD_CACHE
