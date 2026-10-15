@@ -53,14 +53,23 @@ def query_gemini(prompt):
         # Initialize the GenAI Client with key from Render Environment
         client = genai.Client(api_key=api_key)
         
-        # Request content generation using gemini-1.5-flash
+        # Use gemini-2.5-flash or explicit gemini-2.0-flash model name
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
         return response.text if (response and response.text) else "No response generated."
     except Exception as e:
-        return f"❌ Cloud AI Error: {str(e)}"
+        # Fallback to gemini-2.0-flash if 2.5 is not accessible on your API key
+        try:
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+            )
+            return response.text if (response and response.text) else "No response generated."
+        except Exception as fallback_err:
+            return f"❌ Cloud AI Error: {str(fallback_err)}"
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
