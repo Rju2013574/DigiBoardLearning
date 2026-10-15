@@ -41,35 +41,35 @@ def ensure_file_manager_structure():
                 os.makedirs(folder_path)
 
 ensure_file_manager_structure()
-
-# --- GOOGLE GENAI CLOUD API HELPER (RUNS 24/7 ON RENDER) ---
+# --- GOOGLE GENAI CLOUD API HELPER (BULLETPROOF FALLBACK) ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API via the official GenAI SDK."""
+    """Queries Google's Gemini Cloud API securely with automatic model fallback."""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
     
-    try:
-        # Initialize the GenAI Client with key from Render Environment
-        client = genai.Client(api_key=api_key)
-        
-        # Use gemini-2.5-flash or explicit gemini-2.0-flash model name
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
-        return response.text if (response and response.text) else "No response generated."
-    except Exception as e:
-        # Fallback to gemini-2.0-flash if 2.5 is not accessible on your API key
+    # Priority list of current Google model identifiers
+    models_to_try = [
+        "gemini-2.5-flash",
+        "gemini-1.5-flash",
+        "gemini-2.0-flash-exp"
+    ]
+    
+    client = genai.Client(api_key=api_key)
+    
+    for model_name in models_to_try:
         try:
-            client = genai.Client(api_key=api_key)
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model=model_name,
                 contents=prompt,
             )
-            return response.text if (response and response.text) else "No response generated."
-        except Exception as fallback_err:
-            return f"❌ Cloud AI Error: {str(fallback_err)}"
+            if response and response.text:
+                return response.text
+        except Exception as err:
+            # Continue trying the next model in the list
+            continue
+            
+    return "❌ Cloud AI Error: Unable to connect to available Gemini model endpoints."
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
