@@ -1194,8 +1194,9 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
         self.send_error(404)
 
-if __name__ == "__main__": app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), threaded=True)
+if __name__ == '__main__':
     ensure_file_manager_structure()
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), threaded=True)
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
         print(f"DigiBoard Master Console running on port {PORT}")
         httpd.serve_forever()
