@@ -25,8 +25,7 @@ SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
-# Retrieve secrets from environment variables (GitHub Secrets / Render / Local)
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6J-yO8rxDJAcCcM7EHM2_c_POYdGhFoNmetjTi6vue-2A")
+# Secrets for local storage encryption
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
@@ -43,43 +42,33 @@ def ensure_file_manager_structure():
 
 ensure_file_manager_structure()
 
-# --- GEMINI AI QUERY HELPER (FIXED ENDPOINT & FALLBACK) ---
+# --- LOCAL OFFLINE OLLAMA AI HELPER (NO API KEY REQUIRED) ---
 def query_gemini(prompt):
-    """Sends prompt to Google Gemini API using standard library with endpoint fix and model fallback."""
-    models_to_try = ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"]
-    
+    """Sends prompt directly to the locally installed Ollama Gemma AI engine."""
+    url = "http://localhost:11434/api/generate"
     payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
+        "model": "gemma",
+        "prompt": prompt,
+        "stream": False
     }
-
-    last_error = ""
-
-    for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
-        try:
-            req = urllib.request.Request(
-                url,
-                data=json.dumps(payload).encode('utf-8'),
-                headers={'Content-Type': 'application/json'},
-                method='POST'
-            )
-            with urllib.request.urlopen(req) as response:
-                res_data = json.loads(response.read().decode('utf-8'))
-                candidates = res_data.get('candidates', [])
-                if candidates:
-                    text = candidates[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                    if text:
-                        return text
-        except urllib.error.HTTPError as e:
-            last_error = f"HTTP {e.code}: {e.reason}"
-            continue
-        except Exception as e:
-            last_error = str(e)
-            continue
-
-    return f"Error connecting to Gemini AI ({last_error}). Please check your GEMINI_API_KEY."
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=60) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            return res_data.get('response', 'No response generated from local model.')
+    except Exception as e:
+        return (
+            f"❌ Local AI Bot Offline.\n\n"
+            f"Please ensure Ollama is running and you have downloaded the Gemma model.\n"
+            f"Open your terminal and run:\n"
+            f"   ollama run gemma\n\n"
+            f"(Details: {str(e)})"
+        )
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
@@ -89,7 +78,7 @@ def get_fernet():
     return Fernet(CSV_ENCRYPTION_KEY.encode())
 
 def init_encrypted_csv():
-    """Initializes accounts_encrypted.csv with an empty structure (headers only) if it does not exist."""
+    """Initializes accounts_encrypted.csv with an empty structure if it does not exist."""
     if not os.path.exists(ENCRYPTED_CSV_FILE):
         save_users_to_encrypted_csv({})
 
@@ -219,6 +208,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard Master Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
@@ -276,7 +266,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .admin-form-group { margin-bottom: 1rem; }
         .admin-form-group label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.85rem; }
         .admin-form-group input, .admin-form-group select { width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
-        .user-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; }
+        .ai-msg p { margin: 0 0 0.5rem 0; }
+        .ai-msg ul, .ai-msg ol { margin: 0.5rem 0; padding-left: 1.2rem; }
+        .ai-msg strong { color: #38bdf8; }
     </style>
 </head>
 <body>
@@ -301,7 +293,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="app-icon icon-gemini">
                     <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" fill="none"/></svg>
                 </div>
-                <div class="app-title">Gemini AI</div>
+                <div class="app-title">Gemini AI (Offline)</div>
             </div>
             <div class="app-card" onclick="openFileManager()">
                 <div class="app-icon icon-fm">
@@ -323,20 +315,23 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     <!-- GEMINI AI MODAL -->
     <div class="modal" id="gemini-modal">
-        <div class="modal-content" style="max-width: 850px; height: 85vh;">
+        <div class="modal-content" style="max-width: 900px; height: 88vh;">
             <div class="modal-header">
-                <h3>DigiBoard Gemini AI Assistant</h3>
-                <span class="close-btn" onclick="closeApp('gemini-modal')">&times;</span>
+                <h3>DigiBoard AI Engine (Powered by Local Gemma)</h3>
+                <div class="header-actions">
+                    <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span> ✨</button>
+                    <span class="close-btn" onclick="closeApp('gemini-modal')">&times;</span>
+                </div>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1rem;">
-                <div id="chat-messages" style="flex:1; overflow-y:auto; background:#070d19; border:1px solid #1e293b; border-radius:8px; padding:1rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:0.75rem;">
-                    <div style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#f8fafc; font-size:0.9rem;">
-                        Hello! I am your Gemini AI assistant integrated into DigiBoard Master Console. How can I help you today?
+                <div id="chat-messages" style="flex:1; overflow-y:auto; background:#070d19; border:1px solid #1e293b; border-radius:8px; padding:1.2rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:1rem;">
+                    <div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">
+                        Hello! I am your local AI assistant running directly on your laptop engine. Ask me anything!
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem;">
-                    <input type="text" id="chat-input" placeholder="Ask Gemini AI anything..." style="flex:1; padding:0.75rem; background:#070d19; border:1px solid #334155; color:white; border-radius:6px;" onkeydown="if(event.key==='Enter') sendGeminiMessage()">
-                    <button onclick="sendGeminiMessage()" style="padding:0.75rem 1.5rem; background:#2563eb; border:none; color:white; font-weight:bold; border-radius:6px; cursor:pointer;">Send</button>
+                    <input type="text" id="chat-input" placeholder="Type your message here..." style="flex:1; padding:0.85rem; background:#070d19; border:1px solid #334155; color:white; border-radius:8px; font-size:0.95rem;" onkeydown="if(event.key==='Enter') sendGeminiMessage()">
+                    <button onclick="sendGeminiMessage()" style="padding:0.85rem 1.8rem; background:linear-gradient(135deg, #2563eb, #7c3aed); border:none; color:white; font-weight:bold; border-radius:8px; cursor:pointer;">Send</button>
                 </div>
             </div>
         </div>
@@ -347,12 +342,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <div class="modal" id="admin-modal">
         <div class="modal-content" style="max-width: 850px; height:auto;">
             <div class="modal-header">
-                <h3>Admin Management & Provisioning Console</h3>
+                <h3>Admin Management Console</h3>
                 <span class="close-btn" onclick="closeApp('admin-modal')">&times;</span>
             </div>
             <div class="modal-body" style="height: 520px; overflow-y: auto;">
                 <div style="background:#070d19; padding:1.2rem; border-radius:8px; border:1px solid #1e293b;">
-                    <h4 style="margin-top:0; color:#cbd5e1;">Mass Provision Accounts & Class Linking (Encrypted CSV)</h4>
+                    <h4 style="margin-top:0; color:#cbd5e1;">Mass Provision Accounts</h4>
                     <form onsubmit="handleMassCreate(event)">
                         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
                             <div class="admin-form-group">
@@ -363,7 +358,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                                 </select>
                             </div>
                             <div class="admin-form-group">
-                                <label>Prefix Name (e.g. board / teacher)</label>
+                                <label>Prefix Name</label>
                                 <input type="text" id="mass-prefix" value="digitalboard" required>
                             </div>
                             <div class="admin-form-group">
@@ -509,7 +504,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             container.scrollTop = container.scrollHeight;
 
             const loadingId = 'loading-' + Date.now();
-            container.innerHTML += `<div id="${loadingId}" style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#94a3b8; font-size:0.9rem;">Thinking...</div>`;
+            container.innerHTML += `<div id="${loadingId}" style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#94a3b8; font-size:0.9rem;">Local AI is generating response...</div>`;
             container.scrollTop = container.scrollHeight;
 
             fetch('/api/gemini', {
@@ -520,13 +515,21 @@ CONSOLE_HTML = """<!DOCTYPE html>
             .then(r => r.json())
             .then(res => {
                 document.getElementById(loadingId).remove();
-                container.innerHTML += `<div style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#f8fafc; font-size:0.9rem; white-space: pre-wrap;">${escapeHtml(res.response)}</div>`;
+                const parsedMarkdown = marked.parse(res.response);
+                container.innerHTML += `<div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">${parsedMarkdown}</div>`;
                 container.scrollTop = container.scrollHeight;
             })
             .catch(err => {
                 document.getElementById(loadingId).remove();
-                container.innerHTML += `<div style="background:rgba(239,68,68,0.2); color:#ef4444; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; font-size:0.9rem;">Error connecting to Gemini AI.</div>`;
+                container.innerHTML += `<div style="background:rgba(239,68,68,0.2); color:#ef4444; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; font-size:0.9rem;">Error connecting to local AI server.</div>`;
             });
+        }
+
+        function clearChat() {
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">
+                    New conversation started. How can I help you?
+                </div>`;
         }
 
         function escapeHtml(text) {
@@ -1182,5 +1185,5 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 if __name__ == "__main__":
     ensure_file_manager_structure()
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
-        print(f"DigiBoard Master Console running at http://localhost:{PORT}")
+        print(f"DigiBoard Master Console running locally at http://localhost:{PORT}")
         httpd.serve_forever()
