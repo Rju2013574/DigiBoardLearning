@@ -41,36 +41,43 @@ def ensure_file_manager_structure():
                 os.makedirs(folder_path)
 
 ensure_file_manager_structure()
-# --- GOOGLE GENAI CLOUD API HELPER (BULLETPROOF FALLBACK) ---
+# --- DIRECT GOOGLE GEMINI CLOUD API HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API securely with automatic model fallback."""
-    api_key = os.environ.get("GEMINI_API_KEY")
+    """Queries Google's Gemini Cloud API directly via standard REST HTTP request."""
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
-    
-    # Priority list of current Google model identifiers
-    models_to_try = [
-        "gemini-2.5-flash",
-        "gemini-1.5-flash",
-        "gemini-2.0-flash-exp"
-    ]
-    
-    client = genai.Client(api_key=api_key)
-    
-    for model_name in models_to_try:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-            )
-            if response and response.text:
-                return response.text
-        except Exception as err:
-            # Continue trying the next model in the list
-            continue
-            
-    return "❌ Cloud AI Error: Unable to connect to available Gemini model endpoints."
 
+    # Using the standard REST endpoint for gemini-1.5-flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+    
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=30) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            candidates = res_data.get('candidates', [])
+            if candidates:
+                parts = candidates[0].get('content', {}).get('parts', [])
+                if parts:
+                    return parts[0].get('text', 'No text generated.')
+            return "No response text found in candidate output."
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        return f"❌ API HTTP Error {e.code}: {error_body}"
+    except Exception as e:
+        return f"❌ Cloud AI Connection Error: {str(e)}"
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
     if not CSV_ENCRYPTION_KEY:
