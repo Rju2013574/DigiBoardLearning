@@ -51,7 +51,8 @@ def query_gemini(prompt):
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+    # Use the active flash model endpoint
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
