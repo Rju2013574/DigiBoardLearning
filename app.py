@@ -15,7 +15,6 @@ import datetime
 import csv
 import io
 from cryptography.fernet import Fernet
-from google import genai
 
 PORT = int(os.environ.get("PORT", 8000))
 UPLOAD_DIR = "uploads"
@@ -41,6 +40,7 @@ def ensure_file_manager_structure():
                 os.makedirs(folder_path)
 
 ensure_file_manager_structure()
+
 # --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
     """Queries Google's Gemini Cloud API directly with concise system instructions to prevent timeouts."""
@@ -50,7 +50,6 @@ def query_gemini(prompt):
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
     
-    # System instruction enforces concise, fast-generating lesson content
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
@@ -72,7 +71,6 @@ def query_gemini(prompt):
             headers={'Content-Type': 'application/json'},
             method='POST'
         )
-        # Set socket timeout to 120 seconds
         with urllib.request.urlopen(req, timeout=120) as response:
             res_data = json.loads(response.read().decode('utf-8'))
             candidates = res_data.get('candidates', [])
@@ -1196,7 +1194,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     ensure_file_manager_structure()
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), threaded=True)
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
         print(f"DigiBoard Master Console running on port {PORT}")
         httpd.serve_forever()
