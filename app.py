@@ -43,13 +43,13 @@ def ensure_file_manager_structure():
 ensure_file_manager_structure()
 # --- DIRECT GOOGLE GEMINI CLOUD API HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API directly via standard REST HTTP request."""
+    """Queries Google's Gemini Cloud API directly using the active gemini-2.5-flash model."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # Using the standard REST endpoint for gemini-1.5-flash
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    # Using the current active gemini-2.5-flash endpoint
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
@@ -78,6 +78,7 @@ def query_gemini(prompt):
         return f"❌ API HTTP Error {e.code}: {error_body}"
     except Exception as e:
         return f"❌ Cloud AI Connection Error: {str(e)}"
+
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
     if not CSV_ENCRYPTION_KEY:
