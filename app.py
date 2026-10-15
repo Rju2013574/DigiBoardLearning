@@ -45,20 +45,19 @@ ensure_file_manager_structure()
 
 # --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API directly with concise system instructions to prevent timeouts."""
+    """Queries Google's Gemini Cloud API directly using the current gemini-3.8-flash model."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # Use the active flash model endpoint
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
         }],
-        "systemInstruction": {
+        "system_instruction": {
             "parts": [{"text": "You are a classroom AI assistant for DigiBoard at Hill Rock National Public School. Keep answers clear, well-structured, easy to understand for Grade 7 students, and concise."}]
         },
         "generationConfig": {
