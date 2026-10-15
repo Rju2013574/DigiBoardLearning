@@ -43,9 +43,10 @@ ensure_file_manager_structure()
 
 # --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API directly with concise system instructions to prevent timeouts."""
+    """Queries Google's Gemini Cloud API directly and prints any exception for debugging."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
+        print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
@@ -55,7 +56,7 @@ def query_gemini(prompt):
             "parts": [{"text": prompt}]
         }],
         "systemInstruction": {
-            "parts": [{"text": "You are a classroom AI assistant for DigiBoard. Keep answers clear, well-structured, easy to understand for Grade 7 students, and concise so they generate quickly without network delays."}]
+            "parts": [{"text": "You are a classroom AI assistant for DigiBoard. Keep answers clear, well-structured, easy to understand for Grade 7 students, and concise."}]
         },
         "generationConfig": {
             "maxOutputTokens": 800,
@@ -81,10 +82,12 @@ def query_gemini(prompt):
             return "No response text found in candidate output."
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8')
+        print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
         return f"❌ API HTTP Error {e.code}: {error_body}"
     except Exception as e:
+        print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
         return f"❌ Cloud AI Connection Error: {str(e)}"
-
+        
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
     if not CSV_ENCRYPTION_KEY:
