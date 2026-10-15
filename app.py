@@ -41,20 +41,27 @@ def ensure_file_manager_structure():
                 os.makedirs(folder_path)
 
 ensure_file_manager_structure()
-# --- DIRECT GOOGLE GEMINI CLOUD API HELPER ---
+# --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API directly using gemini-3.8-flash."""
+    """Queries Google's Gemini Cloud API directly with concise system instructions to prevent timeouts."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # Active model string as instructed by Google API: gemini-3.8-flash
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
     
+    # System instruction enforces concise, fast-generating lesson content
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
-        }]
+        }],
+        "systemInstruction": {
+            "parts": [{"text": "You are a classroom AI assistant for DigiBoard. Keep answers clear, well-structured, easy to understand for Grade 7 students, and concise so they generate quickly without network delays."}]
+        },
+        "generationConfig": {
+            "maxOutputTokens": 800,
+            "temperature": 0.7
+        }
     }
     
     try:
@@ -65,7 +72,8 @@ def query_gemini(prompt):
             headers={'Content-Type': 'application/json'},
             method='POST'
         )
-        with urllib.request.urlopen(req, timeout=30) as response:
+        # Set socket timeout to 120 seconds
+        with urllib.request.urlopen(req, timeout=120) as response:
             res_data = json.loads(response.read().decode('utf-8'))
             candidates = res_data.get('candidates', [])
             if candidates:
