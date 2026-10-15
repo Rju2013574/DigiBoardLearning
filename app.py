@@ -2,6 +2,7 @@ import http.server
 import socketserver
 import json
 import urllib.parse
+import urllib.error  # <--- THIS FIXES THE ATTRIBUTE ERROR
 from http import cookies
 import os
 import uuid
