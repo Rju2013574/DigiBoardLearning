@@ -45,14 +45,14 @@ ensure_file_manager_structure()
 
 # --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API with automatic fallback models to handle 503 high demand errors."""
+    """Queries Google's Gemini Cloud API using a stable, high-availability model endpoint."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # List of models to try in sequence if one experiences high demand (503)
-    models_to_try = ["gemini-3.8-flash", "gemini-1.5-flash"]
+    # Using gemini-2.5-flash as the primary stable endpoint for standard workloads
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
@@ -67,33 +67,29 @@ def query_gemini(prompt):
         }
     }
     
-    data = json.dumps(payload).encode('utf-8')
-    
-    for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        try:
-            req = urllib.request.Request(
-                url,
-                data=data,
-                headers={'Content-Type': 'application/json'},
-                method='POST'
-            )
-            with urllib.request.urlopen(req, timeout=30) as response:
-                res_data = json.loads(response.read().decode('utf-8'))
-                candidates = res_data.get('candidates', [])
-                if candidates:
-                    parts = candidates[0].get('content', {}).get('parts', [])
-                    if parts:
-                        return parts[0].get('text', 'No text generated.')
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
-            print(f"⚠️ Model {model_name} failed with HTTP Error {e.code}: {error_body}")
-            continue # Try next fallback model
-        except Exception as e:
-            print(f"⚠️ Model {model_name} connection exception: {str(e)}")
-            continue
-            
-    return "❌ Cloud AI Connection Error: All available models are currently experiencing high demand. Please try again in a few moments."
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=30) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            candidates = res_data.get('candidates', [])
+            if candidates:
+                parts = candidates[0].get('content', {}).get('parts', [])
+                if parts:
+                    return parts[0].get('text', 'No text generated.')
+            return "No response text found in candidate output."
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
+        return f"❌ API HTTP Error {e.code}: {error_body}"
+    except Exception as e:
+        print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
+        return f"❌ Cloud AI Connection Error: {str(e)}"
     
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
