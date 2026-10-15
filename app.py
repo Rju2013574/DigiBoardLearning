@@ -43,7 +43,7 @@ ensure_file_manager_structure()
 
 # --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API directly and prints any exception for debugging."""
+    """Queries Google's Gemini Cloud API directly with concise system instructions to prevent timeouts."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
@@ -87,7 +87,7 @@ def query_gemini(prompt):
     except Exception as e:
         print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
         return f"❌ Cloud AI Connection Error: {str(e)}"
-        
+
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
     if not CSV_ENCRYPTION_KEY:
@@ -408,17 +408,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="modal-header">
                 <h3>DigiBoard Interactive Whiteboard</h3>
                 <div class="header-actions">
-                    <!--ROLE_TEACHER_ONLY-->
                     <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard">
                         <span>Clear All</span> 🗑️
                     </button>
-                    <!--END_ROLE-->
                     <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
                 </div>
             </div>
-            <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Interactive Whiteboard)</div>
-            <!--END_STUDENT_ROLE-->
             <div class="modal-body">
                 <div class="wb-viewport" id="wb-container">
                     <canvas id="board"></canvas>
@@ -523,16 +518,29 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({prompt: msg})
             })
-            .then(r => r.json())
+            .then(async r => {
+                const text = await r.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    throw new Error("Server returned non-JSON: " + text);
+                }
+            })
             .then(res => {
-                document.getElementById(loadingId).remove();
-                const parsedMarkdown = marked.parse(res.response);
+                const loadingEl = document.getElementById(loadingId);
+                if(loadingEl) loadingEl.remove();
+                
+                const responseText = res.response || res.error || "No response received.";
+                const parsedMarkdown = marked.parse(responseText);
                 container.innerHTML += `<div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">${parsedMarkdown}</div>`;
                 container.scrollTop = container.scrollHeight;
             })
             .catch(err => {
-                document.getElementById(loadingId).remove();
-                container.innerHTML += `<div style="background:rgba(239,68,68,0.2); color:#ef4444; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; font-size:0.9rem;">Error connecting to cloud AI engine.</div>`;
+                const loadingEl = document.getElementById(loadingId);
+                if(loadingEl) loadingEl.remove();
+                
+                container.innerHTML += `<div style="background:rgba(239,68,68,0.2); color:#ef4444; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; font-size:0.9rem;">Error connecting to cloud AI engine: ${err.message}</div>`;
+                container.scrollTop = container.scrollHeight;
             });
         }
 
@@ -686,7 +694,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        // Collaborative whiteboard enabled for all users (teachers, students, and admins)
         canvas.addEventListener('pointerdown', (e) => {
             isDrawing = true;
             canvas.setPointerCapture(e.pointerId);
@@ -829,7 +836,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
             fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
                 .then(r => r.json())
                 .then(data => {
-                    // Only update if lines count changed to prevent drawing interruption
                     if (JSON.stringify(data) !== JSON.stringify(lines)) {
                         lines = data;
                         redraw(lines);
