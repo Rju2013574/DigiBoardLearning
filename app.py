@@ -2,7 +2,6 @@ import http.server
 import socketserver
 import json
 import urllib.parse
-import urllib.request
 from http import cookies
 import os
 import uuid
@@ -16,8 +15,9 @@ import datetime
 import csv
 import io
 from cryptography.fernet import Fernet
+from google import genai
 
-PORT = 8000
+PORT = int(os.environ.get("PORT", 8000))
 UPLOAD_DIR = "uploads"
 ENCRYPTED_CSV_FILE = "accounts_encrypted.csv"
 LOGIN_LOGS_CSV = "login_logs.csv"
@@ -25,7 +25,7 @@ SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
-# Secrets for local storage encryption
+# Secrets for encrypted account persistence
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
@@ -42,48 +42,37 @@ def ensure_file_manager_structure():
 
 ensure_file_manager_structure()
 
-# --- LOCAL OFFLINE OLLAMA AI HELPER (NO API KEY REQUIRED) ---
+# --- GOOGLE GENAI CLOUD API HELPER (RUNS 24/7 ON RENDER) ---
 def query_gemini(prompt):
-    """Sends prompt directly to the locally installed Ollama Gemma AI engine."""
-    url = "http://localhost:11434/api/generate"
-    payload = {
-        "model": "gemma",
-        "prompt": prompt,
-        "stream": False
-    }
+    """Queries Google's Gemini Cloud API via the official GenAI SDK."""
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
+    
     try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'},
-            method='POST'
+        # Initialize the GenAI Client with key from Render Environment
+        client = genai.Client(api_key=api_key)
+        
+        # Request content generation using gemini-1.5-flash
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=prompt,
         )
-        with urllib.request.urlopen(req, timeout=60) as response:
-            res_data = json.loads(response.read().decode('utf-8'))
-            return res_data.get('response', 'No response generated from local model.')
+        return response.text if (response and response.text) else "No response generated."
     except Exception as e:
-        return (
-            f"❌ Local AI Bot Offline.\n\n"
-            f"Please ensure Ollama is running and you have downloaded the Gemma model.\n"
-            f"Open your terminal and run:\n"
-            f"   ollama run gemma\n\n"
-            f"(Details: {str(e)})"
-        )
+        return f"❌ Cloud AI Error: {str(e)}"
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
-    """Initializes and returns the Fernet encryption instance."""
     if not CSV_ENCRYPTION_KEY:
         return Fernet(b'VlD8h2tEiJkQpKKnDNKnu8ya2fpIBMOo5oc7JKNasvk=')
     return Fernet(CSV_ENCRYPTION_KEY.encode())
 
 def init_encrypted_csv():
-    """Initializes accounts_encrypted.csv with an empty structure if it does not exist."""
     if not os.path.exists(ENCRYPTED_CSV_FILE):
         save_users_to_encrypted_csv({})
 
 def load_users_from_encrypted_csv():
-    """Decrypts accounts_encrypted.csv in memory and loads all user credentials."""
     users = {}
     if os.path.exists(ENCRYPTED_CSV_FILE):
         try:
@@ -111,7 +100,6 @@ def load_users_from_encrypted_csv():
     return users
 
 def save_users_to_encrypted_csv(users_dict):
-    """Takes the complete users dictionary, formats to CSV, encrypts, and saves to disk."""
     try:
         fernet = get_fernet()
         output = io.StringIO()
@@ -141,7 +129,6 @@ def save_users_to_encrypted_csv(users_dict):
 init_encrypted_csv()
 
 def log_login_event(username, role, grade, section, auth_method):
-    """Logs login activity to login_logs.csv audit trail."""
     file_exists = os.path.exists(LOGIN_LOGS_CSV)
     with open(LOGIN_LOGS_CSV, mode="a", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -293,7 +280,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="app-icon icon-gemini">
                     <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" stroke-width="2" fill="none"/></svg>
                 </div>
-                <div class="app-title">Gemini AI (Offline)</div>
+                <div class="app-title">Gemini AI (24/7 Cloud)</div>
             </div>
             <div class="app-card" onclick="openFileManager()">
                 <div class="app-icon icon-fm">
@@ -317,7 +304,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <div class="modal" id="gemini-modal">
         <div class="modal-content" style="max-width: 900px; height: 88vh;">
             <div class="modal-header">
-                <h3>DigiBoard AI Engine (Powered by Local Gemma)</h3>
+                <h3>DigiBoard AI Engine (Cloud Native)</h3>
                 <div class="header-actions">
                     <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span> ✨</button>
                     <span class="close-btn" onclick="closeApp('gemini-modal')">&times;</span>
@@ -326,7 +313,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1rem;">
                 <div id="chat-messages" style="flex:1; overflow-y:auto; background:#070d19; border:1px solid #1e293b; border-radius:8px; padding:1.2rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:1rem;">
                     <div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">
-                        Hello! I am your local AI assistant running directly on your laptop engine. Ask me anything!
+                        Hello! I am your 24/7 cloud AI assistant. How can I help you today?
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem;">
@@ -504,7 +491,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             container.scrollTop = container.scrollHeight;
 
             const loadingId = 'loading-' + Date.now();
-            container.innerHTML += `<div id="${loadingId}" style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#94a3b8; font-size:0.9rem;">Local AI is generating response...</div>`;
+            container.innerHTML += `<div id="${loadingId}" style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#94a3b8; font-size:0.9rem;">Gemini Cloud AI is generating response...</div>`;
             container.scrollTop = container.scrollHeight;
 
             fetch('/api/gemini', {
@@ -521,14 +508,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
             })
             .catch(err => {
                 document.getElementById(loadingId).remove();
-                container.innerHTML += `<div style="background:rgba(239,68,68,0.2); color:#ef4444; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; font-size:0.9rem;">Error connecting to local AI server.</div>`;
+                container.innerHTML += `<div style="background:rgba(239,68,68,0.2); color:#ef4444; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; font-size:0.9rem;">Error connecting to cloud AI engine.</div>`;
             });
         }
 
         function clearChat() {
             document.getElementById('chat-messages').innerHTML = `
                 <div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">
-                    New conversation started. How can I help you?
+                    New chat session started. Ask me anything!
                 </div>`;
         }
 
@@ -1185,5 +1172,5 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 if __name__ == "__main__":
     ensure_file_manager_structure()
     with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
-        print(f"DigiBoard Master Console running locally at http://localhost:{PORT}")
+        print(f"DigiBoard Master Console running on port {PORT}")
         httpd.serve_forever()
