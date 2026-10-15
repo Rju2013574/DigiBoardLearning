@@ -43,13 +43,13 @@ def ensure_file_manager_structure():
 ensure_file_manager_structure()
 # --- DIRECT GOOGLE GEMINI CLOUD API HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API directly using the active gemini-2.5-flash model."""
+    """Queries Google's Gemini Cloud API directly using gemini-3.8-flash."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # Using the current active gemini-2.5-flash endpoint
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    # Active model string as instructed by Google API: gemini-3.8-flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
