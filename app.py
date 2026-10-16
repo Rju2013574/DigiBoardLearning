@@ -45,19 +45,15 @@ ensure_file_manager_structure()
 
 # --- BULLETPROOF CLOUD AI HELPER WITH AUTO-FALLBACK ---
 def query_gemini(prompt):
-    """Queries Gemini REST API with multi-model fallback across standard production endpoints."""
+    """Queries Gemini API using gemini-3.8-flash with automatic exponential retry on 503 high-demand errors."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # Priority endpoints using v1 standard REST API routes
-    endpoints_to_try = [
-        ("v1", "gemini-2.5-flash"),
-        ("v1", "gemini-2.5-pro"),
-        ("v1beta", "gemini-2.0-flash")
-    ]
-
+    # Using the required active endpoint
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+    
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
@@ -70,12 +66,12 @@ def query_gemini(prompt):
             "temperature": 0.7
         }
     }
-
+    
     data = json.dumps(payload).encode('utf-8')
-    last_error = ""
-
-    for api_ver, model_name in endpoints_to_try:
-        url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model_name}:generateContent?key={api_key}"
+    
+    # Retry loop: up to 3 attempts with a short sleep to bypass temporary 503 high-demand spikes
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
             req = urllib.request.Request(
                 url,
@@ -90,17 +86,24 @@ def query_gemini(prompt):
                     parts = candidates[0].get('content', {}).get('parts', [])
                     if parts:
                         return parts[0].get('text', 'No text generated.')
+                return "No response text found in candidate output."
+                
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
-            last_error = f"HTTP {e.code}: {error_body}"
-            print(f"⚠️ Endpoint {api_ver}/{model_name} failed: {last_error}")
-            continue
+            # If 503 high demand occurs, sleep briefly and retry
+            if e.code == 503 and attempt < max_retries - 1:
+                print(f"⚠️ 503 High Demand on attempt {attempt + 1}. Retrying in 1.5 seconds...")
+                time.sleep(1.5)
+                continue
+            
+            print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
+            return f"❌ API HTTP Error {e.code}: {error_body}"
+            
         except Exception as e:
-            last_error = str(e)
-            print(f"⚠️ Endpoint {api_ver}/{model_name} exception: {last_error}")
-            continue
+            print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
+            return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return f"❌ Cloud AI Connection Error: All backup endpoints failed. Details: {last_error}"
+    return "❌ Cloud AI Connection Error: Server is currently experiencing peak demand. Please retry in a moment."error}"
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
