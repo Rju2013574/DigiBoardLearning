@@ -43,16 +43,21 @@ def ensure_file_manager_structure():
 
 ensure_file_manager_structure()
 
-# --- FAST & BULLETPROOF CLOUD AI HELPER ---
+# --- BULLETPROOF CLOUD AI HELPER WITH AUTO-FALLBACK ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API using the stable gemini-1.5-flash endpoint."""
+    """Queries Gemini REST API with multi-model fallback across standard production endpoints."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-    
+    # Priority endpoints using v1 standard REST API routes
+    endpoints_to_try = [
+        ("v1", "gemini-2.5-flash"),
+        ("v1", "gemini-2.5-pro"),
+        ("v1beta", "gemini-2.0-flash")
+    ]
+
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
@@ -65,31 +70,38 @@ def query_gemini(prompt):
             "temperature": 0.7
         }
     }
-    
-    try:
-        data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
-        )
-        with urllib.request.urlopen(req, timeout=30) as response:
-            res_data = json.loads(response.read().decode('utf-8'))
-            candidates = res_data.get('candidates', [])
-            if candidates:
-                parts = candidates[0].get('content', {}).get('parts', [])
-                if parts:
-                    return parts[0].get('text', 'No text generated.')
-            return "No response text found in candidate output."
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8')
-        print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
-        return f"❌ API HTTP Error {e.code}: {error_body}"
-    except Exception as e:
-        print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
-        return f"❌ Cloud AI Connection Error: {str(e)}"
-    
+
+    data = json.dumps(payload).encode('utf-8')
+    last_error = ""
+
+    for api_ver, model_name in endpoints_to_try:
+        url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model_name}:generateContent?key={api_key}"
+        try:
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                candidates = res_data.get('candidates', [])
+                if candidates:
+                    parts = candidates[0].get('content', {}).get('parts', [])
+                    if parts:
+                        return parts[0].get('text', 'No text generated.')
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8')
+            last_error = f"HTTP {e.code}: {error_body}"
+            print(f"⚠️ Endpoint {api_ver}/{model_name} failed: {last_error}")
+            continue
+        except Exception as e:
+            last_error = str(e)
+            print(f"⚠️ Endpoint {api_ver}/{model_name} exception: {last_error}")
+            continue
+
+    return f"❌ Cloud AI Connection Error: All backup endpoints failed. Details: {last_error}"
+
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
     if not CSV_ENCRYPTION_KEY:
