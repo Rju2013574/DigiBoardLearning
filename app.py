@@ -45,14 +45,13 @@ ensure_file_manager_structure()
 
 # --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
-    """Queries Google's Gemini Cloud API using a stable, high-availability model endpoint."""
+    """Queries Google's Gemini Cloud API using the stable gemini-1.5-flash endpoint."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # Using gemini-2.5-flash as the primary stable endpoint for standard workloads
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     payload = {
         "contents": [{
