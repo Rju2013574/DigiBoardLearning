@@ -45,7 +45,7 @@ ensure_file_manager_structure()
 
 # --- FAST & BULLETPROOF CLOUD AI HELPER ---
 def query_gemini(prompt):
-    """Queries Google's live Gemini Cloud API directly."""
+    """Queries Google's live Gemini API with an automatic retry loop for 503 high demand spikes."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
@@ -66,31 +66,44 @@ def query_gemini(prompt):
         }
     }
     
-    try:
-        data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(
-            url,
-            data=data,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
-        )
-        with urllib.request.urlopen(req, timeout=30) as response:
-            res_data = json.loads(response.read().decode('utf-8'))
-            candidates = res_data.get('candidates', [])
-            if candidates:
-                parts = candidates[0].get('content', {}).get('parts', [])
-                if parts and parts[0].get('text'):
-                    return parts[0].get('text')
-            return "❌ Error: No text generated from Gemini API response."
+    data = json.dumps(payload).encode('utf-8')
+    
+    # Retry up to 3 times if Google returns temporary 503 High Demand
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(
+                url,
+                data=data,
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                candidates = res_data.get('candidates', [])
+                if candidates:
+                    parts = candidates[0].get('content', {}).get('parts', [])
+                    if parts and parts[0].get('text'):
+                        return parts[0].get('text')
+                return "❌ No response text found in candidate output."
+                
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8')
+            # If 503 High Demand occurs, sleep 1.5s and try again
+            if e.code == 503 and attempt < max_retries - 1:
+                print(f"⚠️ 503 High Demand on attempt {attempt + 1}. Retrying in 1.5 seconds...")
+                time.sleep(1.5)
+                continue
             
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8')
-        print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
-        return f"❌ Gemini API Error {e.code}: {error_body}"
-    except Exception as e:
-        print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
-        return f"❌ Cloud AI Connection Exception: {str(e)}"
+            print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
+            return f"❌ Gemini API Error {e.code}: {error_body}"
+            
+        except Exception as e:
+            print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
+            return f"❌ Cloud AI Connection Error: {str(e)}"
 
+    return "❌ Gemini API Error 503: High demand spike persisted after 3 retries. Please click Send again."
+    
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
     if not CSV_ENCRYPTION_KEY:
