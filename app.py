@@ -43,33 +43,76 @@ def ensure_file_manager_structure():
 
 ensure_file_manager_structure()
 
-# --- FAST & BULLETPROOF CLOUD AI HELPER ---
-def query_gemini(prompt):
-    """Queries Google's live Gemini API with an automatic retry loop for 503 high demand spikes."""
+# --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & 503 RETRY ---
+def query_gemini(prompt, model_mode="0.1"):
+    """
+    Dynamic Multi-Model Router for DigiBoard with custom token ceilings:
+    - 0.1: 4,000 tokens (Summaries & Mind Maps)
+    - 2.0: 20,000 tokens (Deep Notes & Video Search)
+    - 3.1: 50,000 tokens (Multitask & Doc Generation)
+    - 4.5: 400,000 tokens (Oral Communication / All-in-One)
+    """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
-    
+
+    # Token budget mapping per mode as requested
+    token_budgets = {
+        "0.1": 4000,
+        "2.0": 20000,
+        "3.1": 50000,
+        "4.5": 400000
+    }
+    max_tokens = token_budgets.get(model_mode, 4000)
+
+    # System instructions per model mode
+    if model_mode == "0.1":
+        system_instruction = (
+            "You are DigiBoard Summary & Mind Map AI (Mode 0.1). "
+            "Focus strictly on high-yield lesson summaries, concise bullet points, "
+            "and clean text/markdown mind maps for quick Grade 7 revision."
+        )
+    elif model_mode == "2.0":
+        system_instruction = (
+            "You are DigiBoard Deep Notes & Video AI (Mode 2.0). "
+            "Provide exhaustive, in-depth academic notes, extended hierarchical mind maps, "
+            "and detailed topic breakdowns with recommended educational video topics."
+        )
+    elif model_mode == "3.1":
+        system_instruction = (
+            "You are DigiBoard Multitask Engine (Mode 3.1). "
+            "Handle complex tasks like generating structured document layouts, assignment templates, "
+            "and formatted YouTube learning query links: "
+            "https://www.youtube.com/results?search_query=topic_name."
+        )
+    elif model_mode == "4.5":
+        system_instruction = (
+            "You are DigiBoard Oral Communication Assistant (Mode 4.5). "
+            "Integrate all capabilities into conversational, speech-friendly spoken outputs "
+            "suitable for classroom vocal recitation, Q&A, and interactive discussion."
+        )
+    else:
+        system_instruction = "You are DigiBoard Classroom AI Assistant."
+
     payload = {
         "contents": [{
             "parts": [{"text": prompt}]
         }],
         "system_instruction": {
-            "parts": [{"text": "You are a classroom AI assistant for DigiBoard at Hill Rock National Public School. Keep answers clear, well-structured, easy to understand for Grade 7 students, and concise."}]
+            "parts": [{"text": system_instruction}]
         },
         "generationConfig": {
-            "maxOutputTokens": 800,
+            "maxOutputTokens": max_tokens,
             "temperature": 0.7
         }
     }
-    
+
     data = json.dumps(payload).encode('utf-8')
-    
-    # Retry up to 3 times if Google returns temporary 503 High Demand
     max_retries = 3
+    
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(
@@ -78,7 +121,7 @@ def query_gemini(prompt):
                 headers={'Content-Type': 'application/json'},
                 method='POST'
             )
-            with urllib.request.urlopen(req, timeout=30) as response:
+            with urllib.request.urlopen(req, timeout=60) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 candidates = res_data.get('candidates', [])
                 if candidates:
@@ -89,12 +132,9 @@ def query_gemini(prompt):
                 
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
-            # If 503 High Demand occurs, sleep 1.5s and try again
             if e.code == 503 and attempt < max_retries - 1:
-                print(f"⚠️ 503 High Demand on attempt {attempt + 1}. Retrying in 1.5 seconds...")
                 time.sleep(1.5)
                 continue
-            
             print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
             return f"❌ Gemini API Error {e.code}: {error_body}"
             
@@ -102,8 +142,8 @@ def query_gemini(prompt):
             print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
             return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return "❌ Gemini API Error 503: High demand spike persisted after 3 retries. Please click Send again."
-    
+    return "❌ Gemini API Error 503: High demand spike persisted. Please try again."
+
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
     if not CSV_ENCRYPTION_KEY:
@@ -344,10 +384,17 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     <!-- GEMINI AI MODAL -->
     <div class="modal" id="gemini-modal">
-        <div class="modal-content" style="max-width: 900px; height: 88vh;">
+        <div class="modal-content" style="max-width: 950px; height: 88vh;">
             <div class="modal-header">
                 <h3>DigiBoard AI Engine (Cloud Native)</h3>
                 <div class="header-actions">
+                    <label style="color:#94a3b8; font-size:0.85rem;">Mode:</label>
+                    <select id="ai-model-select" style="background:#070d19; color:#38bdf8; border:1px solid #334155; border-radius:6px; padding:0.35rem 0.6rem; font-weight:600; cursor:pointer;">
+                        <option value="0.1">0.1 - Summaries & Mind Maps (4k)</option>
+                        <option value="2.0">2.0 - Deep Notes & Maps (20k)</option>
+                        <option value="3.1">3.1 - Multitask & Doc Gen (50k)</option>
+                        <option value="4.5">4.5 - Oral Comm / All-In-One (400k)</option>
+                    </select>
                     <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span> ✨</button>
                     <span class="close-btn" onclick="closeApp('gemini-modal')">&times;</span>
                 </div>
@@ -355,7 +402,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1rem;">
                 <div id="chat-messages" style="flex:1; overflow-y:auto; background:#070d19; border:1px solid #1e293b; border-radius:8px; padding:1.2rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:1rem;">
                     <div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">
-                        Hello! I am your 24/7 cloud AI assistant. How can I help you today?
+                        Hello! I am your 24/7 cloud AI assistant. Select your desired operational mode above and ask me anything!
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem;">
@@ -524,6 +571,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         function sendGeminiMessage() {
             const input = document.getElementById('chat-input');
+            const modelChoice = document.getElementById('ai-model-select').value;
             const msg = input.value.trim();
             if(!msg) return;
             
@@ -533,13 +581,16 @@ CONSOLE_HTML = """<!DOCTYPE html>
             container.scrollTop = container.scrollHeight;
 
             const loadingId = 'loading-' + Date.now();
-            container.innerHTML += `<div id="${loadingId}" style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#94a3b8; font-size:0.9rem;">Gemini Cloud AI is generating response...</div>`;
+            container.innerHTML += `<div id="${loadingId}" style="background:#1e293b; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; color:#94a3b8; font-size:0.9rem;">Gemini Cloud AI (Mode ${modelChoice}) is generating response...</div>`;
             container.scrollTop = container.scrollHeight;
 
             fetch('/api/gemini', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({prompt: msg})
+                body: JSON.stringify({
+                    prompt: msg,
+                    model_mode: modelChoice
+                })
             })
             .then(async r => {
                 const text = await r.text();
@@ -1131,8 +1182,9 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 raw_body = self.rfile.read(content_length).decode('utf-8')
                 body = json.loads(raw_body) if raw_body else {}
                 prompt = body.get('prompt', '')
+                model_mode = body.get('model_mode', '0.1')
                 
-                ai_response = query_gemini(prompt)
+                ai_response = query_gemini(prompt, model_mode=model_mode)
                 self.send_json({"response": ai_response})
             except Exception as e:
                 print(f"❌ API GEMINI ROUTE EXCEPTION: {str(e)}")
