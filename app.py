@@ -45,13 +45,12 @@ ensure_file_manager_structure()
 
 # --- BULLETPROOF CLOUD AI HELPER WITH AUTO-FALLBACK ---
 def query_gemini(prompt):
-    """Queries Gemini API using gemini-3.8-flash with automatic exponential retry on 503 high-demand errors."""
+    """Queries Gemini API using gemini-3.8-flash with automatic retry on 503 high-demand errors."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    # Using the required active endpoint
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
     
     payload = {
@@ -69,7 +68,6 @@ def query_gemini(prompt):
     
     data = json.dumps(payload).encode('utf-8')
     
-    # Retry loop: up to 3 attempts with a short sleep to bypass temporary 503 high-demand spikes
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -90,7 +88,6 @@ def query_gemini(prompt):
                 
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
-            # If 503 high demand occurs, sleep briefly and retry
             if e.code == 503 and attempt < max_retries - 1:
                 print(f"⚠️ 503 High Demand on attempt {attempt + 1}. Retrying in 1.5 seconds...")
                 time.sleep(1.5)
@@ -103,7 +100,7 @@ def query_gemini(prompt):
             print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
             return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return "❌ Cloud AI Connection Error: Server is currently experiencing peak demand. Please retry in a moment."error}"
+    return "❌ Cloud AI Connection Error: Server is currently experiencing peak demand. Please retry in a moment."
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
