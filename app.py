@@ -45,12 +45,14 @@ ensure_file_manager_structure()
 
 # --- BULLETPROOF CLOUD AI HELPER WITH AUTO-FALLBACK ---
 def query_gemini(prompt):
-    """Queries Gemini API using gemini-3.8-flash with automatic retry on 503 high-demand errors."""
+def query_gemini(prompt):
+    """Queries Google's live Gemini Cloud API directly using the stable gemini-3.8-flash endpoint."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
-        return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
+        return "❌ Error: GEMINI_API_KEY environment variable is not set in Render. Please add your Gemini API key."
 
+    # Using the active Google production endpoint
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
     
     payload = {
@@ -66,41 +68,30 @@ def query_gemini(prompt):
         }
     }
     
-    data = json.dumps(payload).encode('utf-8')
-    
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            req = urllib.request.Request(
-                url,
-                data=data,
-                headers={'Content-Type': 'application/json'},
-                method='POST'
-            )
-            with urllib.request.urlopen(req, timeout=30) as response:
-                res_data = json.loads(response.read().decode('utf-8'))
-                candidates = res_data.get('candidates', [])
-                if candidates:
-                    parts = candidates[0].get('content', {}).get('parts', [])
-                    if parts:
-                        return parts[0].get('text', 'No text generated.')
-                return "No response text found in candidate output."
-                
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
-            if e.code == 503 and attempt < max_retries - 1:
-                print(f"⚠️ 503 High Demand on attempt {attempt + 1}. Retrying in 1.5 seconds...")
-                time.sleep(1.5)
-                continue
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=30) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            candidates = res_data.get('candidates', [])
+            if candidates:
+                parts = candidates[0].get('content', {}).get('parts', [])
+                if parts and parts[0].get('text'):
+                    return parts[0].get('text')
+            return "❌ Error: No text generated from Gemini API response."
             
-            print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
-            return f"❌ API HTTP Error {e.code}: {error_body}"
-            
-        except Exception as e:
-            print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
-            return f"❌ Cloud AI Connection Error: {str(e)}"
-
-    return "❌ Cloud AI Connection Error: Server is currently experiencing peak demand. Please retry in a moment."
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
+        return f"❌ Gemini API Error {e.code}: {error_body}"
+    except Exception as e:
+        print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
+        return f"❌ Cloud AI Connection Exception: {str(e)}"
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
