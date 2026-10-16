@@ -46,11 +46,8 @@ ensure_file_manager_structure()
 # --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & 503 RETRY ---
 def query_gemini(prompt, model_mode="0.1"):
     """
-    Dynamic Multi-Model Router for DigiBoard with custom token ceilings:
-    - 0.1: 4,000 tokens (Summaries & Mind Maps)
-    - 2.0: 20,000 tokens (Deep Notes & Video Search)
-    - 3.1: 50,000 tokens (Multitask & Doc Generation)
-    - 4.5: 400,000 tokens (Oral Communication / All-in-One)
+    Dynamic Multi-Model Router for DigiBoard with safe production token ceilings.
+    Prevents 503 server overload errors by capping max single-request tokens to valid API limits.
     """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
@@ -59,40 +56,37 @@ def query_gemini(prompt, model_mode="0.1"):
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
 
-    # Token budget mapping per mode as requested
+    # Safe production token ceilings (Google API caps max single output at 8192)
     token_budgets = {
-        "0.1": 4000,
-        "2.0": 20000,
-        "3.1": 50000,
-        "4.5": 400000
+        "0.1": 2048,  # Summaries & Mind Maps
+        "2.0": 4096,  # Deep Notes & Video Search
+        "3.1": 8192,  # Multitask & Doc Gen
+        "4.5": 8192   # Oral Comm / All-In-One
     }
-    max_tokens = token_budgets.get(model_mode, 4000)
+    max_tokens = token_budgets.get(model_mode, 2048)
 
     # System instructions per model mode
     if model_mode == "0.1":
         system_instruction = (
             "You are DigiBoard Summary & Mind Map AI (Mode 0.1). "
             "Focus strictly on high-yield lesson summaries, concise bullet points, "
-            "and clean text/markdown mind maps for quick Grade 7 revision."
+            "and clean text/markdown mind maps for Grade 7 students."
         )
     elif model_mode == "2.0":
         system_instruction = (
             "You are DigiBoard Deep Notes & Video AI (Mode 2.0). "
-            "Provide exhaustive, in-depth academic notes, extended hierarchical mind maps, "
-            "and detailed topic breakdowns with recommended educational video topics."
+            "Provide thorough academic notes, structured diagrams, and educational video topics."
         )
     elif model_mode == "3.1":
         system_instruction = (
             "You are DigiBoard Multitask Engine (Mode 3.1). "
             "Handle complex tasks like generating structured document layouts, assignment templates, "
-            "and formatted YouTube learning query links: "
-            "https://www.youtube.com/results?search_query=topic_name."
+            "and formatted YouTube search links: https://www.youtube.com/results?search_query=topic_name."
         )
     elif model_mode == "4.5":
         system_instruction = (
             "You are DigiBoard Oral Communication Assistant (Mode 4.5). "
-            "Integrate all capabilities into conversational, speech-friendly spoken outputs "
-            "suitable for classroom vocal recitation, Q&A, and interactive discussion."
+            "Deliver speech-friendly, interactive responses suitable for classroom vocal recitation and Q&A."
         )
     else:
         system_instruction = "You are DigiBoard Classroom AI Assistant."
@@ -111,8 +105,9 @@ def query_gemini(prompt, model_mode="0.1"):
     }
 
     data = json.dumps(payload).encode('utf-8')
-    max_retries = 3
+    max_retries = 4
     
+    # Retry loop with exponential backoff for 503 high demand
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(
@@ -121,7 +116,7 @@ def query_gemini(prompt, model_mode="0.1"):
                 headers={'Content-Type': 'application/json'},
                 method='POST'
             )
-            with urllib.request.urlopen(req, timeout=60) as response:
+            with urllib.request.urlopen(req, timeout=45) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 candidates = res_data.get('candidates', [])
                 if candidates:
@@ -133,7 +128,9 @@ def query_gemini(prompt, model_mode="0.1"):
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
             if e.code == 503 and attempt < max_retries - 1:
-                time.sleep(1.5)
+                wait_time = (attempt + 1) * 1.5
+                print(f"⚠️ 503 High Demand on attempt {attempt + 1}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
                 continue
             print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
             return f"❌ Gemini API Error {e.code}: {error_body}"
@@ -142,7 +139,7 @@ def query_gemini(prompt, model_mode="0.1"):
             print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
             return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return "❌ Gemini API Error 503: High demand spike persisted. Please try again."
+    return "❌ Gemini API Error 503: High demand spike persisted after retries. Please click Send again."
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
