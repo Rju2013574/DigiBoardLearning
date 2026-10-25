@@ -26,6 +26,12 @@ SESSIONS = {}
 BOARD_CACHE = "[]"
 CACHE_LOCK = threading.Lock()
 
+# GitHub Configuration for Flashcards
+GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "YOUR_GITHUB_USERNAME")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "YOUR_REPO_NAME")
+GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+
 # Secrets for encrypted account persistence
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
@@ -45,10 +51,6 @@ ensure_file_manager_structure()
 
 # --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & 503 RETRY ---
 def query_gemini(prompt, model_mode="0.1"):
-    """
-    Dynamic Multi-Model Router for DigiBoard with safe production token ceilings.
-    Prevents 503 server overload errors by capping max single-request tokens to valid API limits.
-    """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         print("❌ GEMINI_API_KEY is missing from environment variables!")
@@ -56,66 +58,37 @@ def query_gemini(prompt, model_mode="0.1"):
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
 
-    # Safe production token ceilings (Google API caps max single output at 8192)
     token_budgets = {
-        "0.1": 2048,  # Summaries & Mind Maps
-        "2.0": 4096,  # Deep Notes & Video Search
-        "3.1": 8192,  # Multitask & Doc Gen
-        "4.5": 8192   # Oral Comm / All-In-One
+        "0.1": 2048,
+        "2.0": 4096,
+        "3.1": 8192,
+        "4.5": 8192
     }
     max_tokens = token_budgets.get(model_mode, 2048)
 
-    # System instructions per model mode
     if model_mode == "0.1":
-        system_instruction = (
-            "You are DigiBoard Summary & Mind Map AI (Mode 0.1). "
-            "Focus strictly on high-yield lesson summaries, concise bullet points, "
-            "and clean text/markdown mind maps for Grade 7 students."
-        )
+        system_instruction = "You are DigiBoard Summary & Mind Map AI (Mode 0.1). Focus strictly on high-yield lesson summaries, concise bullet points, and clean text/markdown mind maps for Grade 7 students."
     elif model_mode == "2.0":
-        system_instruction = (
-            "You are DigiBoard Deep Notes & Video AI (Mode 2.0). "
-            "Provide thorough academic notes, structured diagrams, and educational video topics."
-        )
+        system_instruction = "You are DigiBoard Deep Notes & Video AI (Mode 2.0). Provide thorough academic notes, structured diagrams, and educational video topics."
     elif model_mode == "3.1":
-        system_instruction = (
-            "You are DigiBoard Multitask Engine (Mode 3.1). "
-            "Handle complex tasks like generating structured document layouts, assignment templates, "
-            "and formatted YouTube search links: https://www.youtube.com/results?search_query=topic_name."
-        )
+        system_instruction = "You are DigiBoard Multitask Engine (Mode 3.1). Handle complex tasks like generating structured document layouts, assignment templates, and formatted YouTube search links."
     elif model_mode == "4.5":
-        system_instruction = (
-            "You are DigiBoard Oral Communication Assistant (Mode 4.5). "
-            "Deliver speech-friendly, interactive responses suitable for classroom vocal recitation and Q&A."
-        )
+        system_instruction = "You are DigiBoard Oral Communication Assistant (Mode 4.5). Deliver speech-friendly, interactive responses suitable for classroom vocal recitation and Q&A."
     else:
         system_instruction = "You are DigiBoard Classroom AI Assistant."
 
     payload = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }],
-        "system_instruction": {
-            "parts": [{"text": system_instruction}]
-        },
-        "generationConfig": {
-            "maxOutputTokens": max_tokens,
-            "temperature": 0.7
-        }
+        "contents": [{"parts": [{"text": prompt}]}],
+        "system_instruction": {"parts": [{"text": system_instruction}]},
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.7}
     }
 
     data = json.dumps(payload).encode('utf-8')
     max_retries = 4
     
-    # Retry loop with exponential backoff for 503 high demand
     for attempt in range(max_retries):
         try:
-            req = urllib.request.Request(
-                url,
-                data=data,
-                headers={'Content-Type': 'application/json'},
-                method='POST'
-            )
+            req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
             with urllib.request.urlopen(req, timeout=45) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 candidates = res_data.get('candidates', [])
@@ -124,22 +97,17 @@ def query_gemini(prompt, model_mode="0.1"):
                     if parts and parts[0].get('text'):
                         return parts[0].get('text')
                 return "❌ No response text found in candidate output."
-                
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
             if e.code == 503 and attempt < max_retries - 1:
                 wait_time = (attempt + 1) * 1.5
-                print(f"⚠️ 503 High Demand on attempt {attempt + 1}. Retrying in {wait_time}s...")
                 time.sleep(wait_time)
                 continue
-            print(f"❌ GEMINI HTTP ERROR {e.code}: {error_body}")
             return f"❌ Gemini API Error {e.code}: {error_body}"
-            
         except Exception as e:
-            print(f"❌ GEMINI CONNECTION EXCEPTION: {str(e)}")
             return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return "❌ Gemini API Error 503: High demand spike persisted after retries. Please click Send again."
+    return "❌ Gemini API Error 503: High demand spike persisted after retries."
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
@@ -158,13 +126,10 @@ def load_users_from_encrypted_csv():
             fernet = get_fernet()
             with open(ENCRYPTED_CSV_FILE, "rb") as enc_file:
                 encrypted_bytes = enc_file.read()
-            
             decrypted_bytes = fernet.decrypt(encrypted_bytes)
             decoded_text = decrypted_bytes.decode('utf-8')
             reader = csv.reader(io.StringIO(decoded_text))
-            
             header = next(reader, None)
-            
             for row in reader:
                 if row and len(row) >= 5:
                     username = row[0].strip()
@@ -183,26 +148,15 @@ def save_users_to_encrypted_csv(users_dict):
         fernet = get_fernet()
         output = io.StringIO()
         writer = csv.writer(output)
-        
         writer.writerow(["Username", "Password", "Role", "Grade", "Section"])
-        
         for username, data in users_dict.items():
-            writer.writerow([
-                username,
-                data["password"],
-                data["role"],
-                data.get("grade", "10th"),
-                data.get("section", "A")
-            ])
-            
+            writer.writerow([username, data["password"], data["role"], data.get("grade", "10th"), data.get("section", "A")])
         csv_text = output.getvalue()
         encrypted_bytes = fernet.encrypt(csv_text.encode('utf-8'))
-        
         with open(ENCRYPTED_CSV_FILE, "wb") as enc_file:
             enc_file.write(encrypted_bytes)
         return True
     except Exception as e:
-        print(f"❌ Encryption/Saving failed: {str(e)}")
         return False
 
 init_encrypted_csv()
@@ -259,7 +213,6 @@ LOGIN_HTML = """<!DOCTYPE html>
             <input type="password" name="password" required>
             <button type="submit">Sign In</button>
         </form>
-
         <div class="divider"></div>
         <form action="/login-admin" method="POST">
             <label>Admin SSH Key ID</label>
@@ -287,13 +240,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
         .logout-btn:hover { background: #1e293b; color: #fff; }
         .console-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 2rem; }
-        .grid-wrapper { background: rgba(15, 23, 42, 0.6); border: 1px solid #172554; border-radius: 16px; padding: 2.5rem; display: flex; gap: 2rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
+        .grid-wrapper { background: rgba(15, 23, 42, 0.6); border: 1px solid #172554; border-radius: 16px; padding: 2.5rem; display: flex; gap: 2rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); flex-wrap: wrap; justify-content: center; }
         .app-card { width: 150px; height: 150px; background: #091326; border: 1px solid #1e293b; border-radius: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; gap: 0.85rem; }
         .app-card:hover { transform: translateY(-4px); border-color: #38bdf8; background: #0e1d38; box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2); }
         .app-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; }
         .icon-wb { background: #2563eb; }
         .icon-gemini { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
         .icon-fm { background: #eab308; }
+        .icon-fc { background: #10b981; }
         .icon-admin { background: #4f46e5; }
         .app-icon svg { width: 30px; height: 30px; fill: white; }
         .app-title { font-size: 0.85rem; font-weight: 600; color: #cbd5e1; text-align: center; }
@@ -335,6 +289,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .ai-msg p { margin: 0 0 0.5rem 0; }
         .ai-msg ul, .ai-msg ol { margin: 0.5rem 0; padding-left: 1.2rem; }
         .ai-msg strong { color: #38bdf8; }
+        /* Flashcard Explorer Styles */
+        .fc-card { background: #091326; border: 1px solid #1e293b; border-radius: 8px; padding: 1.2rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; transition: all 0.2s; }
+        .fc-card:hover { border-color: #38bdf8; background: #0e1d38; transform: translateY(-2px); }
     </style>
 </head>
 <body>
@@ -367,6 +324,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 </div>
                 <div class="app-title">File Manager</div>
             </div>
+            <div class="app-card" onclick="openFlashcardsModal()">
+                <div class="app-icon icon-fc">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 5h2v5h-2z" fill="white"/></svg>
+                </div>
+                <div class="app-title">Flashcards</div>
+            </div>
 
             <!--ROLE_ADMIN_ONLY-->
             <div class="app-card" onclick="openApp('admin-modal')">
@@ -376,6 +339,30 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="app-title">Admin Console</div>
             </div>
             <!--END_ADMIN_ROLE-->
+        </div>
+    </div>
+
+    <!-- FLASHCARDS MODAL -->
+    <div class="modal" id="flashcards-modal">
+        <div class="modal-content" style="max-width: 950px; height: 88vh;">
+            <div class="modal-header">
+                <h3>Interactive Flashcards & Notes</h3>
+                <div class="header-actions">
+                    <button id="fc-back-btn" class="clear-all-btn" style="background:#334155; display:none;" onclick="fcGoBack()">⬅ Back</button>
+                    <span class="close-btn" onclick="closeApp('flashcards-modal')">&times;</span>
+                </div>
+            </div>
+            <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1.5rem; overflow-y:auto; background:#070d19;">
+                <div id="fc-breadcrumb" style="font-size: 0.85rem; color: #38bdf8; margin-bottom: 1rem; font-weight: 600;">flashcards</div>
+                <div id="fc-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+                    <!-- Dynamically populated folder/file cards -->
+                </div>
+                <div id="fc-viewer-container" style="display:none; flex:1; flex-direction:column; height:100%;">
+                    <div id="fc-content-frame" style="flex:1; background:#ffffff; color:#000000; border-radius:8px; padding:1.5rem; overflow-y:auto; user-select:none;" oncontextmenu="return false;">
+                        <!-- HTML Flashcard Content Loaded Securely Here -->
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -454,10 +441,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         <button type="submit" style="width:100%; padding:0.6rem; background:#4f46e5; border:none; color:white; font-weight:bold; border-radius:4px; cursor:pointer;">Generate & Encrypt Batch</button>
                     </form>
                 </div>
-
                 <h4 style="margin-top:1.5rem; color:#cbd5e1;">Active System Users (<span id="user-count">0</span>)</h4>
-                <div id="users-table-container" style="background:#070d19; border:1px solid #1e293b; border-radius:6px; max-height:200px; overflow-y:auto; padding:0.5rem;">
-                </div>
+                <div id="users-table-container" style="background:#070d19; border:1px solid #1e293b; border-radius:6px; max-height:200px; overflow-y:auto; padding:0.5rem;"></div>
             </div>
         </div>
     </div>
@@ -469,9 +454,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <h3>DigiBoard Interactive Whiteboard</h3>
                 <div class="header-actions">
                     <!--ROLE_TEACHER_ONLY-->
-                    <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard">
-                        <span>Clear All</span> 🗑️
-                    </button>
+                    <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard"><span>Clear All</span> 🗑️</button>
                     <!--END_ROLE-->
                     <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
                 </div>
@@ -566,6 +549,88 @@ CONSOLE_HTML = """<!DOCTYPE html>
         const USER_ROLE = "<!--USER_ROLE-->";
         let filePollInterval = null;
 
+        // --- FLASHCARDS CLIENT LOGIC ---
+        let fcCurrentPath = "flashcards";
+        let fcPathHistory = [];
+
+        function openFlashcardsModal() {
+            document.getElementById('flashcards-modal').style.display = 'flex';
+            loadFcDirectory("flashcards");
+        }
+
+        function loadFcDirectory(path) {
+            fcCurrentPath = path;
+            document.getElementById('fc-breadcrumb').innerText = path;
+            document.getElementById('fc-viewer-container').style.display = 'none';
+            document.getElementById('fc-grid').style.display = 'grid';
+            
+            if (path === "flashcards") {
+                document.getElementById('fc-back-btn').style.display = 'none';
+            } else {
+                document.getElementById('fc-back-btn').style.display = 'block';
+            }
+
+            fetch(`/api/flashcards/list?path=${encodeURIComponent(path)}`)
+                .then(r => r.json())
+                .then(data => {
+                    const grid = document.getElementById('fc-grid');
+                    grid.innerHTML = '';
+                    if (!data.contents || data.contents.length === 0) {
+                        grid.innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">No folders or flashcard pages found here.</div>';
+                        return;
+                    }
+                    data.contents.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = 'fc-card';
+                        if (item.type === 'folder') {
+                            card.innerHTML = `<span style="font-size: 2rem;">📁</span><span style="font-weight:600; color:#cbd5e1; font-size:0.9rem;">${item.name}</span>`;
+                            card.onclick = () => {
+                                fcPathHistory.push(fcCurrentPath);
+                                loadFcDirectory(item.path);
+                            };
+                        } else {
+                            card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${item.name.replace('.html', '')}</span>`;
+                            card.onclick = () => viewFcFile(item.path);
+                        }
+                        grid.appendChild(card);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error loading flashcards:", err);
+                });
+        }
+
+        function viewFcFile(filePath) {
+            document.getElementById('fc-grid').style.display = 'none';
+            document.getElementById('fc-viewer-container').style.display = 'flex';
+            document.getElementById('fc-back-btn').style.display = 'block';
+            document.getElementById('fc-breadcrumb').innerText = filePath;
+
+            fetch(`/api/flashcards/view?path=${encodeURIComponent(filePath)}`)
+                .then(r => r.text())
+                .then(html => {
+                    document.getElementById('fc-content-frame').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('fc-content-frame').innerHTML = '<p style="color:red; text-align:center;">Failed to load flashcard page content.</p>';
+                });
+        }
+
+        function fcGoBack() {
+            const viewerContainer = document.getElementById('fc-viewer-container');
+            if (viewerContainer.style.display === 'flex') {
+                viewerContainer.style.display = 'none';
+                document.getElementById('fc-grid').style.display = 'grid';
+                document.getElementById('fc-breadcrumb').innerText = fcCurrentPath;
+                if (fcCurrentPath === "flashcards") {
+                    document.getElementById('fc-back-btn').style.display = 'none';
+                }
+            } else if (fcPathHistory.length > 0) {
+                const prevPath = fcPathHistory.pop();
+                loadFcDirectory(prevPath);
+            }
+        }
+
         function sendGeminiMessage() {
             const input = document.getElementById('chat-input');
             const modelChoice = document.getElementById('ai-model-select').value;
@@ -584,18 +649,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
             fetch('/api/gemini', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    prompt: msg,
-                    model_mode: modelChoice
-                })
+                body: JSON.stringify({ prompt: msg, model_mode: modelChoice })
             })
             .then(async r => {
                 const text = await r.text();
-                try {
-                    return JSON.parse(text);
-                } catch (e) {
-                    throw new Error("Server returned non-JSON: " + text);
-                }
+                try { return JSON.parse(text); } catch (e) { throw new Error("Server returned non-JSON: " + text); }
             })
             .then(res => {
                 const loadingEl = document.getElementById(loadingId);
@@ -609,7 +667,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
             .catch(err => {
                 const loadingEl = document.getElementById(loadingId);
                 if(loadingEl) loadingEl.remove();
-                
                 container.innerHTML += `<div style="background:rgba(239,68,68,0.2); color:#ef4444; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-start; font-size:0.9rem;">Error connecting to cloud AI engine: ${err.message}</div>`;
                 container.scrollTop = container.scrollHeight;
             });
@@ -651,10 +708,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 if (!confirm(`Are you sure you want to delete user account: ${username}?`)) return;
                 fetch('/api/admin/users?username=' + encodeURIComponent(username), { method: 'DELETE' })
                     .then(r => r.json())
-                    .then(res => {
-                        alert(`Successfully deleted account: ${username}`);
-                        loadUsers();
-                    });
+                    .then(res => { loadUsers(); });
             }
 
             function handleMassCreate(e) {
@@ -697,9 +751,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         function openFileManager() { 
             openApp('filemanager-modal'); 
             loadFileList();
-            if(!filePollInterval) {
-                filePollInterval = setInterval(loadFileList, 4000);
-            }
+            if(!filePollInterval) { filePollInterval = setInterval(loadFileList, 4000); }
         }
 
         function loadFileList() {
@@ -726,9 +778,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         </li>
                     `).join('');
                 })
-                .catch(err => {
-                    console.error("Failed to load files:", err);
-                });
+                .catch(err => {});
         }
 
         function prepareUpload(e) {
@@ -921,9 +971,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             }
         }
 
-        if (USER_ROLE === 'student') {
-            pollWhiteboard();
-        }
+        if (USER_ROLE === 'student') { pollWhiteboard(); }
     </script>
 </body>
 </html>"""
@@ -1031,16 +1079,68 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if session['role'] == 'admin':
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
                 html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
-                key_info = session.get('key_info', {})
-                html = html.replace("<!--ADMIN_NAME-->", key_info.get("name", "System Administrator"))
-                html = html.replace("<!--SUPER_KEY-->", key_info.get("super_key", "UNKNOWN"))
-                html = html.replace("<!--ADMIN_PHOTO-->", key_info.get("photo_url", ""))
             else:
                 html = html.replace("<!--ADMIN_CLASS-->", "")
                 html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
                 
             self.send_html(html)
             return
+
+        # --- FLASHCARDS API ENDPOINTS ---
+        if path == "/api/flashcards/list":
+            if not session:
+                self.send_json({"error": "Unauthorized"}, 401)
+                return
+            subpath = query_params.get('path', ['flashcards'])[0]
+            gh_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{subpath}?ref={GITHUB_BRANCH}"
+            req_headers = {'User-Agent': 'DigiBoard-Server'}
+            if GITHUB_TOKEN:
+                req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
+            
+            try:
+                req = urllib.request.Request(gh_url, headers=req_headers)
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    items = json.loads(resp.read().decode('utf-8'))
+                    result = []
+                    if isinstance(items, list):
+                        for item in items:
+                            if item['type'] == 'dir':
+                                result.append({"name": item['name'], "type": "folder", "path": item['path']})
+                            elif item['type'] == 'file' and item['name'].endswith('.html'):
+                                result.append({"name": item['name'], "type": "file", "path": item['path']})
+                    self.send_json({"path": subpath, "contents": result})
+            except Exception as e:
+                self.send_json({"error": str(e)}, 500)
+            return
+
+        if path == "/api/flashcards/view":
+            if not session:
+                self.send_json({"error": "Unauthorized"}, 401)
+                return
+            file_path = query_params.get('path', [''])[0]
+            if not file_path.startswith('flashcards/'):
+                self.send_json({"error": "Invalid path"}, 400)
+                return
+            
+            raw_url = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO}/{GITHUB_BRANCH}/{file_path}"
+            req_headers = {'User-Agent': 'DigiBoard-Server'}
+            if GITHUB_TOKEN:
+                req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
+            
+            try:
+                req = urllib.request.Request(raw_url, headers=req_headers)
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    html_content = resp.read().decode('utf-8')
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Disposition", "inline")  # Blocks file downloads, renders in-page
+                    self.set_no_cache_headers()
+                    self.end_headers()
+                    self.wfile.write(html_content.encode('utf-8'))
+            except Exception as e:
+                self.send_error(404, "Flashcard page not found")
+            return
+        # --------------------------------
 
         if path == "/api/admin/users":
             if not session or session.get('role') != 'admin':
@@ -1064,10 +1164,8 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         if path == "/api/whiteboard":
             global BOARD_CACHE
             with CACHE_LOCK:
-                try:
-                    data = json.loads(BOARD_CACHE)
-                except Exception:
-                    data = []
+                try: data = json.loads(BOARD_CACHE)
+                except Exception: data = []
             self.send_json(data)
             return
 
@@ -1102,23 +1200,16 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if admin_key_entered in ADMIN_KEYS:
                 admin_info = ADMIN_KEYS[admin_key_entered]
                 sid = str(uuid.uuid4())
-
                 SESSIONS[sid] = {
                     "username": admin_info["email"],
                     "role": "admin",
                     "grade": "10th",
                     "section": "A",
-                    "key_info": {
-                        "name": admin_info["name"],
-                        "super_key": admin_key_entered,
-                        "photo_url": admin_info["photo_url"]
-                    }
+                    "key_info": {"name": admin_info["name"], "super_key": admin_key_entered, "photo_url": admin_info["photo_url"]}
                 }
-
                 users = load_users_from_encrypted_csv()
                 users[admin_info["email"]] = {"password": "", "role": "admin", "grade": "10th", "section": "A"}
                 save_users_to_encrypted_csv(users)
-
                 log_login_event(admin_info["email"], "admin", "10th", "A", "Admin SSH Key")
 
                 self.send_response(302)
@@ -1139,7 +1230,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             password = params.get('password', [''])[0].strip()
 
             users = load_users_from_encrypted_csv()
-
             if username in users and users[username]['password'] == password:
                 sid = str(uuid.uuid4())
                 user_data = users[username]
@@ -1149,14 +1239,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     "grade": user_data.get('grade', '10th'),
                     "section": user_data.get('section', 'A')
                 }
-
-                log_login_event(
-                    username=username,
-                    role=user_data['role'],
-                    grade=user_data.get('grade', '10th'),
-                    section=user_data.get('section', 'A'),
-                    auth_method="Password"
-                )
+                log_login_event(username, user_data['role'], user_data.get('grade', '10th'), user_data.get('section', 'A'), "Password")
 
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
@@ -1180,12 +1263,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 body = json.loads(raw_body) if raw_body else {}
                 prompt = body.get('prompt', '')
                 model_mode = body.get('model_mode', '0.1')
-                
                 ai_response = query_gemini(prompt, model_mode=model_mode)
                 self.send_json({"response": ai_response})
             except Exception as e:
-                print(f"❌ API GEMINI ROUTE EXCEPTION: {str(e)}")
-                self.send_json({"response": f"❌ Server Error processing AI request: {str(e)}"}, 500)
+                self.send_json({"response": f"❌ Server Error: {str(e)}"}, 500)
             return
 
         if path == "/api/admin/mass-create":
@@ -1203,16 +1284,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             password = body.get('password', '2234269580')
 
             users = load_users_from_encrypted_csv()
-
             created_count = 0
             for i in range(1, count + 1):
                 acc_email = f"{prefix}{i:03d}@Digiboardleaning.com"
-                users[acc_email] = {
-                    "password": password,
-                    "role": role,
-                    "grade": grade,
-                    "section": sec
-                }
+                users[acc_email] = {"password": password, "role": role, "grade": grade, "section": sec}
                 created_count += 1
 
             save_users_to_encrypted_csv(users)
