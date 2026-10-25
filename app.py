@@ -343,7 +343,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- FLASHCARDS MODAL -->
+    <!-- FLASHCARDS MODAL (Opens HTML in-page via iframe) -->
     <div class="modal" id="flashcards-modal">
         <div class="modal-content" style="max-width: 950px; height: 88vh;">
             <div class="modal-header">
@@ -357,7 +357,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div id="fc-breadcrumb" style="font-size: 0.85rem; color: #38bdf8; margin-bottom: 1rem; font-weight: 600;">flashcards</div>
                 <div id="fc-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;"></div>
                 <div id="fc-viewer-container" style="display:none; flex:1; flex-direction:column; height:100%;">
-                    <div id="fc-content-frame" style="flex:1; background:#ffffff; color:#000000; border-radius:8px; padding:1.5rem; overflow-y:auto; user-select:none;" oncontextmenu="return false;"></div>
+                    <iframe id="fc-content-frame" style="width:100%; flex:1; border:none; background:#ffffff; border-radius:8px;"></iframe>
                 </div>
             </div>
         </div>
@@ -445,7 +445,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     </div>
     <!--END_ADMIN_ROLE-->
 
-    <!-- WHITEBOARD MODAL (Universal Read/Write/View for All Accounts) -->
+    <!-- WHITEBOARD MODAL (Universal Read/Write/View & 60FPS Lag-Free Rendering) -->
     <div class="modal" id="whiteboard-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -599,15 +599,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             document.getElementById('fc-viewer-container').style.display = 'flex';
             document.getElementById('fc-back-btn').style.display = 'block';
             document.getElementById('fc-breadcrumb').innerText = filePath;
-
-            fetch(`/api/flashcards/view?path=${encodeURIComponent(filePath)}`)
-                .then(r => r.text())
-                .then(html => {
-                    document.getElementById('fc-content-frame').innerHTML = html;
-                })
-                .catch(err => {
-                    document.getElementById('fc-content-frame').innerHTML = '<p style="color:red; text-align:center;">Failed to load flashcard page content.</p>';
-                });
+            document.getElementById('fc-content-frame').src = `/api/flashcards/view?path=${encodeURIComponent(filePath)}`;
         }
 
         function fcGoBack() {
@@ -808,11 +800,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
         let currentColor = '#000000';
         let currentLineWidth = 5;
         let currentOpacity = 1.0;
+        let rafId = null;
 
         function resizeCanvas() {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
-            redraw(lines);
+            redraw();
         }
 
         window.addEventListener('resize', resizeCanvas);
@@ -845,7 +838,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             };
             lines.push(newLine);
             undoStack = [];
-            redraw(lines);
+            redraw();
         });
 
         canvas.addEventListener('pointermove', (e) => {
@@ -853,7 +846,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
             const rect = canvas.getBoundingClientRect();
             const currentLine = lines[lines.length - 1];
             currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-            redraw(lines);
+            
+            // requestAnimationFrame throttling for buttery-smooth 60 FPS lag-free drawing
+            if (!rafId) {
+                rafId = requestAnimationFrame(() => {
+                    redraw();
+                    rafId = null;
+                });
+            }
         });
 
         canvas.addEventListener('pointerup', (e) => { 
@@ -872,11 +872,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
             }
         });
 
-        function redraw(linesToDraw) {
+        function redraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (!linesToDraw) return;
+            if (!lines) return;
             
-            linesToDraw.forEach(line => {
+            lines.forEach(line => {
                 if (!line || !line.pts || line.pts.length === 0) return;
                 ctx.save();
                 ctx.strokeStyle = line.color || "#000000";
@@ -926,7 +926,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         function undo() {
             if (lines.length > 0) {
                 undoStack.push(lines.pop());
-                redraw(lines);
+                redraw();
                 syncWhiteboard();
             }
         }
@@ -934,7 +934,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         function redo() {
             if (undoStack.length > 0) {
                 lines.push(undoStack.pop());
-                redraw(lines);
+                redraw();
                 syncWhiteboard();
             }
         }
@@ -944,7 +944,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             if (!confirm("Are you sure you want to clear the entire whiteboard?")) return;
             undoStack.push(...lines);
             lines = [];
-            redraw(lines);
+            redraw();
             syncWhiteboard();
         }
 
@@ -957,12 +957,13 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function fetchWhiteboard() {
+            if (isDrawing) return; // Do not fetch/overwrite while actively drawing
             fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
                 .then(r => r.json())
                 .then(data => {
                     if (JSON.stringify(data) !== JSON.stringify(lines)) {
                         lines = data;
-                        redraw(lines);
+                        redraw();
                     }
                 })
                 .catch(() => {});
