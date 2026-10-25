@@ -189,6 +189,8 @@ LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard - Login</title>
+    <!-- Favicon Logo Integration -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070d19'/%3E%3Cpath d='M10 8h6c4 0 7 3 7 8s-3 8-7 8h-6V8z' fill='none' stroke='%2338bdf8' stroke-width='2.5'/%3E%3Ccircle cx='24' cy='11' r='1.5' fill='%2310b981'/%3E%3Ccircle cx='25' cy='21' r='1.5' fill='%2310b981'/%3E%3Cpath d='M19 10l5 1M19 22l6-1' stroke='%2338bdf8' stroke-width='1.5'/%3E%3C/svg%3E">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
@@ -229,6 +231,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard Master Console</title>
+    <!-- Favicon Logo Integration -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070d19'/%3E%3Cpath d='M10 8h6c4 0 7 3 7 8s-3 8-7 8h-6V8z' fill='none' stroke='%2338bdf8' stroke-width='2.5'/%3E%3Ccircle cx='24' cy='11' r='1.5' fill='%2310b981'/%3E%3Ccircle cx='25' cy='21' r='1.5' fill='%2310b981'/%3E%3Cpath d='M19 10l5 1M19 22l6-1' stroke='%2338bdf8' stroke-width='1.5'/%3E%3C/svg%3E">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -296,7 +300,17 @@ CONSOLE_HTML = """<!DOCTYPE html>
 </head>
 <body>
     <header>
-        <div class="header-title">DigiBoard Master Console</div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <!-- Header Logo Integration -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+                <rect width="32" height="32" rx="8" fill="#070d19" stroke="#38bdf8" stroke-width="1"/>
+                <path d="M10 8h6c4 0 7 3 7 8s-3 8-7 8h-6V8z" fill="none" stroke="#38bdf8" stroke-width="2.5"/>
+                <circle cx="24" cy="11" r="1.5" fill="#10b981"/>
+                <circle cx="25" cy="21" r="1.5" fill="#10b981"/>
+                <path d="M19 10l5 1M19 22l6-1" stroke="#38bdf8" stroke-width="1.5"/>
+            </svg>
+            <div class="header-title">DigiBoard Master Console</div>
+        </div>
         <div class="user-section">
             User ID: <span class="user-id"><!--USERNAME--></span>
             <span class="user-role-badge <!--ADMIN_CLASS-->"><!--USER_ROLE--></span>
@@ -847,7 +861,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
             const currentLine = lines[lines.length - 1];
             currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
             
-            // requestAnimationFrame throttling for buttery-smooth 60 FPS lag-free drawing
             if (!rafId) {
                 rafId = requestAnimationFrame(() => {
                     redraw();
@@ -957,7 +970,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function fetchWhiteboard() {
-            if (isDrawing) return; // Do not fetch/overwrite while actively drawing
+            if (isDrawing) return;
             fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
                 .then(r => r.json())
                 .then(data => {
