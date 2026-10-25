@@ -23,8 +23,10 @@ UPLOAD_DIR = "uploads"
 ENCRYPTED_CSV_FILE = "accounts_encrypted.csv"
 LOGIN_LOGS_CSV = "login_logs.csv"
 SESSIONS = {}
-BOARD_CACHE = "[]"
-CACHE_LOCK = threading.Lock()
+
+# Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section" (e.g. "6th_E", "8th_A")
+CLASS_BOARDS = {}
+BOARD_LOCK = threading.Lock()
 
 # GitHub Configuration for Flashcards
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "YOUR_GITHUB_USERNAME")
@@ -282,14 +284,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
         .file-item a:hover { text-decoration: underline; }
         .delete-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
         .delete-btn:hover { background: #ef4444; color: #fff; }
-        .readonly-banner { background: #1e293b; color: #94a3b8; font-size: 0.8rem; padding: 0.4rem 1rem; text-align: center; border-bottom: 1px solid #334155; }
         .admin-form-group { margin-bottom: 1rem; }
         .admin-form-group label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.85rem; }
         .admin-form-group input, .admin-form-group select { width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
         .ai-msg p { margin: 0 0 0.5rem 0; }
         .ai-msg ul, .ai-msg ol { margin: 0.5rem 0; padding-left: 1.2rem; }
         .ai-msg strong { color: #38bdf8; }
-        /* Flashcard Explorer Styles */
         .fc-card { background: #091326; border: 1px solid #1e293b; border-radius: 8px; padding: 1.2rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; transition: all 0.2s; }
         .fc-card:hover { border-color: #38bdf8; background: #0e1d38; transform: translateY(-2px); }
     </style>
@@ -300,6 +300,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         <div class="user-section">
             User ID: <span class="user-id"><!--USERNAME--></span>
             <span class="user-role-badge <!--ADMIN_CLASS-->"><!--USER_ROLE--></span>
+            <span style="color:#38bdf8; font-size:0.8rem; background:#0f172a; padding:0.2rem 0.5rem; border:1px solid #1e293b; border-radius:4px;">Class: <!--USER_GRADE-->-<!--USER_SECTION--></span>
             <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
         </div>
     </header>
@@ -354,13 +355,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1.5rem; overflow-y:auto; background:#070d19;">
                 <div id="fc-breadcrumb" style="font-size: 0.85rem; color: #38bdf8; margin-bottom: 1rem; font-weight: 600;">flashcards</div>
-                <div id="fc-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
-                    <!-- Dynamically populated folder/file cards -->
-                </div>
+                <div id="fc-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;"></div>
                 <div id="fc-viewer-container" style="display:none; flex:1; flex-direction:column; height:100%;">
-                    <div id="fc-content-frame" style="flex:1; background:#ffffff; color:#000000; border-radius:8px; padding:1.5rem; overflow-y:auto; user-select:none;" oncontextmenu="return false;">
-                        <!-- HTML Flashcard Content Loaded Securely Here -->
-                    </div>
+                    <div id="fc-content-frame" style="flex:1; background:#ffffff; color:#000000; border-radius:8px; padding:1.5rem; overflow-y:auto; user-select:none;" oncontextmenu="return false;"></div>
                 </div>
             </div>
         </div>
@@ -448,24 +445,19 @@ CONSOLE_HTML = """<!DOCTYPE html>
     </div>
     <!--END_ADMIN_ROLE-->
 
+    <!-- WHITEBOARD MODAL (Universal Read/Write/View for All Accounts) -->
     <div class="modal" id="whiteboard-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>DigiBoard Interactive Whiteboard</h3>
+                <h3>DigiBoard Interactive Whiteboard (<span id="wb-class-label">Class</span>)</h3>
                 <div class="header-actions">
-                    <!--ROLE_TEACHER_ONLY-->
                     <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard"><span>Clear All</span> 🗑️</button>
-                    <!--END_ROLE-->
                     <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
                 </div>
             </div>
-            <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only Mode) - Live Syncing Teacher Board</div>
-            <!--END_STUDENT_ROLE-->
             <div class="modal-body">
                 <div class="wb-viewport" id="wb-container">
                     <canvas id="board"></canvas>
-                    <!--ROLE_TEACHER_ONLY-->
                     <div class="markup-palette">
                         <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
                         <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
@@ -497,21 +489,18 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         <h4>Opacity</h4>
                         <input type="range" id="opacity-range" min="0.1" max="1" step="0.1" value="1" style="width:100%;" onchange="setOpacity(this.value)">
                     </div>
-                    <!--END_ROLE-->
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- FILE MANAGER MODAL -->
     <div class="modal" id="filemanager-modal">
         <div class="modal-content" style="max-width: 700px; height:auto;">
             <div class="modal-header">
                 <h3>Class File Manager</h3>
                 <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
             </div>
-            <!--ROLE_STUDENT_ONLY-->
-            <div class="readonly-banner">Student View (Read-Only) - View & Download Available Documents</div>
-            <!--END_STUDENT_ROLE-->
             <div class="modal-body" style="height: 520px; overflow-y: auto;">
                 <div style="display:flex; gap:1rem; margin-bottom:1rem; background:#070d19; padding:0.75rem; border-radius:6px; border:1px solid #1e293b;">
                     <div style="flex:1;">
@@ -524,7 +513,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!--ROLE_TEACHER_ONLY-->
+                <!--ROLE_TEACHER_OR_ADMIN-->
                 <form action="/upload" method="POST" enctype="multipart/form-data" onsubmit="prepareUpload(event)" style="margin-bottom: 1.5rem; background: #070d19; padding: 1rem; border-radius: 6px; border: 1px solid #1e293b;">
                     <input type="hidden" name="grade" id="upload-grade">
                     <input type="hidden" name="section" id="upload-section">
@@ -547,7 +536,12 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     <script>
         const USER_ROLE = "<!--USER_ROLE-->";
+        const USER_GRADE = "<!--USER_GRADE-->";
+        const USER_SECTION = "<!--USER_SECTION-->";
+        document.getElementById('wb-class-label').innerText = `Class ${USER_GRADE}-${USER_SECTION}`;
+
         let filePollInterval = null;
+        let boardPollInterval = null;
 
         // --- FLASHCARDS CLIENT LOGIC ---
         let fcCurrentPath = "flashcards";
@@ -737,7 +731,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         function openApp(id) { 
             document.getElementById(id).style.display = 'flex'; 
-            if(id === 'whiteboard-modal') { resizeCanvas(); }
+            if(id === 'whiteboard-modal') { 
+                resizeCanvas(); 
+                fetchWhiteboard();
+                if(!boardPollInterval) { boardPollInterval = setInterval(fetchWhiteboard, 1500); }
+            }
         }
         
         function closeApp(id) { 
@@ -745,6 +743,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
             if(id === 'filemanager-modal' && filePollInterval) {
                 clearInterval(filePollInterval);
                 filePollInterval = null;
+            }
+            if(id === 'whiteboard-modal' && boardPollInterval) {
+                clearInterval(boardPollInterval);
+                boardPollInterval = null;
             }
         }
 
@@ -815,61 +817,60 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         window.addEventListener('resize', resizeCanvas);
 
-        if (USER_ROLE === 'teacher' || USER_ROLE === 'admin') {
-            canvas.addEventListener('pointerdown', (e) => {
-                isDrawing = true;
-                canvas.setPointerCapture(e.pointerId);
-                const rect = canvas.getBoundingClientRect();
-                let width = currentLineWidth;
-                let color = currentColor;
-                let opacity = currentOpacity;
+        canvas.addEventListener('pointerdown', (e) => {
+            isDrawing = true;
+            canvas.setPointerCapture(e.pointerId);
+            const rect = canvas.getBoundingClientRect();
+            let width = currentLineWidth;
+            let color = currentColor;
+            let opacity = currentOpacity;
 
-                if (activeTool === 'highlighter') {
-                    opacity = 0.4;
-                    width = Math.max(width, 18);
-                } else if (activeTool === 'eraser') {
-                    color = '#ffffff';
-                    width = 25;
-                    opacity = 1.0;
-                } else if (activeTool === 'marker') {
-                    width = Math.max(width, 10);
-                }
+            if (activeTool === 'highlighter') {
+                opacity = 0.4;
+                width = Math.max(width, 18);
+            } else if (activeTool === 'eraser') {
+                color = '#ffffff';
+                width = 25;
+                opacity = 1.0;
+            } else if (activeTool === 'marker') {
+                width = Math.max(width, 10);
+            }
 
-                const newLine = {
-                    tool: activeTool,
-                    color: color,
-                    width: width,
-                    opacity: opacity,
-                    pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
-                };
-                lines.push(newLine);
-                undoStack = [];
-            });
+            const newLine = {
+                tool: activeTool,
+                color: color,
+                width: width,
+                opacity: opacity,
+                pts: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }]
+            };
+            lines.push(newLine);
+            undoStack = [];
+            redraw(lines);
+        });
 
-            canvas.addEventListener('pointermove', (e) => {
-                if (!isDrawing) return;
-                const rect = canvas.getBoundingClientRect();
-                const currentLine = lines[lines.length - 1];
-                currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                redraw(lines);
-            });
+        canvas.addEventListener('pointermove', (e) => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const currentLine = lines[lines.length - 1];
+            currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+            redraw(lines);
+        });
 
-            canvas.addEventListener('pointerup', (e) => { 
-                if (isDrawing) {
-                    isDrawing = false; 
-                    canvas.releasePointerCapture(e.pointerId);
-                    syncWhiteboard();
-                }
-            });
-            
-            canvas.addEventListener('pointercancel', (e) => {
-                if (isDrawing) {
-                    isDrawing = false;
-                    try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
-                    syncWhiteboard();
-                }
-            });
-        }
+        canvas.addEventListener('pointerup', (e) => { 
+            if (isDrawing) {
+                isDrawing = false; 
+                try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
+                syncWhiteboard();
+            }
+        });
+        
+        canvas.addEventListener('pointercancel', (e) => {
+            if (isDrawing) {
+                isDrawing = false;
+                try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
+                syncWhiteboard();
+            }
+        });
 
         function redraw(linesToDraw) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -948,7 +949,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function syncWhiteboard() {
-            if (USER_ROLE !== 'teacher' && USER_ROLE !== 'admin') return;
             fetch('/api/whiteboard', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -956,22 +956,17 @@ CONSOLE_HTML = """<!DOCTYPE html>
             });
         }
 
-        function pollWhiteboard() {
-            if (USER_ROLE === 'student') {
-                fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (JSON.stringify(data) !== JSON.stringify(lines)) {
-                            lines = data;
-                            redraw(lines);
-                        }
-                    })
-                    .catch(() => {})
-                    .finally(() => setTimeout(pollWhiteboard, 1000));
-            }
+        function fetchWhiteboard() {
+            fetch('/api/whiteboard?t=' + Date.now(), { cache: "no-store" })
+                .then(r => r.json())
+                .then(data => {
+                    if (JSON.stringify(data) !== JSON.stringify(lines)) {
+                        lines = data;
+                        redraw(lines);
+                    }
+                })
+                .catch(() => {});
         }
-
-        if (USER_ROLE === 'student') { pollWhiteboard(); }
     </script>
 </body>
 </html>"""
@@ -1071,6 +1066,8 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             
             html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
+            html = html.replace("<!--USER_GRADE-->", session.get('grade', '10th'))
+            html = html.replace("<!--USER_SECTION-->", session.get('section', 'A'))
 
             grade_opts = "".join([f'<option value="{g}" {"selected" if g == session.get("grade","10th") else ""}>{g}</option>' for g in GRADES])
             sec_opts = "".join([f'<option value="{s}" {"selected" if s == session.get("section","A") else ""}>Section {s}</option>' for s in SECTIONS])
@@ -1079,9 +1076,14 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if session['role'] == 'admin':
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
                 html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
+                html = html.replace("<!--ROLE_TEACHER_OR_ADMIN-->", "").replace("<!--END_ROLE-->", "")
             else:
                 html = html.replace("<!--ADMIN_CLASS-->", "")
                 html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
+                if session['role'] in ['teacher', 'admin']:
+                    html = html.replace("<!--ROLE_TEACHER_OR_ADMIN-->", "").replace("<!--END_ROLE-->", "")
+                else:
+                    html = re.sub(r'<!--ROLE_TEACHER_OR_ADMIN-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
                 
             self.send_html(html)
             return
@@ -1133,14 +1135,13 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     html_content = resp.read().decode('utf-8')
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
-                    self.send_header("Content-Disposition", "inline")  # Blocks file downloads, renders in-page
+                    self.send_header("Content-Disposition", "inline")
                     self.set_no_cache_headers()
                     self.end_headers()
                     self.wfile.write(html_content.encode('utf-8'))
             except Exception as e:
                 self.send_error(404, "Flashcard page not found")
             return
-        # --------------------------------
 
         if path == "/api/admin/users":
             if not session or session.get('role') != 'admin':
@@ -1162,10 +1163,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/whiteboard":
-            global BOARD_CACHE
-            with CACHE_LOCK:
-                try: data = json.loads(BOARD_CACHE)
-                except Exception: data = []
+            if not session:
+                self.send_json({"error": "Unauthorized"}, 401)
+                return
+            class_key = f"{session.get('grade', '10th')}_{session.get('section', 'A')}"
+            global CLASS_BOARDS
+            with BOARD_LOCK:
+                board_data = CLASS_BOARDS.get(class_key, "[]")
+                try:
+                    data = json.loads(board_data)
+                except Exception:
+                    data = []
             self.send_json(data)
             return
 
@@ -1310,14 +1318,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/whiteboard":
-            if session['role'] not in ['teacher', 'admin']:
-                self.send_json({"error": "Forbidden"}, 403)
-                return
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
-            global BOARD_CACHE
-            with CACHE_LOCK:
-                BOARD_CACHE = body
+            class_key = f"{session.get('grade', '10th')}_{session.get('section', 'A')}"
+            global CLASS_BOARDS
+            with BOARD_LOCK:
+                CLASS_BOARDS[class_key] = body
             self.send_json({"status": "ok"})
             return
 
