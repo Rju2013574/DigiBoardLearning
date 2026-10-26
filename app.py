@@ -185,7 +185,18 @@ ADMIN_KEYS = {
     }
 }
 
-FAVICON_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070d19' stroke='%2338bdf8' stroke-width='1'/%3E%3Cpath d='M8 16 C8 10, 12 7, 18 7 C23 7, 26 10, 26 15 C26 18, 24 21, 22 23 C20 25, 18 25, 16 25 C13 25, 11 23, 10 21' fill='none' stroke='%2338bdf8' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M12 10 h4 c3 0 5 2 5 5 s-2 5-5 5 h-4 z' fill='none' stroke='%2338bdf8' stroke-width='2'/%3E%3Ccircle cx='18' cy='10' r='1.2' fill='%2310b981'/%3E%3Ccircle cx='22' cy='14' r='1.2' fill='%2310b981'/%3E%3Ccircle cx='19' cy='20' r='1.2' fill='%2310b981'/%3E%3Ccircle cx='12' cy='22' r='1.2' fill='%2310b981'/%3E%3Cpath d='M16 15 L18 10 M16 15 L22 14 M16 17 L19 20' stroke='%2338bdf8' stroke-width='0.8'/%3E%3C/svg%3E"
+FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
+    <rect width='32' height='32' rx='8' fill='#070d19' stroke='#38bdf8' stroke-width='1'/>
+    <path d='M8 16 C8 10, 12 7, 18 7 C23 7, 26 10, 26 15 C26 18, 24 21, 22 23 C20 25, 18 25, 16 25 C13 25, 11 23, 10 21' fill='none' stroke='#38bdf8' stroke-width='1.5' stroke-linecap='round'/>
+    <path d='M12 10 h4 c3 0 5 2 5 5 s-2 5-5 5 h-4 z' fill='none' stroke='#38bdf8' stroke-width='2'/>
+    <circle cx='18' cy='10' r='1.2' fill='#10b981'/>
+    <circle cx='22' cy='14' r='1.2' fill='#10b981'/>
+    <circle cx='19' cy='20' r='1.2' fill='#10b981'/>
+    <circle cx='12' cy='22' r='1.2' fill='#10b981'/>
+    <path d='M16 15 L18 10 M16 15 L22 14 M16 17 L19 20' stroke='#38bdf8' stroke-width='0.8'/>
+</svg>"""
+
+FAVICON_DATA_URI = "data:image/svg+xml," + urllib.parse.quote(FAVICON_SVG)
 
 LOGO_HTML = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32'>
     <rect width='32' height='32' rx='8' fill='#070d19' stroke='#38bdf8' stroke-width='1'/>
@@ -202,9 +213,9 @@ LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard - Login</title>
-    <link rel="icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
-    <link rel="shortcut icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
-    <link rel="apple-touch-icon" href="<!--FAVICON_URI-->">
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon.ico">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
@@ -248,9 +259,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard Master Console</title>
-    <link rel="icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
-    <link rel="shortcut icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
-    <link rel="apple-touch-icon" href="<!--FAVICON_URI-->">
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/favicon.ico">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -360,7 +371,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <!--ROLE_ADMIN_ONLY-->
             <div class="app-card" onclick="openApp('admin-modal')">
                 <div class="app-icon icon-admin">
-                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8s0 0 0 0z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8s0 0 0 0 z"/></svg>
                 </div>
                 <div class="app-title">Admin Console</div>
             </div>
@@ -1069,8 +1080,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         query_params = urllib.parse.parse_qs(parsed.query)
         session = self.get_session()
 
+        # Dedicated Favicon Route to load directly in the browser tab bar
+        if path == "/favicon.ico":
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.set_no_cache_headers()
+            self.end_headers()
+            self.wfile.write(FAVICON_SVG.encode('utf-8'))
+            return
+
         if path == "/login":
-            html = LOGIN_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", "")
+            html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", "")
             self.send_html(html)
             return
 
@@ -1090,7 +1110,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.redirect("/login")
                 return
             
-            html = CONSOLE_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML)
+            html = CONSOLE_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML)
             html = html.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
             html = html.replace("<!--USER_GRADE-->", session.get('grade', '10th'))
@@ -1253,7 +1273,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
+                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
                 self.send_html(err_html, 401)
             return
 
@@ -1282,7 +1302,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
+                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
                 self.send_html(err_html, 401)
             return
 
