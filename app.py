@@ -185,7 +185,6 @@ ADMIN_KEYS = {
     }
 }
 
-# Approved Neura-Digital Brain & Network 'D' Logo Data URI
 FAVICON_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070d19' stroke='%2338bdf8' stroke-width='1'/%3E%3Cpath d='M8 16 C8 10, 12 7, 18 7 C23 7, 26 10, 26 15 C26 18, 24 21, 22 23 C20 25, 18 25, 16 25 C13 25, 11 23, 10 21' fill='none' stroke='%2338bdf8' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M12 10 h4 c3 0 5 2 5 5 s-2 5-5 5 h-4 z' fill='none' stroke='%2338bdf8' stroke-width='2'/%3E%3Ccircle cx='18' cy='10' r='1.2' fill='%2310b981'/%3E%3Ccircle cx='22' cy='14' r='1.2' fill='%2310b981'/%3E%3Ccircle cx='19' cy='20' r='1.2' fill='%2310b981'/%3E%3Ccircle cx='12' cy='22' r='1.2' fill='%2310b981'/%3E%3Cpath d='M16 15 L18 10 M16 15 L22 14 M16 17 L19 20' stroke='%2338bdf8' stroke-width='0.8'/%3E%3C/svg%3E"
 
 LOGO_HTML = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32'>
@@ -199,33 +198,32 @@ LOGO_HTML = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width
     <path d='M16 15 L18 10 M16 15 L22 14 M16 17 L19 20' stroke='#38bdf8' stroke-width='0.8'/>
 </svg>"""
 
-LOGIN_HTML = f"""<!DOCTYPE html>
+LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard - Login</title>
-    <!-- Robust Tab Bar Favicon Links -->
-    <link rel="icon" type="image/svg+xml" href="{FAVICON_DATA_URI}">
-    <link rel="shortcut icon" type="image/svg+xml" href="{FAVICON_DATA_URI}">
-    <link rel="apple-touch-icon" href="{FAVICON_DATA_URI}">
+    <link rel="icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
+    <link rel="shortcut icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
+    <link rel="apple-touch-icon" href="<!--FAVICON_URI-->">
     <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }}
-        .login-card {{ background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }}
-        h2 {{ text-align: center; margin-top: 0; color: #38bdf8; font-size: 1.5rem; }}
-        label {{ font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 1rem; }}
-        input {{ width: 100%; padding: 0.65rem; margin-top: 0.3rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }}
-        input:focus {{ outline: none; border-color: #38bdf8; }}
-        button {{ width: 100%; padding: 0.75rem; margin-top: 1.2rem; background: #0284c7; border: none; color: white; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }}
-        button:hover {{ background: #0369a1; }}
-        .admin-btn {{ background: #4f46e5; margin-top: 0.75rem; }}
-        .admin-btn:hover {{ background: #4338ca; }}
-        .error {{ color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; }}
-        .divider {{ border-top: 1px solid #1e293b; margin: 1.5rem 0 0.5rem 0; text-align: center; position: relative; }}
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
+        h2 { text-align: center; margin-top: 0; color: #38bdf8; font-size: 1.5rem; }
+        label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 1rem; }
+        input { width: 100%; padding: 0.65rem; margin-top: 0.3rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }
+        input:focus { outline: none; border-color: #38bdf8; }
+        button { width: 100%; padding: 0.75rem; margin-top: 1.2rem; background: #0284c7; border: none; color: white; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #0369a1; }
+        .admin-btn { background: #4f46e5; margin-top: 0.75rem; }
+        .admin-btn:hover { background: #4338ca; }
+        .error { color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; }
+        .divider { border-top: 1px solid #1e293b; margin: 1.5rem 0 0.5rem 0; text-align: center; position: relative; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <div style="display: flex; justify-content: center; margin-bottom: 1rem;">
-            {LOGO_HTML}
+            <!--LOGO_HTML-->
         </div>
         <h2>DigiBoard Master Console</h2>
         <!--ERROR-->
@@ -246,84 +244,82 @@ LOGIN_HTML = f"""<!DOCTYPE html>
 </body>
 </html>"""
 
-CONSOLE_HTML = f"""<!DOCTYPE html>
+CONSOLE_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <title>DigiBoard Master Console</title>
-    <!-- Robust Tab Bar Favicon Links -->
-    <link rel="icon" type="image/svg+xml" href="{FAVICON_DATA_URI}">
-    <link rel="shortcut icon" type="image/svg+xml" href="{FAVICON_DATA_URI}">
-    <link rel="apple-touch-icon" href="{FAVICON_DATA_URI}">
+    <link rel="icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
+    <link rel="shortcut icon" type="image/svg+xml" href="<!--FAVICON_URI-->">
+    <link rel="apple-touch-icon" href="<!--FAVICON_URI-->">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        * {{ box-sizing: border-box; }}
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }}
-        header {{ display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }}
-        .header-title {{ font-size: 1.25rem; font-weight: bold; letter-spacing: 0.5px; color: #ffffff; }}
-        .user-section {{ display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }}
-        .user-id {{ color: #ffffff; font-weight: 600; }}
-        .user-role-badge {{ background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }}
-        .admin-badge {{ background: #4f46e5 !important; color: #fff !important; }}
-        .logout-btn {{ background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }}
-        .logout-btn:hover {{ background: #1e293b; color: #fff; }}
-        .console-container {{ flex: 1; display: flex; justify-content: center; align-items: center; padding: 2rem; }}
-        .grid-wrapper {{ background: rgba(15, 23, 42, 0.6); border: 1px solid #172554; border-radius: 16px; padding: 2.5rem; display: flex; gap: 2rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); flex-wrap: wrap; justify-content: center; }}
-        .app-card {{ width: 150px; height: 150px; background: #091326; border: 1px solid #1e293b; border-radius: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; gap: 0.85rem; }}
-        .app-card:hover {{ transform: translateY(-4px); border-color: #38bdf8; background: #0e1d38; box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2); }}
-        .app-icon {{ width: 56px; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; }}
-        .icon-wb {{ background: #2563eb; }}
-        .icon-gemini {{ background: linear-gradient(135deg, #3b82f6, #8b5cf6); }}
-        .icon-fm {{ background: #eab308; }}
-        .icon-fc {{ background: #10b981; }}
-        .icon-admin {{ background: #4f46e5; }}
-        .app-icon svg {{ width: 30px; height: 30px; fill: white; }}
-        .app-title {{ font-size: 0.85rem; font-weight: 600; color: #cbd5e1; text-align: center; }}
-        .modal {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.9); justify-content: center; align-items: center; z-index: 100; }}
-        .modal-content {{ background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 95%; max-width: 1150px; height: 88vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }}
-        .modal-header {{ display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; background: #070d19; }}
-        .modal-header h3 {{ margin: 0; color: #38bdf8; font-size: 1.1rem; }}
-        .header-actions {{ display: flex; align-items: center; gap: 1rem; }}
-        .clear-all-btn {{ background: #ef4444; color: #ffffff; border: none; padding: 0.45rem 0.9rem; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s, transform 0.1s; }}
-        .clear-all-btn:hover {{ background: #dc2626; transform: scale(1.02); }}
-        .close-btn {{ color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; line-height: 1; }}
-        .close-btn:hover {{ color: #fff; }}
-        .modal-body {{ padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }}
-        .wb-viewport {{ position: relative; width: 100%; height: 100%; flex: 1; background: #ffffff; border-radius: 8px; overflow: hidden; }}
-        canvas {{ display: block; width: 100%; height: 100%; background: radial-gradient(#d1d5db 1px, transparent 1px); background-size: 20px 20px; cursor: crosshair; touch-action: none; }}
-        .markup-palette {{ position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 30px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); z-index: 20; width: 58px; }}
-        .markup-btn {{ width: 38px; height: 38px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 0.15s, transform 0.15s; color: #334155; padding: 0; }}
-        .markup-btn:hover {{ background: #e2e8f0; transform: scale(1.08); }}
-        .markup-btn.active {{ background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid #0284c7; }}
-        .palette-divider {{ width: 30px; height: 1px; background: #cbd5e1; margin: 2px 0; }}
-        .color-dot {{ width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.15s; }}
-        .color-dot:hover {{ transform: scale(1.15); }}
-        .color-dot.active {{ transform: scale(1.2); border-color: #0284c7; }}
-        .tool-config-popover {{ display: none; position: absolute; left: 85px; top: 50%; transform: translateY(-50%); background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 30; width: 220px; color: #1e293b; }}
-        .tool-config-popover h4 {{ margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #475569; }}
-        .stroke-options {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }}
-        .stroke-opt {{ width: 30px; height: 30px; border-radius: 6px; border: 1px solid #cbd5e1; display: flex; justify-content: center; align-items: center; cursor: pointer; }}
-        .stroke-opt.active {{ border-color: #0284c7; background: #e0f2fe; }}
-        .stroke-preview {{ background: #000; border-radius: 50%; }}
-        .file-item {{ display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }}
-        .file-item a {{ color: #38bdf8; text-decoration: none; font-weight: 500; font-size: 0.95rem; word-break: break-all; }}
-        .file-item a:hover {{ text-decoration: underline; }}
-        .delete-btn {{ color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }}
-        .delete-btn:hover {{ background: #ef4444; color: #fff; }}
-        .admin-form-group {{ margin-bottom: 1rem; }}
-        .admin-form-group label {{ display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.85rem; }}
-        .admin-form-group input, .admin-form-group select {{ width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }}
-        .ai-msg p {{ margin: 0 0 0.5rem 0; }}
-        .ai-msg ul, .ai-msg ol {{ margin: 0.5rem 0; padding-left: 1.2rem; }}
-        .ai-msg strong {{ color: #38bdf8; }}
-        .fc-card {{ background: #091326; border: 1px solid #1e293b; border-radius: 8px; padding: 1.2rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; transition: all 0.2s; }}
-        .fc-card:hover {{ border-color: #38bdf8; background: #0e1d38; transform: translateY(-2px); }}
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }
+        .header-title { font-size: 1.25rem; font-weight: bold; letter-spacing: 0.5px; color: #ffffff; }
+        .user-section { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; color: #94a3b8; }
+        .user-id { color: #ffffff; font-weight: 600; }
+        .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
+        .admin-badge { background: #4f46e5 !important; color: #fff !important; }
+        .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        .logout-btn:hover { background: #1e293b; color: #fff; }
+        .console-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 2rem; }
+        .grid-wrapper { background: rgba(15, 23, 42, 0.6); border: 1px solid #172554; border-radius: 16px; padding: 2.5rem; display: flex; gap: 2rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); flex-wrap: wrap; justify-content: center; }
+        .app-card { width: 150px; height: 150px; background: #091326; border: 1px solid #1e293b; border-radius: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s ease; gap: 0.85rem; }
+        .app-card:hover { transform: translateY(-4px); border-color: #38bdf8; background: #0e1d38; box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.2); }
+        .app-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; justify-content: center; align-items: center; }
+        .icon-wb { background: #2563eb; }
+        .icon-gemini { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+        .icon-fm { background: #eab308; }
+        .icon-fc { background: #10b981; }
+        .icon-admin { background: #4f46e5; }
+        .app-icon svg { width: 30px; height: 30px; fill: white; }
+        .app-title { font-size: 0.85rem; font-weight: 600; color: #cbd5e1; text-align: center; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(3, 7, 18, 0.9); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; width: 95%; max-width: 1150px; height: 88vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #1e293b; background: #070d19; }
+        .modal-header h3 { margin: 0; color: #38bdf8; font-size: 1.1rem; }
+        .header-actions { display: flex; align-items: center; gap: 1rem; }
+        .clear-all-btn { background: #ef4444; color: #ffffff; border: none; padding: 0.45rem 0.9rem; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; transition: background 0.2s, transform 0.1s; }
+        .clear-all-btn:hover { background: #dc2626; transform: scale(1.02); }
+        .close-btn { color: #94a3b8; font-size: 1.5rem; font-weight: bold; cursor: pointer; line-height: 1; }
+        .close-btn:hover { color: #fff; }
+        .modal-body { padding: 1rem; overflow: hidden; flex: 1; position: relative; display: flex; flex-direction: column; }
+        .wb-viewport { position: relative; width: 100%; height: 100%; flex: 1; background: #ffffff; border-radius: 8px; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; background: radial-gradient(#d1d5db 1px, transparent 1px); background-size: 20px 20px; cursor: crosshair; touch-action: none; }
+        .markup-palette { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 30px; padding: 12px 8px; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); z-index: 20; width: 58px; }
+        .markup-btn { width: 38px; height: 38px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: background 0.15s, transform 0.15s; color: #334155; padding: 0; }
+        .markup-btn:hover { background: #e2e8f0; transform: scale(1.08); }
+        .markup-btn.active { background: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); border: 2px solid #0284c7; }
+        .palette-divider { width: 30px; height: 1px; background: #cbd5e1; margin: 2px 0; }
+        .color-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.15s; }
+        .color-dot:hover { transform: scale(1.15); }
+        .color-dot.active { transform: scale(1.2); border-color: #0284c7; }
+        .tool-config-popover { display: none; position: absolute; left: 85px; top: 50%; transform: translateY(-50%); background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 30; width: 220px; color: #1e293b; }
+        .tool-config-popover h4 { margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #475569; }
+        .stroke-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+        .stroke-opt { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #cbd5e1; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .stroke-opt.active { border-color: #0284c7; background: #e0f2fe; }
+        .stroke-preview { background: #000; border-radius: 50%; }
+        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: #070d19; border: 1px solid #1e293b; border-radius: 6px; margin-bottom: 0.5rem; }
+        .file-item a { color: #38bdf8; text-decoration: none; font-weight: 500; font-size: 0.95rem; word-break: break-all; }
+        .file-item a:hover { text-decoration: underline; }
+        .delete-btn { color: #ef4444; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .delete-btn:hover { background: #ef4444; color: #fff; }
+        .admin-form-group { margin-bottom: 1rem; }
+        .admin-form-group label { display: block; margin-bottom: 0.3rem; color: #94a3b8; font-size: 0.85rem; }
+        .admin-form-group input, .admin-form-group select { width: 100%; padding: 0.5rem; background: #070d19; border: 1px solid #334155; color: white; border-radius: 6px; }
+        .ai-msg p { margin: 0 0 0.5rem 0; }
+        .ai-msg ul, .ai-msg ol { margin: 0.5rem 0; padding-left: 1.2rem; }
+        .ai-msg strong { color: #38bdf8; }
+        .fc-card { background: #091326; border: 1px solid #1e293b; border-radius: 8px; padding: 1.2rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; transition: all 0.2s; }
+        .fc-card:hover { border-color: #38bdf8; background: #0e1d38; transform: translateY(-2px); }
     </style>
 </head>
 <body>
     <header>
         <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <!-- Header Logo Integration -->
-            {LOGO_HTML}
+            <!--LOGO_HTML-->
             <div class="header-title">DigiBoard Master Console</div>
         </div>
         <div class="user-section">
@@ -372,7 +368,7 @@ CONSOLE_HTML = f"""<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- FLASHCARDS MODAL (Opens HTML in-page via iframe) -->
+    <!-- FLASHCARDS MODAL -->
     <div class="modal" id="flashcards-modal">
         <div class="modal-content" style="max-width: 950px; height: 88vh;">
             <div class="modal-header">
@@ -474,7 +470,7 @@ CONSOLE_HTML = f"""<!DOCTYPE html>
     </div>
     <!--END_ADMIN_ROLE-->
 
-    <!-- WHITEBOARD MODAL (Universal Read/Write/View & 60FPS Lag-Free Rendering) -->
+    <!-- WHITEBOARD MODAL -->
     <div class="modal" id="whiteboard-modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1074,7 +1070,8 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         session = self.get_session()
 
         if path == "/login":
-            self.send_html(LOGIN_HTML.replace("<!--ERROR-->", ""))
+            html = LOGIN_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", "")
+            self.send_html(html)
             return
 
         if path == "/logout":
@@ -1093,7 +1090,8 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.redirect("/login")
                 return
             
-            html = CONSOLE_HTML.replace("<!--USERNAME-->", session['username'])
+            html = CONSOLE_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML)
+            html = html.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
             html = html.replace("<!--USER_GRADE-->", session.get('grade', '10th'))
             html = html.replace("<!--USER_SECTION-->", session.get('section', 'A'))
@@ -1255,7 +1253,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
+                err_html = LOGIN_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
                 self.send_html(err_html, 401)
             return
 
@@ -1284,7 +1282,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
+                err_html = LOGIN_HTML.replace("<!--FAVICON_URI-->", FAVICON_DATA_URI).replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
                 self.send_html(err_html, 401)
             return
 
