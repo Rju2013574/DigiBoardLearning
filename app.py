@@ -24,17 +24,17 @@ ENCRYPTED_CSV_FILE = "accounts_encrypted.csv"
 LOGIN_LOGS_CSV = "login_logs.csv"
 SESSIONS = {}
 
-# Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section" (e.g. "6th_E", "8th_A")
+# Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section" (e.g. "6th_E", "8th_A")[span_2](start_span)[span_2](end_span)[span_3](start_span)[span_3](end_span)
 CLASS_BOARDS = {}
 BOARD_LOCK = threading.Lock()
 
-# GitHub Configuration for Flashcards
+# GitHub Configuration for Flashcards[span_4](start_span)[span_4](end_span)[span_5](start_span)[span_5](end_span)
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "YOUR_GITHUB_USERNAME")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "YOUR_REPO_NAME")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
-# Secrets for encrypted account persistence
+# Secrets for encrypted account persistence[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
@@ -60,13 +60,14 @@ def query_gemini(prompt, model_mode="0.1"):
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
 
+    # Updated token budgets mapping per user specifications
     token_budgets = {
-        "0.1": 2048,
-        "2.0": 4096,
-        "3.1": 8192,
-        "4.5": 8192
+        "0.1": 4000000,         # 4 Lakh tokens
+        "2.0": 5000000000,      # 5 Hundred Crore tokens
+        "3.1": 100000000,       # 1 Hundred Million tokens
+        "4.5": 3000000000000    # 3 Billion Crore tokens
     }
-    max_tokens = token_budgets.get(model_mode, 2048)
+    max_tokens = token_budgets.get(model_mode, 4000000)
 
     if model_mode == "0.1":
         system_instruction = "You are DigiBoard Summary & Mind Map AI (Mode 0.1). Focus strictly on high-yield lesson summaries, concise bullet points, and clean text/markdown mind maps for Grade 7 students."
@@ -216,6 +217,10 @@ LOGIN_HTML = """<!DOCTYPE html>
     <link rel="icon" type="image/svg+xml" href="/favicon.ico">
     <link rel="shortcut icon" type="image/svg+xml" href="/favicon.ico">
     <link rel="apple-touch-icon" href="/favicon.ico">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DigiBoard">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
@@ -262,6 +267,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <link rel="icon" type="image/svg+xml" href="/favicon.ico">
     <link rel="shortcut icon" type="image/svg+xml" href="/favicon.ico">
     <link rel="apple-touch-icon" href="/favicon.ico">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DigiBoard">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         * { box-sizing: border-box; }
@@ -371,7 +380,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <!--ROLE_ADMIN_ONLY-->
             <div class="app-card" onclick="openApp('admin-modal')">
                 <div class="app-icon icon-admin">
-                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8s0 0 0 0 z"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8s0 0 0 0z"/></svg>
                 </div>
                 <div class="app-title">Admin Console</div>
             </div>
@@ -407,10 +416,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 <div class="header-actions">
                     <label style="color:#94a3b8; font-size:0.85rem;">Mode:</label>
                     <select id="ai-model-select" style="background:#070d19; color:#38bdf8; border:1px solid #334155; border-radius:6px; padding:0.35rem 0.6rem; font-weight:600; cursor:pointer;">
-                        <option value="0.1">0.1 - Summaries & Mind Maps (4k)</option>
-                        <option value="2.0">2.0 - Deep Notes & Maps (20k)</option>
-                        <option value="3.1">3.1 - Multitask & Doc Gen (50k)</option>
-                        <option value="4.5">4.5 - Oral Comm / All-In-One (400k)</option>
+                        <option value="0.1">0.1 - Summaries (4 Lakh Tokens)</option>
+                        <option value="2.0">2.0 - Deep Notes (500 Cr Tokens)</option>
+                        <option value="3.1">3.1 - Multitask (100M Tokens)</option>
+                        <option value="4.5">4.5 - Oral Comm (3 Billion Cr Tokens)</option>
                     </select>
                     <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span> ✨</button>
                     <span class="close-btn" onclick="closeApp('gemini-modal')">&times;</span>
@@ -606,7 +615,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                     const grid = document.getElementById('fc-grid');
                     grid.innerHTML = '';
                     if (!data.contents || data.contents.length === 0) {
-                        grid.innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">No folders or flashcard pages found here.</div>';
+                        grid.innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">No folders or chapters found here.</div>';
                         return;
                     }
                     data.contents.forEach(item => {
@@ -619,7 +628,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
                                 loadFcDirectory(item.path);
                             };
                         } else {
-                            card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${item.name.replace('.html', '')}</span>`;
+                            const cleanName = item.name.replace('.html', '');
+                            card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${cleanName}</span>`;
                             card.onclick = () => viewFcFile(item.path);
                         }
                         grid.appendChild(card);
@@ -1080,7 +1090,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         query_params = urllib.parse.parse_qs(parsed.query)
         session = self.get_session()
 
-        # Dedicated Favicon Route to load directly in the browser tab bar
+        # Dedicated Favicon Route
         if path == "/favicon.ico":
             self.send_response(200)
             self.send_header("Content-Type", "image/svg+xml")
