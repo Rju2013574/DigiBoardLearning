@@ -24,17 +24,17 @@ ENCRYPTED_CSV_FILE = "accounts_encrypted.csv"
 LOGIN_LOGS_CSV = "login_logs.csv"
 SESSIONS = {}
 
-# Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section" (e.g. "6th_E", "8th_A")[span_2](start_span)[span_2](end_span)[span_3](start_span)[span_3](end_span)
+# Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section" (e.g. "6th_E", "8th_A")[cite: 1, 2]
 CLASS_BOARDS = {}
 BOARD_LOCK = threading.Lock()
 
-# GitHub Configuration for Flashcards[span_4](start_span)[span_4](end_span)[span_5](start_span)[span_5](end_span)
-GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "YOUR_GITHUB_USERNAME")
-GITHUB_REPO = os.environ.get("GITHUB_REPO", "YOUR_REPO_NAME")
+# GitHub Configuration for Flashcards (Root path: root./Memory/Flashcard/)
+GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "Rju2013574")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "DigiBoardLearning")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
-# Secrets for encrypted account persistence[span_6](start_span)[span_6](end_span)[span_7](start_span)[span_7](end_span)
+# Secrets for encrypted account persistence[cite: 1, 2]
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
@@ -60,7 +60,6 @@ def query_gemini(prompt, model_mode="0.1"):
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
 
-    # Updated token budgets mapping per user specifications
     token_budgets = {
         "0.1": 4000000,         # 4 Lakh tokens
         "2.0": 5000000000,      # 5 Hundred Crore tokens
@@ -70,7 +69,7 @@ def query_gemini(prompt, model_mode="0.1"):
     max_tokens = token_budgets.get(model_mode, 4000000)
 
     if model_mode == "0.1":
-        system_instruction = "You are DigiBoard Summary & Mind Map AI (Mode 0.1). Focus strictly on high-yield lesson summaries, concise bullet points, and clean text/markdown mind maps for Grade 7 students."
+        system_instruction = "You are DigiBoard Summary & Mind Map AI (Mode 0.1). Focus strictly on high-yield lesson summaries, concise bullet points, and clean text/markdown mind maps for students."
     elif model_mode == "2.0":
         system_instruction = "You are DigiBoard Deep Notes & Video AI (Mode 2.0). Provide thorough academic notes, structured diagrams, and educational video topics."
     elif model_mode == "3.1":
@@ -197,8 +196,6 @@ FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
     <path d='M16 15 L18 10 M16 15 L22 14 M16 17 L19 20' stroke='#38bdf8' stroke-width='0.8'/>
 </svg>"""
 
-FAVICON_DATA_URI = "data:image/svg+xml," + urllib.parse.quote(FAVICON_SVG)
-
 LOGO_HTML = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32'>
     <rect width='32' height='32' rx='8' fill='#070d19' stroke='#38bdf8' stroke-width='1'/>
     <path d='M8 16 C8 10, 12 7, 18 7 C23 7, 26 10, 26 15 C26 18, 24 21, 22 23 C20 25, 18 25, 16 25 C13 25, 11 23, 10 21' fill='none' stroke='#38bdf8' stroke-width='1.5' stroke-linecap='round'/>
@@ -215,11 +212,6 @@ LOGIN_HTML = """<!DOCTYPE html>
 <head>
     <title>DigiBoard - Login</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.ico">
-    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/favicon.ico">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="DigiBoard">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
@@ -265,11 +257,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
 <head>
     <title>DigiBoard Master Console</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.ico">
-    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/favicon.ico">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="DigiBoard">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -399,7 +386,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 </div>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1.5rem; overflow-y:auto; background:#070d19;">
-                <div id="fc-breadcrumb" style="font-size: 0.85rem; color: #38bdf8; margin-bottom: 1rem; font-weight: 600;">flashcards</div>
+                <div id="fc-breadcrumb" style="font-size: 0.85rem; color: #38bdf8; margin-bottom: 1rem; font-weight: 600;">root./Memory/FlashCard</div>
                 <div id="fc-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;"></div>
                 <div id="fc-viewer-container" style="display:none; flex:1; flex-direction:column; height:100%;">
                     <iframe id="fc-content-frame" style="width:100%; flex:1; border:none; background:#ffffff; border-radius:8px;"></iframe>
@@ -588,13 +575,13 @@ CONSOLE_HTML = """<!DOCTYPE html>
         let filePollInterval = null;
         let boardPollInterval = null;
 
-        // --- FLASHCARDS CLIENT LOGIC ---
-        let fcCurrentPath = "flashcards";
+        // --- FLASHCARDS CLIENT LOGIC (Linked to root./Memory/FlashCard/) ---
+        let fcCurrentPath = "root./Memory/FlashCard";
         let fcPathHistory = [];
 
         function openFlashcardsModal() {
             document.getElementById('flashcards-modal').style.display = 'flex';
-            loadFcDirectory("flashcards");
+            loadFcDirectory("root./Memory/FlashCard");
         }
 
         function loadFcDirectory(path) {
@@ -603,7 +590,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             document.getElementById('fc-viewer-container').style.display = 'none';
             document.getElementById('fc-grid').style.display = 'grid';
             
-            if (path === "flashcards") {
+            if (path === "root./Memory/FlashCard") {
                 document.getElementById('fc-back-btn').style.display = 'none';
             } else {
                 document.getElementById('fc-back-btn').style.display = 'block';
@@ -628,7 +615,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                                 loadFcDirectory(item.path);
                             };
                         } else {
-                            const cleanName = item.name.replace('.html', '');
+                            const cleanName = item.name.replace('.html', '').replace('.md', '');
                             card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${cleanName}</span>`;
                             card.onclick = () => viewFcFile(item.path);
                         }
@@ -654,7 +641,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 viewerContainer.style.display = 'none';
                 document.getElementById('fc-grid').style.display = 'grid';
                 document.getElementById('fc-breadcrumb').innerText = fcCurrentPath;
-                if (fcCurrentPath === "flashcards") {
+                if (fcCurrentPath === "root./Memory/FlashCard") {
                     document.getElementById('fc-back-btn').style.display = 'none';
                 }
             } else if (fcPathHistory.length > 0) {
@@ -1090,7 +1077,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         query_params = urllib.parse.parse_qs(parsed.query)
         session = self.get_session()
 
-        # Dedicated Favicon Route
         if path == "/favicon.ico":
             self.send_response(200)
             self.send_header("Content-Type", "image/svg+xml")
@@ -1145,12 +1131,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_html(html)
             return
 
-        # --- FLASHCARDS API ENDPOINTS ---
+        # --- FLASHCARDS API ENDPOINTS (Mapped to root./Memory/FlashCard/) ---
         if path == "/api/flashcards/list":
             if not session:
                 self.send_json({"error": "Unauthorized"}, 401)
                 return
-            subpath = query_params.get('path', ['flashcards'])[0]
+            subpath = query_params.get('path', ['root./Memory/FlashCard'])[0]
             gh_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{subpath}?ref={GITHUB_BRANCH}"
             req_headers = {'User-Agent': 'DigiBoard-Server'}
             if GITHUB_TOKEN:
@@ -1165,7 +1151,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                         for item in items:
                             if item['type'] == 'dir':
                                 result.append({"name": item['name'], "type": "folder", "path": item['path']})
-                            elif item['type'] == 'file' and item['name'].endswith('.html'):
+                            elif item['type'] == 'file' and (item['name'].endswith('.html') or item['name'].endswith('.md')):
                                 result.append({"name": item['name'], "type": "file", "path": item['path']})
                     self.send_json({"path": subpath, "contents": result})
             except Exception as e:
@@ -1177,7 +1163,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"error": "Unauthorized"}, 401)
                 return
             file_path = query_params.get('path', [''])[0]
-            if not file_path.startswith('flashcards/'):
+            if not file_path.startswith('root./Memory/FlashCard'):
                 self.send_json({"error": "Invalid path"}, 400)
                 return
             
@@ -1189,13 +1175,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             try:
                 req = urllib.request.Request(raw_url, headers=req_headers)
                 with urllib.request.urlopen(req, timeout=15) as resp:
-                    html_content = resp.read().decode('utf-8')
+                    file_content = resp.read().decode('utf-8')
+                    # If it's a markdown file, wrap it in a clean HTML viewer template for the iframe
+                    if file_path.endswith('.md'):
+                        file_content = f"""<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><style>body{{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;padding:2rem;}}</style></head><body><div id="content"></div><script>document.getElementById('content').innerHTML = marked.parse({json.dumps(file_content)});</script></body></html>"""
+                    
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.send_header("Content-Disposition", "inline")
                     self.set_no_cache_headers()
                     self.end_headers()
-                    self.wfile.write(html_content.encode('utf-8'))
+                    self.wfile.write(file_content.encode('utf-8'))
             except Exception as e:
                 self.send_error(404, "Flashcard page not found")
             return
