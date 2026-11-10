@@ -32,7 +32,7 @@ BOARD_LOCK = threading.Lock()
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "Rju2013574")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "DigiBoardLearning")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
 
 # Secrets for encrypted account persistence[cite: 1, 2]
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
