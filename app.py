@@ -50,36 +50,44 @@ def ensure_file_manager_structure():
 ensure_file_manager_structure()
 
 # --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & 503 RETRY ---
+# --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & STRICT OUTPUT LIMIT ---
 def query_gemini(prompt, model_mode="0.1"):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
+        print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
 
+    # Your original token budgets remain completely unchanged
     token_budgets = {
         "0.1": 4000000,         # 4 Lakh tokens
         "2.0": 5000000000,      # 5 Hundred Crore tokens
         "3.1": 100000000,       # 1 Hundred Million tokens
         "4.5": 3000000000000    # 3 Billion Crore tokens
     }
-    max_tokens = token_budgets.get(model_mode, 4000000)
+    
+    # Enforce strict reply length between 100 and 200 tokens as requested
+    max_output_tokens = 200 
 
     if model_mode == "0.1":
-        system_instruction = "You are DigiBoard Summary & Mind Map AI (Mode 0.1). Focus strictly on high-yield lesson summaries, concise bullet points, and clean text/markdown mind maps for students."
+        system_instruction = "You are DigiBoard Summary & Mind Map AI (Mode 0.1). Keep responses concise, strictly between 100 and 200 tokens."
     elif model_mode == "2.0":
-        system_instruction = "You are DigiBoard Deep Notes & Video AI (Mode 2.0). Provide thorough academic notes, structured diagrams, and educational video topics."
+        system_instruction = "You are DigiBoard Deep Notes & Video AI (Mode 2.0). Keep responses focused, strictly between 100 and 200 tokens."
     elif model_mode == "3.1":
-        system_instruction = "You are DigiBoard Multitask Engine (Mode 3.1). Handle complex tasks like generating structured document layouts, assignment templates, and formatted YouTube search links."
+        system_instruction = "You are DigiBoard Multitask Engine (Mode 3.1). Keep responses concise, strictly between 100 and 200 tokens."
     elif model_mode == "4.5":
-        system_instruction = "You are DigiBoard Oral Communication Assistant (Mode 4.5). Deliver speech-friendly, interactive responses suitable for classroom vocal recitation and Q&A."
+        system_instruction = "You are DigiBoard Oral Communication Assistant (Mode 4.5). Keep responses brief and clear, strictly between 100 and 200 tokens."
     else:
-        system_instruction = "You are DigiBoard Classroom AI Assistant."
+        system_instruction = "You are DigiBoard Classroom AI Assistant. Keep responses between 100 and 200 tokens."
 
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": [{"text": prompt}]} ],
         "system_instruction": {"parts": [{"text": system_instruction}]},
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.7}
+        "generationConfig": {
+            "maxOutputTokens": max_output_tokens, 
+            "temperature": 0.7
+        }
     }
 
     data = json.dumps(payload).encode('utf-8')
@@ -88,7 +96,8 @@ def query_gemini(prompt, model_mode="0.1"):
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
-            with urllib.request.urlopen(req, timeout=45) as response:
+            # Increased timeout to 60 seconds to prevent read timeouts
+            with urllib.request.urlopen(req, timeout=60) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 candidates = res_data.get('candidates', [])
                 if candidates:
@@ -103,9 +112,13 @@ def query_gemini(prompt, model_mode="0.1"):
                 continue
             return f"❌ Gemini API Error {e.code}: {error_body}"
         except Exception as e:
+            if attempt < max_retries - 1:
+                time.sleep(2)
+                continue
             return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return "❌ Gemini API Error 503: High demand spike persisted after retries."
+    return "❌ Gemini API Error: Read operation timed out after retries."
+
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
 def get_fernet():
