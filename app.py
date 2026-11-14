@@ -9,9 +9,6 @@ import os
 import uuid
 import threading
 import re
-import sys
-import platform
-import string
 import time
 import datetime
 import csv
@@ -24,17 +21,18 @@ ENCRYPTED_CSV_FILE = "accounts_encrypted.csv"
 LOGIN_LOGS_CSV = "login_logs.csv"
 SESSIONS = {}
 
-# Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section" (e.g. "6th_E", "8th_A")[cite: 1, 2]
+# Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section"
 CLASS_BOARDS = {}
 BOARD_LOCK = threading.Lock()
 
-# GitHub Configuration for Flashcards (Root path: root./Memory/Flashcard/)
+# GitHub Configuration for Flashcards (Root path: Memory/)
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "Rju2013574")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "DigiBoardLearning")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+FLASHCARD_ROOT = "Memory"
 
-# Secrets for encrypted account persistence[cite: 1, 2]
+# Secrets for encrypted account persistence
 CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9TkooWB1zbqlzlPFQj2xPlSWA=")
 
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
@@ -55,7 +53,6 @@ ensure_file_manager_structure()
 def query_gemini(prompt, model_mode="0.1"):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
@@ -102,8 +99,7 @@ def query_gemini(prompt, model_mode="0.1"):
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
             if e.code == 503 and attempt < max_retries - 1:
-                wait_time = (attempt + 1) * 1.5
-                time.sleep(wait_time)
+                time.sleep((attempt + 1) * 1.5)
                 continue
             return f"❌ Gemini API Error {e.code}: {error_body}"
         except Exception as e:
@@ -131,7 +127,7 @@ def load_users_from_encrypted_csv():
             decrypted_bytes = fernet.decrypt(encrypted_bytes)
             decoded_text = decrypted_bytes.decode('utf-8')
             reader = csv.reader(io.StringIO(decoded_text))
-            header = next(reader, None)
+            next(reader, None)
             for row in reader:
                 if row and len(row) >= 5:
                     username = row[0].strip()
@@ -158,7 +154,7 @@ def save_users_to_encrypted_csv(users_dict):
         with open(ENCRYPTED_CSV_FILE, "wb") as enc_file:
             enc_file.write(encrypted_bytes)
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 init_encrypted_csv()
@@ -196,16 +192,7 @@ FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
     <path d='M16 15 L18 10 M16 15 L22 14 M16 17 L19 20' stroke='#38bdf8' stroke-width='0.8'/>
 </svg>"""
 
-LOGO_HTML = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32'>
-    <rect width='32' height='32' rx='8' fill='#070d19' stroke='#38bdf8' stroke-width='1'/>
-    <path d='M8 16 C8 10, 12 7, 18 7 C23 7, 26 10, 26 15 C26 18, 24 21, 22 23 C20 25, 18 25, 16 25 C13 25, 11 23, 10 21' fill='none' stroke='#38bdf8' stroke-width='1.5' stroke-linecap='round'/>
-    <path d='M12 10 h4 c3 0 5 2 5 5 s-2 5-5 5 h-4 z' fill='none' stroke='#38bdf8' stroke-width='2'/>
-    <circle cx='18' cy='10' r='1.2' fill='#10b981'/>
-    <circle cx='22' cy='14' r='1.2' fill='#10b981'/>
-    <circle cx='19' cy='20' r='1.2' fill='#10b981'/>
-    <circle cx='12' cy='22' r='1.2' fill='#10b981'/>
-    <path d='M16 15 L18 10 M16 15 L22 14 M16 17 L19 20' stroke='#38bdf8' stroke-width='0.8'/>
-</svg>"""
+LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='32' height='32'")
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
@@ -375,7 +362,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- FLASHCARDS MODAL -->
+    <!-- FLASHCARDS MODAL (Rooted at Memory/) -->
     <div class="modal" id="flashcards-modal">
         <div class="modal-content" style="max-width: 950px; height: 88vh;">
             <div class="modal-header">
@@ -386,7 +373,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 </div>
             </div>
             <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1.5rem; overflow-y:auto; background:#070d19;">
-                <div id="fc-breadcrumb" style="font-size: 0.85rem; color: #38bdf8; margin-bottom: 1rem; font-weight: 600;">root./Memory/FlashCard</div>
+                <div id="fc-breadcrumb" style="font-size: 0.85rem; color: #38bdf8; margin-bottom: 1rem; font-weight: 600;">Memory</div>
                 <div id="fc-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;"></div>
                 <div id="fc-viewer-container" style="display:none; flex:1; flex-direction:column; height:100%;">
                     <iframe id="fc-content-frame" style="width:100%; flex:1; border:none; background:#ffffff; border-radius:8px;"></iframe>
@@ -575,13 +562,15 @@ CONSOLE_HTML = """<!DOCTYPE html>
         let filePollInterval = null;
         let boardPollInterval = null;
 
-        // --- FLASHCARDS CLIENT LOGIC (Linked to root./Memory/FlashCard/) ---
-        let fcCurrentPath = "root./Memory/FlashCard";
+        // --- FLASHCARDS CLIENT LOGIC (Linked directly to Memory/) ---
+        const FC_ROOT = "Memory";
+        let fcCurrentPath = FC_ROOT;
         let fcPathHistory = [];
 
         function openFlashcardsModal() {
             document.getElementById('flashcards-modal').style.display = 'flex';
-            loadFcDirectory("root./Memory/FlashCard");
+            fcPathHistory = [];
+            loadFcDirectory(FC_ROOT);
         }
 
         function loadFcDirectory(path) {
@@ -589,18 +578,19 @@ CONSOLE_HTML = """<!DOCTYPE html>
             document.getElementById('fc-breadcrumb').innerText = path;
             document.getElementById('fc-viewer-container').style.display = 'none';
             document.getElementById('fc-grid').style.display = 'grid';
+            document.getElementById('fc-grid').innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">Loading...</div>';
             
-            if (path === "root./Memory/FlashCard") {
-                document.getElementById('fc-back-btn').style.display = 'none';
-            } else {
-                document.getElementById('fc-back-btn').style.display = 'block';
-            }
+            document.getElementById('fc-back-btn').style.display = (path === FC_ROOT) ? 'none' : 'block';
 
             fetch(`/api/flashcards/list?path=${encodeURIComponent(path)}`)
                 .then(r => r.json())
                 .then(data => {
                     const grid = document.getElementById('fc-grid');
                     grid.innerHTML = '';
+                    if (data.error) {
+                        grid.innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">⚠️ Error: ${escapeHtml(data.error)}</div>`;
+                        return;
+                    }
                     if (!data.contents || data.contents.length === 0) {
                         grid.innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">No folders or chapters found here.</div>';
                         return;
@@ -609,21 +599,21 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         const card = document.createElement('div');
                         card.className = 'fc-card';
                         if (item.type === 'folder') {
-                            card.innerHTML = `<span style="font-size: 2rem;">📁</span><span style="font-weight:600; color:#cbd5e1; font-size:0.9rem;">${item.name}</span>`;
+                            card.innerHTML = `<span style="font-size: 2rem;">📁</span><span style="font-weight:600; color:#cbd5e1; font-size:0.9rem;">${escapeHtml(item.name)}</span>`;
                             card.onclick = () => {
                                 fcPathHistory.push(fcCurrentPath);
                                 loadFcDirectory(item.path);
                             };
                         } else {
-                            const cleanName = item.name.replace('.html', '').replace('.md', '');
-                            card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${cleanName}</span>`;
+                            const cleanName = item.name.replace(/\.(html|md)$/i, '');
+                            card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${escapeHtml(cleanName)}</span>`;
                             card.onclick = () => viewFcFile(item.path);
                         }
                         grid.appendChild(card);
                     });
                 })
                 .catch(err => {
-                    console.error("Error loading flashcards:", err);
+                    document.getElementById('fc-grid').innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">Connection error: ${escapeHtml(err.message)}</div>`;
                 });
         }
 
@@ -641,7 +631,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 viewerContainer.style.display = 'none';
                 document.getElementById('fc-grid').style.display = 'grid';
                 document.getElementById('fc-breadcrumb').innerText = fcCurrentPath;
-                if (fcCurrentPath === "root./Memory/FlashCard") {
+                if (fcCurrentPath === FC_ROOT) {
                     document.getElementById('fc-back-btn').style.display = 'none';
                 }
             } else if (fcPathHistory.length > 0) {
@@ -699,7 +689,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         }
 
         function escapeHtml(text) {
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
         if (USER_ROLE === 'admin') {
@@ -727,7 +717,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 if (!confirm(`Are you sure you want to delete user account: ${username}?`)) return;
                 fetch('/api/admin/users?username=' + encodeURIComponent(username), { method: 'DELETE' })
                     .then(r => r.json())
-                    .then(res => { loadUsers(); });
+                    .then(() => { loadUsers(); });
             }
 
             function handleMassCreate(e) {
@@ -787,10 +777,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             if(!grade || !section) return;
 
             fetch(`/api/files?grade=${encodeURIComponent(grade)}&section=${encodeURIComponent(section)}&t=` + Date.now(), { cache: "no-store" })
-                .then(r => {
-                    if (!r.ok) throw new Error("HTTP error " + r.status);
-                    return r.json();
-                })
+                .then(r => r.json())
                 .then(files => {
                     const container = document.getElementById('file-list-container');
                     if (!container) return;
@@ -805,10 +792,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
                         </li>
                     `).join('');
                 })
-                .catch(err => {});
+                .catch(() => {});
         }
 
-        function prepareUpload(e) {
+        function prepareUpload() {
             document.getElementById('upload-grade').value = document.getElementById('filter-grade').value;
             document.getElementById('upload-section').value = document.getElementById('filter-section').value;
         }
@@ -1131,14 +1118,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_html(html)
             return
 
-        # --- FLASHCARDS API ENDPOINTS (Mapped to root./Memory/FlashCard/) ---
+        # --- FLASHCARDS API ENDPOINTS (Mapped directly to Memory/) ---
         if path == "/api/flashcards/list":
             if not session:
                 self.send_json({"error": "Unauthorized"}, 401)
                 return
-            subpath = query_params.get('path', ['root./Memory/FlashCard'])[0]
-            gh_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{subpath}?ref={GITHUB_BRANCH}"
-            req_headers = {'User-Agent': 'DigiBoard-Server'}
+            subpath = query_params.get('path', [FLASHCARD_ROOT])[0].strip("/")
+            # Encode each path segment safely to support spaces (e.g. "Social studies" or "Grade 7")
+            encoded_subpath = "/".join(urllib.parse.quote(seg) for seg in subpath.split("/"))
+            gh_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{encoded_subpath}?ref={urllib.parse.quote(GITHUB_BRANCH)}"
+            
+            req_headers = {'User-Agent': 'DigiBoard-Server', 'Accept': 'application/vnd.github.v3+json'}
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
             
@@ -1151,9 +1141,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                         for item in items:
                             if item['type'] == 'dir':
                                 result.append({"name": item['name'], "type": "folder", "path": item['path']})
-                            elif item['type'] == 'file' and (item['name'].endswith('.html') or item['name'].endswith('.md')):
+                            elif item['type'] == 'file' and item['name'].lower().endswith(('.html', '.md')):
                                 result.append({"name": item['name'], "type": "file", "path": item['path']})
                     self.send_json({"path": subpath, "contents": result})
+            except urllib.error.HTTPError as e:
+                print(f"❌ GitHub API Error ({e.code}) for {gh_url}")
+                self.send_json({"error": f"GitHub API HTTP {e.code} for path '{subpath}'. Verify folder/branch names and GITHUB_TOKEN."}, e.code)
             except Exception as e:
                 self.send_json({"error": str(e)}, 500)
             return
@@ -1162,12 +1155,13 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if not session:
                 self.send_json({"error": "Unauthorized"}, 401)
                 return
-            file_path = query_params.get('path', [''])[0]
-            if not file_path.startswith('root./Memory/FlashCard'):
+            file_path = query_params.get('path', [''])[0].strip("/")
+            if not file_path.startswith(FLASHCARD_ROOT):
                 self.send_json({"error": "Invalid path"}, 400)
                 return
             
-            raw_url = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO}/{GITHUB_BRANCH}/{file_path}"
+            encoded_file_path = "/".join(urllib.parse.quote(seg) for seg in file_path.split("/"))
+            raw_url = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO}/{urllib.parse.quote(GITHUB_BRANCH)}/{encoded_file_path}"
             req_headers = {'User-Agent': 'DigiBoard-Server'}
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
@@ -1176,8 +1170,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 req = urllib.request.Request(raw_url, headers=req_headers)
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     file_content = resp.read().decode('utf-8')
-                    # If it's a markdown file, wrap it in a clean HTML viewer template for the iframe
-                    if file_path.endswith('.md'):
+                    if file_path.lower().endswith('.md'):
                         file_content = f"""<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><style>body{{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;padding:2rem;}}</style></head><body><div id="content"></div><script>document.getElementById('content').innerHTML = marked.parse({json.dumps(file_content)});</script></body></html>"""
                     
                     self.send_response(200)
@@ -1187,6 +1180,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(file_content.encode('utf-8'))
             except Exception as e:
+                print(f"❌ Flashcard View Error for {raw_url}: {e}")
                 self.send_error(404, "Flashcard page not found")
             return
 
