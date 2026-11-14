@@ -29,7 +29,7 @@ BOARD_LOCK = threading.Lock()
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "Rju2013574")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "DigiBoardLearning")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
 FLASHCARD_ROOT = "Memory"
 
 # Secrets for encrypted account persistence
