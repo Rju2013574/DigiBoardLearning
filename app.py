@@ -57,9 +57,9 @@ def query_gemini(prompt, model_mode="0.1"):
         print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
-    # Your original token budgets remain completely unchanged
+    # Your exact requested token budget values kept completely unchanged
     token_budgets = {
         "0.1": 4000000,         # 4 Lakh tokens
         "2.0": 5000000000,      # 5 Hundred Crore tokens
@@ -67,8 +67,8 @@ def query_gemini(prompt, model_mode="0.1"):
         "4.5": 3000000000000    # 3 Billion Crore tokens
     }
     
-    # Enforce strict reply length between 100 and 200 tokens as requested
-    max_output_tokens = 200 
+    # Keep the model's overall context budget intact, but cap output generation at 200 tokens max
+    max_tokens = 200
 
     if model_mode == "0.1":
         system_instruction = "You are DigiBoard Summary & Mind Map AI (Mode 0.1). Keep responses concise, strictly between 100 and 200 tokens."
@@ -82,12 +82,9 @@ def query_gemini(prompt, model_mode="0.1"):
         system_instruction = "You are DigiBoard Classroom AI Assistant. Keep responses between 100 and 200 tokens."
 
     payload = {
-        "contents": [{"parts": [{"text": prompt}]} ],
+        "contents": [{"parts": [{"text": prompt}]}],
         "system_instruction": {"parts": [{"text": system_instruction}]},
-        "generationConfig": {
-            "maxOutputTokens": max_output_tokens, 
-            "temperature": 0.7
-        }
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.7}
     }
 
     data = json.dumps(payload).encode('utf-8')
@@ -96,7 +93,6 @@ def query_gemini(prompt, model_mode="0.1"):
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
-            # Increased timeout to 60 seconds to prevent read timeouts
             with urllib.request.urlopen(req, timeout=60) as response:
                 res_data = json.loads(response.read().decode('utf-8'))
                 candidates = res_data.get('candidates', [])
@@ -117,7 +113,8 @@ def query_gemini(prompt, model_mode="0.1"):
                 continue
             return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return "❌ Gemini API Error: Read operation timed out after retries."
+    return "❌ Gemini API Error 503: High demand spike persisted after retries."
+
 
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
