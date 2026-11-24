@@ -13,6 +13,7 @@ import time
 import datetime
 import csv
 import io
+import http
 from cryptography.fernet import Fernet
 
 PORT = int(os.environ.get("PORT", 8000))
@@ -58,15 +59,13 @@ def query_gemini(prompt, model_mode="0.1"):
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
-    # Your exact requested token budget values kept completely unchanged
     token_budgets = {
-        "0.1": 4000000,         # 4 Lakh tokens
-        "2.0": 5000000000,      # 5 Hundred Crore tokens
-        "3.1": 100000000,       # 1 Hundred Million tokens
-        "4.5": 3000000000000    # 3 Billion Crore tokens
+        "0.1": 4000000,
+        "2.0": 5000000000,
+        "3.1": 100000000,
+        "4.5": 3000000000000
     }
     
-    # Keep the model's overall context budget intact, but cap output generation at 200 tokens max
     max_tokens = 200
 
     if model_mode == "0.1":
@@ -222,8 +221,6 @@ LOGIN_HTML = """<!DOCTYPE html>
     button:hover { background: #0369a1; }
     .admin-btn { background: #4f46e5; margin-top: 0.75rem; }
     .admin-btn:hover { background: #4338ca; }
-    .secret-btn { background: #0f766e; margin-top: 0.75rem; }
-    .secret-btn:hover { background: #0d9488; }
     .error { color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; }
     .divider { border-top: 1px solid #1e293b; margin: 1.5rem 0 0.5rem 0; text-align: center; position: relative; }
   </style>
@@ -248,54 +245,7 @@ LOGIN_HTML = """<!DOCTYPE html>
       <input type="password" name="admin_key" placeholder="Enter Authorized SSH Key ID..." required>
       <button type="submit" class="admin-btn">🔑 Authenticate Admin Mode</button>
     </form>
-    <div class="divider"></div>
-    <div>
-      <label>Secret Portal Key</label>
-      <input type="password" id="login-secret-key" placeholder="Enter Secret Code to Open Portals..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); verifySecretCode('login-secret-key'); }">
-      <button type="button" class="secret-btn" onclick="verifySecretCode('login-secret-key')">🚀 Launch Reader, Cron-Job & GitHub</button>
-      <div id="login-secret-msg" style="font-size:0.8rem; margin-top:0.4rem; text-align:center;"></div>
-    </div>
   </div>
-
-  <script>
-    const SECRET_CODE = "<!--SECRET_PORTAL_CODE-->";
-    let keyBuffer = "";
-
-    function openPortals() {
-      // Opens only the signed-in websites: Reader (Render), Cron-Job, and GitHub
-      window.open("https://dashboard.render.com/web/srv-da5e1lijobas73edupi0/deploys", "_blank");
-      window.open("https://console.cron-job.org/dashboard", "_blank");
-      window.open("https://github.com/Rju2013574/DigiBoardLearning", "_blank");
-    }
-
-    function verifySecretCode(inputId) {
-      const el = document.getElementById(inputId);
-      const msgEl = document.getElementById('login-secret-msg');
-      const val = el ? el.value.trim() : "";
-      if (val && val === SECRET_CODE) {
-        if (msgEl) { msgEl.style.color = "#10b981"; msgEl.innerText = "✅ Access Granted! Opening portals..."; }
-        el.value = "";
-        openPortals();
-      } else {
-        if (msgEl) { msgEl.style.color = "#ef4444"; msgEl.innerText = "❌ Invalid Secret Key"; }
-      }
-    }
-
-    // Also allow typing the secret code directly anywhere on the page outside input boxes
-    window.addEventListener("keydown", (e) => {
-      if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") return;
-      if (e.key.length === 1) {
-        keyBuffer += e.key;
-        if (keyBuffer.length > SECRET_CODE.length + 10) {
-          keyBuffer = keyBuffer.slice(-(SECRET_CODE.length + 10));
-        }
-        if (keyBuffer.includes(SECRET_CODE)) {
-          keyBuffer = "";
-          openPortals();
-        }
-      }
-    });
-  </script>
 </body>
 </html>"""
 
@@ -382,12 +332,13 @@ CONSOLE_HTML = """<!DOCTYPE html>
       <div class="header-title">DigiBoard Master Console</div>
     </div>
     <div class="user-section">
-      <!-- Dedicated Space to Enter Secret Key -->
+      <!--ADMIN_SECRET_BOX_START-->
       <div class="secret-key-box" title="Enter secret key to open Reader, Cron-Job & GitHub">
         <span>🔑</span>
         <input type="password" id="console-secret-key" placeholder="Enter Secret Key..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); verifyConsoleSecretKey(); }">
         <button type="button" onclick="verifyConsoleSecretKey()">Unlock</button>
       </div>
+      <!--ADMIN_SECRET_BOX_END-->
 
       User ID: <span class="user-id"><!--USERNAME--></span>
       <span class="user-role-badge <!--ADMIN_CLASS-->"><!--USER_ROLE--></span>
@@ -650,11 +601,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
     function openSecretPortals() {
       showSecretToast("🔓 Secret Code Verified: Opening Reader, Cron-Job & GitHub...");
-      // 1. Reader (Render Cloud Service)
+      // Opens all three signed-in websites simultaneously in new tabs
       window.open("https://dashboard.render.com/", "_blank");
-      // 2. Cron-Job Console
       window.open("https://console.cron-job.org/", "_blank");
-      // 3. GitHub Repository
       window.open("https://github.com/Rju2013574/DigiBoardLearning", "_blank");
     }
 
@@ -670,22 +619,24 @@ CONSOLE_HTML = """<!DOCTYPE html>
       }
     }
 
-    // Also trigger when typing the secret code directly on the dashboard outside input boxes
-    window.addEventListener("keydown", (e) => {
-      if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") {
-        return;
-      }
-      if (e.key.length === 1) {
-        secretBuffer += e.key;
-        if (secretBuffer.length > SECRET_CODE.length + 10) {
-          secretBuffer = secretBuffer.slice(-(SECRET_CODE.length + 10));
+    // Also trigger when typing the secret code directly on the dashboard outside input boxes (Admin only)
+    if (USER_ROLE === 'admin') {
+      window.addEventListener("keydown", (e) => {
+        if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") {
+          return;
         }
-        if (secretBuffer.includes(SECRET_CODE)) {
-          secretBuffer = "";
-          openSecretPortals();
+        if (e.key.length === 1) {
+          secretBuffer += e.key;
+          if (secretBuffer.length > SECRET_CODE.length + 10) {
+            secretBuffer = secretBuffer.slice(-(SECRET_CODE.length + 10));
+          }
+          if (secretBuffer.includes(SECRET_CODE)) {
+            secretBuffer = "";
+            openSecretPortals();
+          }
         }
-      }
-    });
+      });
+    }
 
     // --- FLASHCARDS CLIENT LOGIC (Linked directly to Memory/) ---
     const FC_ROOT = "Memory";
@@ -730,7 +681,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 loadFcDirectory(item.path);
               };
             } else {
-              const cleanName = item.name.replace(/\\.(html|md)$/i, '');
+              const cleanName = item.name.replace(/\.(html|md)$/i, '');
               card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${escapeHtml(cleanName)}</span>`;
               card.onclick = () => viewFcFile(item.path);
             }
@@ -1170,12 +1121,12 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
         for part in parts:
             if b'name="grade"' in part:
-                grade = part.split(b'\\r\\n\\r\\n')[1].rsplit(b'\\r\\n', 1)[0].decode('utf-8').strip()
+                grade = part.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0].decode('utf-8').strip()
             elif b'name="section"' in part:
-                section = part.split(b'\\r\\n\\r\\n')[1].rsplit(b'\\r\\n', 1)[0].decode('utf-8').strip()
+                section = part.split(b'\r\n\r\n')[1].rsplit(b'\r\n', 1)[0].decode('utf-8').strip()
             elif b'filename="' in part:
-                header_part, file_data = part.split(b'\\r\\n\\r\\n', 1)
-                file_data = file_data.rsplit(b'\\r\\n', 1)[0]
+                header_part, file_data = part.split(b'\r\n\r\n', 1)
+                file_data = file_data.rsplit(b'\r\n', 1)[0]
                 header_text = header_part.decode('utf-8', errors='ignore')
                 filename_match = re.search(r'filename="([^"]+)"', header_text)
                 if filename_match:
@@ -1198,7 +1149,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/login":
-            html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", "").replace("<!--SECRET_PORTAL_CODE-->", SECRET_PORTAL_CODE)
+            html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", "")
             self.send_html(html)
             return
 
@@ -1233,9 +1184,11 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
                 html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
                 html = html.replace("<!--ROLE_TEACHER_OR_ADMIN-->", "").replace("<!--END_ROLE-->", "")
+                html = html.replace("<!--ADMIN_SECRET_BOX_START-->", "").replace("<!--ADMIN_SECRET_BOX_END-->", "")
             else:
                 html = html.replace("<!--ADMIN_CLASS-->", "")
                 html = re.sub(r'<!--ROLE_ADMIN_ONLY-->.*?<!--END_ADMIN_ROLE-->', '', html, flags=re.DOTALL)
+                html = re.sub(r'<!--ADMIN_SECRET_BOX_START-->.*?<!--ADMIN_SECRET_BOX_END-->', '', html, flags=re.DOTALL)
                 if session['role'] in ['teacher', 'admin']:
                     html = html.replace("<!--ROLE_TEACHER_OR_ADMIN-->", "").replace("<!--END_ROLE-->", "")
                 else:
@@ -1392,7 +1345,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>').replace("<!--SECRET_PORTAL_CODE-->", SECRET_PORTAL_CODE)
+                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
                 self.send_html(err_html, 401)
             return
 
@@ -1421,7 +1374,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>').replace("<!--SECRET_PORTAL_CODE-->", SECRET_PORTAL_CODE)
+                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
                 self.send_html(err_html, 401)
             return
 
@@ -1529,10 +1482,8 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         self.send_error(404)
 
 if __name__ == '__main__':
-    # Get the port from Render's environment (defaults to 8000 locally)
+    ensure_file_manager_structure()
     port = int(os.environ.get("PORT", 8000))
-    
-    # Bind to 0.0.0.0 so Render can route external traffic to it
-    httpd = socketserver.TCPServer(("", port), DigiBoardHandler)
-    print(f"DigiBoard Master Console running on port {port}")
-    httpd.serve_forever()
+    with socketserver.TCPServer(("", port), DigiBoardHandler) as httpd:
+        print(f"DigiBoard Master Console running on port {port}")
+        httpd.serve_forever()
