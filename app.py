@@ -602,7 +602,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
     function openSecretPortals() {
       showSecretToast("🔓 Secret Code Verified: Opening Reader, Cron-Job & GitHub...");
       // Opens all three signed-in websites simultaneously in new tabs
-      window.open(("https://dashboard.render.com/web/srv-da5e1lijobas73edupi0", "_blank"),("https://console.cron-job.org/dashboard", "_blank"),("https://github.com/Rju2013574/DigiBoardLearning", "_blank")):
+       window.open("https://dashboard.render.com/web/srv-da5e1lijobas73edupi0", "_blank");
+      window.open("https://console.cron-job.org/dashboard", "_blank");
+      window.open("https://github.com/Rju2013574/DigiBoardLearning", "_blank");
     }
 
     function verifyConsoleSecretKey() {
