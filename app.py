@@ -1,4 +1,3 @@
-code = '''import http.server
 import socketserver
 import json
 import urllib.parse
@@ -1529,12 +1528,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         self.send_error(404)
 
 if __name__ == '__main__':
-    ensure_file_manager_structure()
-    with socketserver.TCPServer(("", PORT), DigiBoardHandler) as httpd:
-        print(f"DigiBoard Master Console running on port {PORT}")
-        httpd.serve_forever()
-'''
-
-with open("app.py", "w", encoding="utf-8") as f:
-    f.write(code)
-print("Successfully generated app.py")
+    # Get the port from Render's environment (defaults to 8000 locally)
+    port = int(os.environ.get("PORT", 8000))
+    
+    # Bind to 0.0.0.0 so Render can route external traffic to it
+    httpd = socketserver.TCPServer(("", port), DigiBoardHandler)
+    print(f"DigiBoard Master Console running on port {port}")
+    httpd.serve_forever()
