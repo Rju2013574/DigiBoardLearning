@@ -13,7 +13,6 @@ import time
 import datetime
 import csv
 import io
-import http
 from cryptography.fernet import Fernet
 
 PORT = int(os.environ.get("PORT", 8000))
@@ -58,14 +57,6 @@ def query_gemini(prompt, model_mode="0.1"):
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-
-    token_budgets = {
-        "0.1": 4000000,
-        "2.0": 5000000000,
-        "3.1": 100000000,
-        "4.5": 3000000000000
-    }
-    
     max_tokens = 200
 
     if model_mode == "0.1":
@@ -188,7 +179,6 @@ ADMIN_KEYS = {
     }
 }
 
-# Secret code for opening Reader (Render), Cron-Job, and GitHub
 SECRET_PORTAL_CODE = os.environ.get("SECRET_PORTAL_CODE", "9080-3456-7890-3456-7280-4562-8729-RJU-2013-2810-4568-6573")
 
 FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
@@ -323,6 +313,10 @@ CONSOLE_HTML = """<!DOCTYPE html>
     .fc-card { background: #091326; border: 1px solid #1e293b; border-radius: 8px; padding: 1.2rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; transition: all 0.2s; }
     .fc-card:hover { border-color: #38bdf8; background: #0e1d38; transform: translateY(-2px); }
     .secret-toast { position: fixed; bottom: 20px; right: 20px; background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.6); z-index: 9999; display: none; }
+    
+    /* Portal Tiles Modal */
+    .portal-tile { background: #1e293b; border: 1px solid #334155; padding: 1.2rem; border-radius: 10px; text-decoration: none; color: #f8fafc; font-weight: 600; display: flex; align-items: center; gap: 1rem; transition: all 0.2s; }
+    .portal-tile:hover { background: #2563eb; border-color: #38bdf8; transform: translateY(-2px); }
   </style>
 </head>
 <body>
@@ -385,7 +379,44 @@ CONSOLE_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- FLASHCARDS MODAL (Rooted at Memory/) -->
+  <!-- PORTAL TILES MODAL (Opened upon secret code verification) -->
+  <div class="modal" id="portal-tiles-modal">
+    <div class="modal-content" style="max-width: 500px; height: auto;">
+      <div class="modal-header">
+        <h3>🚀 Select Portal to Launch</h3>
+        <span class="close-btn" onclick="closeApp('portal-tiles-modal')">&times;</span>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; background: #070d19;">
+        <p id="portal-toast-msg" style="color: #38bdf8; font-size: 0.9rem; margin-top: 0; font-weight: 500;"></p>
+        
+        <a href="https://dashboard.render.com/web/srv-da5e1lijobas73edupi0" target="_blank" class="portal-tile">
+          <span style="font-size: 1.8rem;">☁️</span>
+          <div>
+            <div style="font-size: 1rem; color: #f8fafc;">Render Dashboard (Reader)</div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Manage cloud deployment & web service</div>
+          </div>
+        </a>
+
+        <a href="https://console.cron-job.org/dashboard" target="_blank" class="portal-tile">
+          <span style="font-size: 1.8rem;">⏰</span>
+          <div>
+            <div style="font-size: 1rem; color: #f8fafc;">Cron-Job Console</div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">Manage automated background tasks & pings</div>
+          </div>
+        </a>
+
+        <a href="https://github.com/Rju2013574/DigiBoardLearning" target="_blank" class="portal-tile">
+          <span style="font-size: 1.8rem;">🐙</span>
+          <div>
+            <div style="font-size: 1rem; color: #f8fafc;">GitHub Repository</div>
+            <div style="font-size: 0.75rem; color: #94a3b8;">View source code & documentation</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLASHCARDS MODAL -->
   <div class="modal" id="flashcards-modal">
     <div class="modal-content" style="max-width: 950px; height: 88vh;">
       <div class="modal-header">
@@ -600,11 +631,9 @@ CONSOLE_HTML = """<!DOCTYPE html>
     }
 
     function openSecretPortals() {
-      showSecretToast("🔓 Secret Code Verified: Opening Reader, Cron-Job & GitHub...");
-      // Opens all three signed-in websites simultaneously in new tabs
-       window.open("https://dashboard.render.com/web/srv-da5e1lijobas73edupi0", "_blank");
-      window.open("https://console.cron-job.org/dashboard", "_blank");
-      window.open("https://github.com/Rju2013574/DigiBoardLearning", "_blank");
+      showSecretToast("🔓 Secret Code Verified: Select a portal below to launch");
+      document.getElementById('portal-toast-msg').innerText = "🔓 Secret Code Verified: Choose a portal below to open:";
+      openApp('portal-tiles-modal');
     }
 
     function verifyConsoleSecretKey() {
@@ -619,7 +648,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
       }
     }
 
-    // Also trigger when typing the secret code directly on the dashboard outside input boxes (Admin only)
     if (USER_ROLE === 'admin') {
       window.addEventListener("keydown", (e) => {
         if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") {
@@ -638,7 +666,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       });
     }
 
-    // --- FLASHCARDS CLIENT LOGIC (Linked directly to Memory/) ---
+    // --- FLASHCARDS CLIENT LOGIC ---
     const FC_ROOT = "Memory";
     let fcCurrentPath = FC_ROOT;
     let fcPathHistory = [];
@@ -1197,7 +1225,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.send_html(html)
             return
 
-        # --- FLASHCARDS API ENDPOINTS (Mapped directly to Memory/) ---
         if path == "/api/flashcards/list":
             if not session:
                 self.send_json({"error": "Unauthorized"}, 401)
@@ -1223,8 +1250,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                                 result.append({"name": item['name'], "type": "file", "path": item['path']})
                     self.send_json({"path": subpath, "contents": result})
             except urllib.error.HTTPError as e:
-                print(f"❌ GitHub API Error ({e.code}) for {gh_url}")
-                self.send_json({"error": f"GitHub API HTTP {e.code} for path '{subpath}'. Verify folder/branch names and GITHUB_TOKEN."}, e.code)
+                self.send_json({"error": f"GitHub API HTTP {e.code} for path '{subpath}'."}, e.code)
             except Exception as e:
                 self.send_json({"error": str(e)}, 500)
             return
@@ -1258,7 +1284,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(file_content.encode('utf-8'))
             except Exception as e:
-                print(f"❌ Flashcard View Error for {raw_url}: {e}")
                 self.send_error(404, "Flashcard page not found")
             return
 
