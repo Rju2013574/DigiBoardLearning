@@ -270,7 +270,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
     * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: radial-gradient(circle at top, #0c1933 0%, #050a14 60%);
+      background: #050a14;
       color: #f8fafc;
       margin: 0;
       min-height: 100vh;
@@ -282,8 +282,8 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       justify-content: space-between;
       align-items: center;
       padding: 1.1rem 2rem;
-      background: rgba(7, 13, 25, 0.92);
-      border-bottom: 1px solid #1e293b;
+      background: #070d19;
+      border-bottom: 1px solid #111c30;
       flex-wrap: wrap;
       gap: 0.75rem;
     }
@@ -292,7 +292,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       align-items: center;
       gap: 0.75rem;
       font-weight: 700;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       color: #f8fafc;
     }
     .nav-actions {
@@ -306,8 +306,8 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       color: #cbd5e1;
       background: #0f172a;
       border: 1px solid #334155;
-      padding: 0.45rem 0.9rem;
-      border-radius: 8px;
+      padding: 0.45rem 0.95rem;
+      border-radius: 6px;
       font-size: 0.85rem;
       font-weight: 600;
       transition: all 0.2s ease;
@@ -334,11 +334,11 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
     .front-card {
       width: 100%;
       max-width: 780px;
-      background: rgba(7, 13, 25, 0.94);
+      background: #070d19;
       border: 1px solid #1e293b;
-      border-radius: 20px;
-      padding: 2.75rem 2.25rem;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72);
+      border-radius: 16px;
+      padding: 2.5rem 2.25rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
     }
     .hero-center {
       text-align: center;
@@ -351,59 +351,58 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       margin: 0 auto 1.25rem auto;
     }
     .hero-logo svg {
-      border-radius: 20px;
-      box-shadow: 0 0 30px rgba(56, 189, 248, 0.28);
+      border-radius: 18px;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
     }
     h1 {
       margin: 0;
-      font-size: 2rem;
+      font-size: 1.9rem;
       color: #ffffff;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
     }
     .hero-subtitle {
-      margin: 0.65rem auto 0 auto;
+      margin: 0.6rem auto 0 auto;
       max-width: 580px;
       color: #94a3b8;
-      font-size: 0.98rem;
+      font-size: 0.96rem;
       line-height: 1.6;
     }
     .story-box {
       background: #050a14;
       border: 1px solid #1e293b;
       border-left: 4px solid #38bdf8;
-      border-radius: 14px;
-      padding: 1.75rem;
+      border-radius: 12px;
+      padding: 1.65rem;
     }
     .story-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 1rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.9rem;
       flex-wrap: wrap;
     }
     .story-header h2 {
       margin: 0;
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       color: #38bdf8;
     }
     .edit-btn {
       background: #4f46e5;
       color: #ffffff;
       border: none;
-      padding: 0.5rem 0.95rem;
-      border-radius: 8px;
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
       font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s ease;
     }
     .edit-btn:hover {
       background: #4338ca;
     }
     .story-text {
       color: #e2e8f0;
-      font-size: 0.98rem;
+      font-size: 0.96rem;
       line-height: 1.75;
     }
     .story-text p {
@@ -444,11 +443,6 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       resize: vertical;
       line-height: 1.6;
     }
-    .editor-panel input:focus,
-    .editor-panel textarea:focus {
-      outline: none;
-      border-color: #38bdf8;
-    }
     .editor-actions {
       display: flex;
       gap: 0.75rem;
@@ -459,21 +453,18 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       background: #10b981;
       color: #052e16;
       border: none;
-      padding: 0.6rem 1.2rem;
-      border-radius: 8px;
+      padding: 0.55rem 1.15rem;
+      border-radius: 6px;
       font-weight: 700;
       font-size: 0.88rem;
       cursor: pointer;
-    }
-    .save-btn:hover {
-      background: #34d399;
     }
     .cancel-btn {
       background: #1e293b;
       color: #e2e8f0;
       border: 1px solid #334155;
-      padding: 0.6rem 1.1rem;
-      border-radius: 8px;
+      padding: 0.55rem 1rem;
+      border-radius: 6px;
       font-weight: 600;
       font-size: 0.88rem;
       cursor: pointer;
@@ -482,36 +473,6 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       margin-top: 0.75rem;
       font-size: 0.85rem;
       min-height: 1.2rem;
-    }
-    .cta-row {
-      display: flex;
-      justify-content: center;
-      gap: 0.9rem;
-      margin-top: 2rem;
-      flex-wrap: wrap;
-    }
-    .cta-btn {
-      text-decoration: none;
-      padding: 0.8rem 1.5rem;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 0.95rem;
-      transition: all 0.2s ease;
-    }
-    .cta-btn.primary {
-      background: #0284c7;
-      color: #ffffff;
-    }
-    .cta-btn.primary:hover {
-      background: #0369a1;
-    }
-    .cta-btn.secondary {
-      background: #0f172a;
-      color: #e2e8f0;
-      border: 1px solid #334155;
-    }
-    .cta-btn.secondary:hover {
-      border-color: #38bdf8;
     }
   </style>
 </head>
@@ -545,10 +506,6 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
 
         <!--ADMIN_EDITOR_PANEL-->
       </div>
-
-      <div class="cta-row">
-        <!--BOTTOM_CTA_ACTIONS-->
-      </div>
     </section>
   </main>
 
@@ -558,10 +515,10 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
 
     function escapeHtml(text) {
       return String(text || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+        .replace(/&/g, "&")
+        .replace(/</g, "<")
+        .replace(/>/g, ">")
+        .replace(/"/g, """);
     }
 
     function renderStoryContent(data) {
@@ -671,7 +628,7 @@ LOGIN_HTML = """<!DOCTYPE html>
       padding: 2.5rem;
       border-radius: 16px;
       width: 100%;
-      max-width: 450px;
+      max-width: 440px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
     }
     .center-logo {
@@ -686,44 +643,42 @@ LOGIN_HTML = """<!DOCTYPE html>
     }
     h2 {
       text-align: center;
-      margin: 0 0 1.5rem 0;
+      margin: 0 0 1.4rem 0;
       color: #f8fafc;
       font-size: 1.5rem;
       letter-spacing: 0.4px;
     }
-    .role-selector {
+    .mode-switch {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 0.6rem;
+      gap: 0.55rem;
       margin-bottom: 1.25rem;
     }
-    .role-option {
-      padding: 0.7rem 0.45rem;
+    .mode-tab {
+      padding: 0.65rem 0.4rem;
       border-radius: 8px;
       border: 1px solid #334155;
       background: #0f172a;
       color: #94a3b8;
-      font-weight: 600;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.2s ease;
       text-align: center;
     }
-    .role-option:hover {
+    .mode-tab:hover {
       border-color: #38bdf8;
       color: #f8fafc;
     }
-    .role-option.active {
-      background: rgba(2, 132, 199, 0.2);
+    .mode-tab.active {
+      background: #0284c7;
       border-color: #38bdf8;
-      color: #38bdf8;
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+      color: #ffffff;
     }
-    .role-option.admin-opt.active {
-      background: rgba(79, 70, 229, 0.22);
+    .mode-tab.admin-tab.active {
+      background: #4f46e5;
       border-color: #818cf8;
-      color: #c7d2fe;
-      box-shadow: 0 0 12px rgba(129, 140, 248, 0.22);
+      color: #ffffff;
     }
     label {
       font-size: 0.85rem;
@@ -748,7 +703,7 @@ LOGIN_HTML = """<!DOCTYPE html>
     .submit-btn {
       width: 100%;
       padding: 0.8rem;
-      margin-top: 1.35rem;
+      margin-top: 1.4rem;
       background: #0284c7;
       border: none;
       color: white;
@@ -761,21 +716,16 @@ LOGIN_HTML = """<!DOCTYPE html>
     .submit-btn:hover {
       background: #0369a1;
     }
-    .submit-btn.admin-mode {
-      background: #4f46e5;
-    }
-    .submit-btn.admin-mode:hover {
-      background: #4338ca;
-    }
     .admin-btn {
       width: 100%;
-      padding: 0.75rem;
+      padding: 0.8rem;
       background: #4f46e5;
-      margin-top: 0.75rem;
+      margin-top: 1.4rem;
       border: none;
       color: white;
       border-radius: 8px;
       font-weight: bold;
+      font-size: 0.95rem;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -791,10 +741,6 @@ LOGIN_HTML = """<!DOCTYPE html>
       border: 1px solid rgba(239, 68, 68, 0.35);
       padding: 0.6rem;
       border-radius: 6px;
-    }
-    .divider {
-      border-top: 1px solid #1e293b;
-      margin: 1.6rem 0 0.6rem 0;
     }
     .back-link {
       display: block;
@@ -817,59 +763,71 @@ LOGIN_HTML = """<!DOCTYPE html>
     <h2>DigiBoard Master Console</h2>
     <!--ERROR-->
 
-    <div class="role-selector" role="group" aria-label="Select login role">
-      <button type="button" id="btn-role-student" class="role-option active" onclick="selectRole('student')">
-        🎓 Student
+    <div class="mode-switch" role="tablist" aria-label="Account Login Type">
+      <button type="button" id="tab-student" class="mode-tab active" onclick="switchLoginMode('student')">
+        Login as Student
       </button>
-      <button type="button" id="btn-role-teacher" class="role-option" onclick="selectRole('teacher')">
-        👩‍🏫 Teacher
+      <button type="button" id="tab-teacher" class="mode-tab" onclick="switchLoginMode('teacher')">
+        Login as Teacher
       </button>
-      <button type="button" id="btn-role-admin" class="role-option admin-opt" onclick="selectRole('admin')">
-        🛡️ Admin
+      <button type="button" id="tab-admin" class="mode-tab admin-tab" onclick="switchLoginMode('admin')">
+        Login as Admin
       </button>
     </div>
 
-    <form action="/login" method="POST">
+    <form id="credentials-login-form" action="/login" method="POST">
       <input type="hidden" name="selected_role" id="selected-role" value="student">
-      <label>Username</label>
+      <label id="cred-username-label">Student Username</label>
       <input type="text" name="username" placeholder="user@domain.com" required>
-      <label>Password</label>
+      <label id="cred-password-label">Student Password</label>
       <input type="password" name="password" placeholder="Enter your password" required>
-      <button type="submit" id="login-submit-btn" class="submit-btn">Log In as Student</button>
+      <button type="submit" id="cred-submit-btn" class="submit-btn">Log In as Student</button>
     </form>
 
-    <div class="divider"></div>
-    <form action="/login-admin" method="POST">
+    <form id="admin-ssh-form" action="/login-admin" method="POST" style="display:none;">
       <label>Admin SSH Key ID</label>
       <input type="password" name="admin_key" placeholder="Enter Authorized SSH Key ID..." required>
-      <button type="submit" class="admin-btn">🔑 Log In as Admin (SSH Key)</button>
+      <button type="submit" class="admin-btn">🔑 Log In as Admin</button>
     </form>
 
     <a href="/" class="back-link">← Back to Front Page</a>
   </div>
 
   <script>
-    function selectRole(role) {
-      document.getElementById('selected-role').value = role;
-      const studentBtn = document.getElementById('btn-role-student');
-      const teacherBtn = document.getElementById('btn-role-teacher');
-      const adminBtn = document.getElementById('btn-role-admin');
-      const submitBtn = document.getElementById('login-submit-btn');
+    function switchLoginMode(mode) {
+      const tabStudent = document.getElementById('tab-student');
+      const tabTeacher = document.getElementById('tab-teacher');
+      const tabAdmin = document.getElementById('tab-admin');
+      const credForm = document.getElementById('credentials-login-form');
+      const adminForm = document.getElementById('admin-ssh-form');
+      const roleInput = document.getElementById('selected-role');
+      const userLabel = document.getElementById('cred-username-label');
+      const passLabel = document.getElementById('cred-password-label');
+      const submitBtn = document.getElementById('cred-submit-btn');
 
-      studentBtn.classList.remove('active');
-      teacherBtn.classList.remove('active');
-      adminBtn.classList.remove('active');
-      submitBtn.classList.remove('admin-mode');
+      tabStudent.classList.remove('active');
+      tabTeacher.classList.remove('active');
+      tabAdmin.classList.remove('active');
 
-      if (role === 'teacher') {
-        teacherBtn.classList.add('active');
+      if (mode === 'admin') {
+        tabAdmin.classList.add('active');
+        credForm.style.display = 'none';
+        adminForm.style.display = 'block';
+      } else if (mode === 'teacher') {
+        tabTeacher.classList.add('active');
+        adminForm.style.display = 'none';
+        credForm.style.display = 'block';
+        roleInput.value = 'teacher';
+        userLabel.innerText = 'Teacher Username';
+        passLabel.innerText = 'Teacher Password';
         submitBtn.innerText = 'Log In as Teacher';
-      } else if (role === 'admin') {
-        adminBtn.classList.add('active');
-        submitBtn.classList.add('admin-mode');
-        submitBtn.innerText = 'Log In as Admin';
       } else {
-        studentBtn.classList.add('active');
+        tabStudent.classList.add('active');
+        adminForm.style.display = 'none';
+        credForm.style.display = 'block';
+        roleInput.value = 'student';
+        userLabel.innerText = 'Student Username';
+        passLabel.innerText = 'Student Password';
         submitBtn.innerText = 'Log In as Student';
       }
     }
@@ -1023,7 +981,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <div class="modal-content" style="max-width: 500px; height: auto;">
       <div class="modal-header">
         <h3>🚀 Select Portal to Launch</h3>
-        <span class="close-btn" onclick="closeApp('portal-tiles-modal')">&times;</span>
+        <span class="close-btn" onclick="closeApp('portal-tiles-modal')">×</span>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; background: #070d19;">
         <p id="portal-toast-msg" style="color: #38bdf8; font-size: 0.9rem; margin-top: 0; font-weight: 500;"></p>
@@ -1059,7 +1017,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         <h3>Interactive Flashcards & Notes</h3>
         <div class="header-actions">
           <button id="fc-back-btn" class="clear-all-btn" style="background:#334155; display:none;" onclick="fcGoBack()">⬅ Back</button>
-          <span class="close-btn" onclick="closeApp('flashcards-modal')">&times;</span>
+          <span class="close-btn" onclick="closeApp('flashcards-modal')">×</span>
         </div>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1.5rem; overflow-y:auto; background:#070d19;">
@@ -1086,7 +1044,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <option value="4.5">4.5 - Oral Comm (3 Billion Cr Tokens)</option>
           </select>
           <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span> ✨</button>
-          <span class="close-btn" onclick="closeApp('gemini-modal')">&times;</span>
+          <span class="close-btn" onclick="closeApp('gemini-modal')">×</span>
         </div>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1rem;">
@@ -1109,7 +1067,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <div class="modal-content" style="max-width: 850px; height:auto;">
       <div class="modal-header">
         <h3>Admin Management Console</h3>
-        <span class="close-btn" onclick="closeApp('admin-modal')">&times;</span>
+        <span class="close-btn" onclick="closeApp('admin-modal')">×</span>
       </div>
       <div class="modal-body" style="height: 520px; overflow-y: auto;">
         <div style="background:#070d19; padding:1.2rem; border-radius:8px; border:1px solid #1e293b;">
@@ -1161,7 +1119,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         <h3>DigiBoard Interactive Whiteboard (<span id="wb-class-label">Class</span>)</h3>
         <div class="header-actions">
           <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard"><span>Clear All</span> 🗑️</button>
-          <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
+          <span class="close-btn" onclick="closeApp('whiteboard-modal')">×</span>
         </div>
       </div>
       <div class="modal-body">
@@ -1208,7 +1166,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <div class="modal-content" style="max-width: 700px; height:auto;">
       <div class="modal-header">
         <h3>Class File Manager</h3>
-        <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
+        <span class="close-btn" onclick="closeApp('filemanager-modal')">×</span>
       </div>
       <div class="modal-body" style="height: 520px; overflow-y: auto;">
         <div style="display:flex; gap:1rem; margin-bottom:1rem; background:#070d19; padding:0.75rem; border-radius:6px; border:1px solid #1e293b;">
@@ -1427,7 +1385,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     }
 
     function escapeHtml(text) {
-      return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return String(text).replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
     }
 
     if (USER_ROLE === 'admin') {
@@ -1514,7 +1472,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       const section = document.getElementById('filter-section').value;
       if(!grade || !section) return;
 
-      fetch(`/api/files?grade=${encodeURIComponent(grade)}&section=${encodeURIComponent(section)}&t=` + Date.now(), { cache: "no-store" })
+      fetch(`/api/files?grade=${encodeURIComponent(grade)}§ion=${encodeURIComponent(section)}&t=` + Date.now(), { cache: "no-store" })
         .then(r => r.json())
         .then(files => {
           const container = document.getElementById('file-list-container');
@@ -1542,7 +1500,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       const grade = document.getElementById('filter-grade').value;
       const section = document.getElementById('filter-section').value;
       if (!confirm('Delete file: ' + filename + '?')) return;
-      fetch(`/api/delete-file?grade=${encodeURIComponent(grade)}&section=${encodeURIComponent(section)}&name=` + encodeURIComponent(filename), { method: 'DELETE' })
+      fetch(`/api/delete-file?grade=${encodeURIComponent(grade)}§ion=${encodeURIComponent(section)}&name=` + encodeURIComponent(filename), { method: 'DELETE' })
         .then(r => r.json())
         .then(() => loadFileList());
     }
@@ -1740,12 +1698,8 @@ def render_front_page(session):
             '<a class="nav-link primary" href="/dashboard">Open Console</a>'
             '<a class="nav-link" href="/logout">Logout</a>'
         )
-        bottom_cta = (
-            '<a class="cta-btn primary" href="/dashboard">Go to Master Console</a>'
-        )
     else:
         header_nav = '<a class="nav-link primary" href="/login">Log In</a>'
-        bottom_cta = '<a class="cta-btn primary" href="/login">Log In</a>'
 
     if is_admin:
         edit_btn_html = '<button type="button" class="edit-btn" onclick="toggleStoryEditor(true)">✏️ Edit Story</button>'
@@ -1778,7 +1732,6 @@ def render_front_page(session):
         .replace("<!--HEADER_NAV_ACTIONS-->", header_nav)
         .replace("<!--ADMIN_EDIT_BUTTON-->", edit_btn_html)
         .replace("<!--ADMIN_EDITOR_PANEL-->", editor_panel_html)
-        .replace("<!--BOTTOM_CTA_ACTIONS-->", bottom_cta)
         .replace("<!--STORY_JSON-->", safe_story_json)
         .replace("<!--IS_ADMIN_BOOL-->", "true" if is_admin else "false")
     )
@@ -2077,7 +2030,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                self.send_html(render_login_page('<div class="error">❌ Unauthorized Key ID!</div>'), 401)
+                self.send_html(render_login_page('<div class="error">❌ Unauthorized SSH Key ID!</div>'), 401)
             return
 
         if path == "/login":
