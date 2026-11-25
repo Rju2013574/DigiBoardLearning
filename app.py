@@ -19,7 +19,24 @@ PORT = int(os.environ.get("PORT", 8000))
 UPLOAD_DIR = "uploads"
 ENCRYPTED_CSV_FILE = "accounts_encrypted.csv"
 LOGIN_LOGS_CSV = "login_logs.csv"
+STORY_FILE = "front_page_story.json"
 SESSIONS = {}
+
+DEFAULT_STORY_DATA = {
+    "title": "How DigiBoard Happened",
+    "subtitle": "Founded by Raghav JU & Co-Founded by Neel Sai R — Built for Hill Rock National Public School and modern classrooms.",
+    "story": (
+        "DigiBoard Master Console began with a real mission at Hill Rock National Public School: to solve the everyday burdens "
+        "teachers face in managing classroom tools, lesson files, and interactive boards. Founded by Raghav JU (Managing Director "
+        "& Project Head) and co-founded by classmate Neel Sai R, the project set out to unite live class-isolated whiteboards, "
+        "organized grade-and-section file sharing, structured flashcard memory banks, and multi-mode AI study tools into one "
+        "fast, lightweight, pure-Python workspace.\n\n"
+        "Between August 2 and October 16, 2026, the core architecture was built, deployed, and functionally verified—designed to run "
+        "both on local school servers and 24/7 cloud environments with encrypted CSV account security. Guided by the vision of "
+        "school leadership—Chairman Bramresh sir, Principal Veda ma’am, Director Jayanthi ma’am, and Secretary Pushpak sir—DigiBoard "
+        "keeps every classroom connected, giving teachers effortless control and students a seamless learning experience."
+    )
+}
 
 # Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section"
 CLASS_BOARDS = {}
@@ -50,6 +67,45 @@ def ensure_file_manager_structure():
 
 
 ensure_file_manager_structure()
+
+
+def load_story_data():
+    if os.path.exists(STORY_FILE):
+        try:
+            with open(STORY_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return {
+                        "title": str(data.get("title") or DEFAULT_STORY_DATA["title"]),
+                        "subtitle": str(data.get("subtitle") or DEFAULT_STORY_DATA["subtitle"]),
+                        "story": str(data.get("story") or DEFAULT_STORY_DATA["story"]),
+                    }
+        except Exception as e:
+            print(f"❌ Failed to load {STORY_FILE}: {str(e)}")
+    return dict(DEFAULT_STORY_DATA)
+
+
+def save_story_data(title, subtitle, story):
+    payload = {
+        "title": title.strip() or DEFAULT_STORY_DATA["title"],
+        "subtitle": subtitle.strip() or DEFAULT_STORY_DATA["subtitle"],
+        "story": story.strip() or DEFAULT_STORY_DATA["story"],
+    }
+    with open(STORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+    return payload
+
+
+def init_story_file():
+    if not os.path.exists(STORY_FILE):
+        save_story_data(
+            DEFAULT_STORY_DATA["title"],
+            DEFAULT_STORY_DATA["subtitle"],
+            DEFAULT_STORY_DATA["story"],
+        )
+
+
+init_story_file()
 
 
 # --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & STRICT OUTPUT LIMIT ---
@@ -204,6 +260,392 @@ FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
 LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='32' height='32'")
 CENTER_LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='84' height='84'")
 
+FRONT_PAGE_HTML = """<!DOCTYPE html>
+<html>
+<head>
+  <title>DigiBoard Master Console</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top, #0c1933 0%, #050a14 60%);
+      color: #f8fafc;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.1rem 2rem;
+      background: rgba(7, 13, 25, 0.92);
+      border-bottom: 1px solid #1e293b;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .brand-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #f8fafc;
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .nav-link {
+      text-decoration: none;
+      color: #cbd5e1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    .nav-link:hover {
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    .nav-link.primary {
+      background: #0284c7;
+      border-color: #0284c7;
+      color: #ffffff;
+    }
+    .nav-link.primary:hover {
+      background: #0369a1;
+    }
+    .front-main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2.5rem 1.5rem;
+    }
+    .front-card {
+      width: 100%;
+      max-width: 780px;
+      background: rgba(7, 13, 25, 0.94);
+      border: 1px solid #1e293b;
+      border-radius: 20px;
+      padding: 2.75rem 2.25rem;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72);
+    }
+    .hero-center {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .hero-logo {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 1.25rem auto;
+    }
+    .hero-logo svg {
+      border-radius: 20px;
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.28);
+    }
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+    }
+    .hero-subtitle {
+      margin: 0.65rem auto 0 auto;
+      max-width: 580px;
+      color: #94a3b8;
+      font-size: 0.98rem;
+      line-height: 1.6;
+    }
+    .story-box {
+      background: #050a14;
+      border: 1px solid #1e293b;
+      border-left: 4px solid #38bdf8;
+      border-radius: 14px;
+      padding: 1.75rem;
+    }
+    .story-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .story-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #38bdf8;
+    }
+    .edit-btn {
+      background: #4f46e5;
+      color: #ffffff;
+      border: none;
+      padding: 0.5rem 0.95rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .edit-btn:hover {
+      background: #4338ca;
+    }
+    .story-text {
+      color: #e2e8f0;
+      font-size: 0.98rem;
+      line-height: 1.75;
+    }
+    .story-text p {
+      margin: 0 0 1rem 0;
+    }
+    .story-text p:last-child {
+      margin-bottom: 0;
+    }
+    .editor-panel {
+      display: none;
+      margin-top: 1.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid #1e293b;
+    }
+    .editor-panel label {
+      display: block;
+      font-size: 0.82rem;
+      color: #94a3b8;
+      margin-top: 0.85rem;
+      margin-bottom: 0.3rem;
+    }
+    .editor-panel label:first-child {
+      margin-top: 0;
+    }
+    .editor-panel input,
+    .editor-panel textarea {
+      width: 100%;
+      padding: 0.7rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #070d19;
+      color: #f8fafc;
+      font-family: inherit;
+      font-size: 0.92rem;
+    }
+    .editor-panel textarea {
+      min-height: 170px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+    .editor-panel input:focus,
+    .editor-panel textarea:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+    .editor-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .save-btn {
+      background: #10b981;
+      color: #052e16;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .save-btn:hover {
+      background: #34d399;
+    }
+    .cancel-btn {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      padding: 0.6rem 1.1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .status-msg {
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      min-height: 1.2rem;
+    }
+    .cta-row {
+      display: flex;
+      justify-content: center;
+      gap: 0.9rem;
+      margin-top: 2rem;
+      flex-wrap: wrap;
+    }
+    .cta-btn {
+      text-decoration: none;
+      padding: 0.8rem 1.5rem;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+    .cta-btn.primary {
+      background: #0284c7;
+      color: #ffffff;
+    }
+    .cta-btn.primary:hover {
+      background: #0369a1;
+    }
+    .cta-btn.secondary {
+      background: #0f172a;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+    }
+    .cta-btn.secondary:hover {
+      border-color: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand-bar">
+      <!--LOGO_HTML-->
+      <span>DigiBoard Master Console</span>
+    </div>
+    <div class="nav-actions">
+      <!--HEADER_NAV_ACTIONS-->
+    </div>
+  </header>
+
+  <main class="front-main">
+    <section class="front-card">
+      <div class="hero-center">
+        <div class="hero-logo">
+          <!--CENTER_LOGO_HTML-->
+        </div>
+        <h1>DigiBoard Master Console</h1>
+        <p class="hero-subtitle" id="front-subtitle"></p>
+      </div>
+
+      <div class="story-box">
+        <div class="story-header">
+          <h2 id="front-story-title"></h2>
+          <!--ADMIN_EDIT_BUTTON-->
+        </div>
+        <div class="story-text" id="front-story-body"></div>
+
+        <!--ADMIN_EDITOR_PANEL-->
+      </div>
+
+      <div class="cta-row">
+        <!--BOTTOM_CTA_ACTIONS-->
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const INITIAL_STORY_DATA = <!--STORY_JSON-->;
+    const IS_ADMIN = <!--IS_ADMIN_BOOL-->;
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderStoryContent(data) {
+      document.getElementById("front-subtitle").textContent = data.subtitle || "";
+      document.getElementById("front-story-title").textContent = data.title || "How DigiBoard Happened";
+
+      const paragraphs = String(data.story || "")
+        .split(/\n\s*\n/)
+        .map(p => p.trim())
+        .filter(Boolean);
+
+      const container = document.getElementById("front-story-body");
+      if (!paragraphs.length) {
+        container.innerHTML = "<p></p>";
+        return;
+      }
+      container.innerHTML = paragraphs
+        .map(p => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
+        .join("");
+    }
+
+    renderStoryContent(INITIAL_STORY_DATA);
+
+    if (IS_ADMIN) {
+      window.toggleStoryEditor = function(show) {
+        const panel = document.getElementById("story-editor-panel");
+        const statusEl = document.getElementById("story-status-msg");
+        if (!panel) return;
+        if (show) {
+          document.getElementById("edit-story-title").value = document.getElementById("front-story-title").textContent;
+          document.getElementById("edit-story-subtitle").value = document.getElementById("front-subtitle").textContent;
+          document.getElementById("edit-story-body").value = INITIAL_STORY_DATA.story || "";
+          if (statusEl) statusEl.textContent = "";
+          panel.style.display = "block";
+        } else {
+          panel.style.display = "none";
+        }
+      };
+
+      window.saveStoryChanges = function(event) {
+        event.preventDefault();
+        const title = document.getElementById("edit-story-title").value;
+        const subtitle = document.getElementById("edit-story-subtitle").value;
+        const story = document.getElementById("edit-story-body").value;
+        const statusEl = document.getElementById("story-status-msg");
+
+        if (statusEl) {
+          statusEl.style.color = "#94a3b8";
+          statusEl.textContent = "Saving story...";
+        }
+
+        fetch("/api/front-page/story", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, subtitle, story })
+        })
+        .then(async r => {
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || "Failed to save story.");
+          return data;
+        })
+        .then(updated => {
+          INITIAL_STORY_DATA.title = updated.title;
+          INITIAL_STORY_DATA.subtitle = updated.subtitle;
+          INITIAL_STORY_DATA.story = updated.story;
+          renderStoryContent(updated);
+          document.getElementById("story-editor-panel").style.display = "none";
+          if (statusEl) {
+            statusEl.style.color = "#34d399";
+            statusEl.textContent = "Story updated.";
+          }
+        })
+        .catch(err => {
+          if (statusEl) {
+            statusEl.style.color = "#ef4444";
+            statusEl.textContent = "❌ " + err.message;
+          }
+        });
+      };
+    }
+  </script>
+</body>
+</html>"""
+
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -354,6 +796,17 @@ LOGIN_HTML = """<!DOCTYPE html>
       border-top: 1px solid #1e293b;
       margin: 1.6rem 0 0.6rem 0;
     }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.25rem;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .back-link:hover {
+      color: #38bdf8;
+    }
   </style>
 </head>
 <body>
@@ -391,6 +844,8 @@ LOGIN_HTML = """<!DOCTYPE html>
       <input type="password" name="admin_key" placeholder="Enter Authorized SSH Key ID..." required>
       <button type="submit" class="admin-btn">🔑 Log In as Admin (SSH Key)</button>
     </form>
+
+    <a href="/" class="back-link">← Back to Front Page</a>
   </div>
 
   <script>
@@ -438,6 +893,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
     .user-id { color: #ffffff; font-weight: 600; }
     .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
     .admin-badge { background: #4f46e5 !important; color: #fff !important; }
+    .front-link-btn { text-decoration: none; border: 1px solid #1e293b; color: #cbd5e1; padding: 0.4rem 0.9rem; border-radius: 4px; font-size: 0.85rem; }
+    .front-link-btn:hover { border-color: #38bdf8; color: #fff; }
     .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
     .logout-btn:hover { background: #1e293b; color: #fff; }
     .secret-key-box { display: flex; align-items: center; gap: 0.4rem; background: #0f172a; border: 1px solid #334155; padding: 0.25rem 0.5rem; border-radius: 6px; }
@@ -518,6 +975,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       User ID: <span class="user-id"><!--USERNAME--></span>
       <span class="user-role-badge <!--ADMIN_CLASS-->"><!--USER_ROLE--></span>
       <span style="color:#38bdf8; font-size:0.8rem; background:#0f172a; padding:0.2rem 0.5rem; border:1px solid #1e293b; border-radius:4px;">Class: <!--USER_GRADE-->-<!--USER_SECTION--></span>
+      <a class="front-link-btn" href="/">Front Page</a>
       <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
     </div>
   </header>
@@ -1272,6 +1730,60 @@ CONSOLE_HTML = """<!DOCTYPE html>
 </html>"""
 
 
+def render_front_page(session):
+    story_data = load_story_data()
+    is_admin = bool(session and session.get("role") == "admin")
+    safe_story_json = json.dumps(story_data).replace("</", "<\\/")
+
+    if session:
+        header_nav = (
+            '<a class="nav-link primary" href="/dashboard">Open Console</a>'
+            '<a class="nav-link" href="/logout">Logout</a>'
+        )
+        bottom_cta = (
+            '<a class="cta-btn primary" href="/dashboard">Go to Master Console</a>'
+        )
+    else:
+        header_nav = '<a class="nav-link primary" href="/login">Log In</a>'
+        bottom_cta = '<a class="cta-btn primary" href="/login">Log In</a>'
+
+    if is_admin:
+        edit_btn_html = '<button type="button" class="edit-btn" onclick="toggleStoryEditor(true)">✏️ Edit Story</button>'
+        editor_panel_html = """
+        <form id="story-editor-panel" class="editor-panel" onsubmit="saveStoryChanges(event)">
+          <label for="edit-story-title">Story Heading</label>
+          <input type="text" id="edit-story-title" required>
+
+          <label for="edit-story-subtitle">Tagline / Subtitle</label>
+          <input type="text" id="edit-story-subtitle" required>
+
+          <label for="edit-story-body">How It Happened Story</label>
+          <textarea id="edit-story-body" required></textarea>
+
+          <div class="editor-actions">
+            <button type="submit" class="save-btn">Save Story</button>
+            <button type="button" class="cancel-btn" onclick="toggleStoryEditor(false)">Cancel</button>
+          </div>
+          <div id="story-status-msg" class="status-msg"></div>
+        </form>
+        """
+    else:
+        edit_btn_html = ""
+        editor_panel_html = ""
+
+    return (
+        FRONT_PAGE_HTML
+        .replace("<!--LOGO_HTML-->", LOGO_HTML)
+        .replace("<!--CENTER_LOGO_HTML-->", CENTER_LOGO_HTML)
+        .replace("<!--HEADER_NAV_ACTIONS-->", header_nav)
+        .replace("<!--ADMIN_EDIT_BUTTON-->", edit_btn_html)
+        .replace("<!--ADMIN_EDITOR_PANEL-->", editor_panel_html)
+        .replace("<!--BOTTOM_CTA_ACTIONS-->", bottom_cta)
+        .replace("<!--STORY_JSON-->", safe_story_json)
+        .replace("<!--IS_ADMIN_BOOL-->", "true" if is_admin else "false")
+    )
+
+
 def render_login_page(error_html=""):
     return (
         LOGIN_HTML
@@ -1361,7 +1873,18 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(FAVICON_SVG.encode('utf-8'))
             return
 
+        if path == "/api/front-page/story":
+            self.send_json(load_story_data())
+            return
+
+        if path == "/":
+            self.send_html(render_front_page(session))
+            return
+
         if path == "/login":
+            if session:
+                self.redirect("/dashboard")
+                return
             self.send_html(render_login_page(""))
             return
 
@@ -1373,10 +1896,10 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 if 'session_id' in cookie:
                     sid = cookie['session_id'].value
                     SESSIONS.pop(sid, None)
-            self.redirect("/login")
+            self.redirect("/")
             return
 
-        if path in ("/", "/dashboard"):
+        if path == "/dashboard":
             if not session:
                 self.redirect("/login")
                 return
@@ -1550,7 +2073,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
-                self.send_header("Location", "/")
+                self.send_header("Location", "/dashboard")
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
@@ -1588,7 +2111,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
-                self.send_header("Location", "/")
+                self.send_header("Location", "/dashboard")
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
@@ -1598,6 +2121,29 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         session = self.get_session()
         if not session:
             self.send_json({"error": "Unauthorized"}, 401)
+            return
+
+        if path == "/api/front-page/story":
+            if session.get('role') != 'admin':
+                self.send_json({"error": "Forbidden"}, 403)
+                return
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                raw_body = self.rfile.read(content_length).decode('utf-8')
+                body = json.loads(raw_body) if raw_body else {}
+                if not isinstance(body, dict):
+                    self.send_json({"error": "Invalid payload"}, 400)
+                    return
+                updated = save_story_data(
+                    str(body.get("title", "")),
+                    str(body.get("subtitle", "")),
+                    str(body.get("story", "")),
+                )
+                self.send_json(updated)
+            except json.JSONDecodeError:
+                self.send_json({"error": "Invalid JSON body"}, 400)
+            except Exception as e:
+                self.send_json({"error": str(e)}, 500)
             return
 
         if path == "/api/gemini":
@@ -1650,7 +2196,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 filepath = os.path.join(target_dir, filename)
                 with open(filepath, "wb") as f:
                     f.write(file_data)
-            self.redirect("/")
+            self.redirect("/dashboard")
             return
 
         if path == "/api/whiteboard":
