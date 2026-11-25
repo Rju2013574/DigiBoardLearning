@@ -518,7 +518,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
         .replace(/&/g, "&")
         .replace(/</g, "<")
         .replace(/>/g, ">")
-        .replace(/"/g, """);
+        .replace(/\"/g, """);
     }
 
     function renderStoryContent(data) {
@@ -526,7 +526,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       document.getElementById("front-story-title").textContent = data.title || "How DigiBoard Happened";
 
       const paragraphs = String(data.story || "")
-        .split(/\n\s*\n/)
+        .split(/\\n\\s*\\n/)
         .map(p => p.trim())
         .filter(Boolean);
 
@@ -536,7 +536,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
         return;
       }
       container.innerHTML = paragraphs
-        .map(p => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
+        .map(p => `<p>${escapeHtml(p).replace(/\\n/g, "<br>")}</p>`)
         .join("");
     }
 
@@ -1301,7 +1301,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
                 loadFcDirectory(item.path);
               };
             } else {
-              const cleanName = item.name.replace(/\.(html|md)$/i, '');
+              const cleanName = item.name.replace(/\\.(html|md)$/i, '');
               card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${escapeHtml(cleanName)}</span>`;
               card.onclick = () => viewFcFile(item.path);
             }
