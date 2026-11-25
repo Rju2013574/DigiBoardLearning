@@ -518,7 +518,8 @@ FRONT_PAGE_HTML = r"""<!DOCTYPE html>
         .replace(/&/g, "&")
         .replace(/</g, "<")
         .replace(/>/g, ">")
-        .replace(/"/g, """);
+        .replace(/"/g, "&quot;");
+
     }
 
     function renderStoryContent(data) {
