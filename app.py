@@ -33,7 +33,7 @@ DEFAULT_STORY_DATA = {
         "fast, lightweight, pure-Python workspace.\n\n"
         "Between August 2 and October 16, 2026, the core architecture was built, deployed, and functionally verified—designed to run "
         "both on local school servers and 24/7 cloud environments with encrypted CSV account security. Guided by the vision of "
-        "school leadership—Chairman Bramresh sir, Principal Veda ma’am, Director Jayanthi ma’am, and Secretary Pushpak sir—DigiBoard "
+        "school leadership—Chairman Bramresh sir, Principal Veda ma\u2019am, Director Jayanthi ma\u2019am, and Secretary Pushpak sir—DigiBoard "
         "keeps every classroom connected, giving teachers effortless control and students a seamless learning experience."
     )
 }
@@ -81,7 +81,7 @@ def load_story_data():
                         "story": str(data.get("story") or DEFAULT_STORY_DATA["story"]),
                     }
         except Exception as e:
-            print(f"❌ Failed to load {STORY_FILE}: {str(e)}")
+            print(f"Failed to load {STORY_FILE}: {str(e)}")
     return dict(DEFAULT_STORY_DATA)
 
 
@@ -112,8 +112,8 @@ init_story_file()
 def query_gemini(prompt, model_mode="0.1"):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        print("❌ GEMINI_API_KEY is missing from environment variables!")
-        return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
+        print("GEMINI_API_KEY is missing from environment variables!")
+        return "Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     max_tokens = 200
@@ -148,20 +148,20 @@ def query_gemini(prompt, model_mode="0.1"):
                     parts = candidates[0].get('content', {}).get('parts', [])
                     if parts and parts[0].get('text'):
                         return parts[0].get('text')
-                return "❌ No response text found in candidate output."
+                return "No response text found in candidate output."
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
             if e.code == 503 and attempt < max_retries - 1:
                 time.sleep((attempt + 1) * 1.5)
                 continue
-            return f"❌ Gemini API Error {e.code}: {error_body}"
+            return f"Gemini API Error {e.code}: {error_body}"
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(2)
                 continue
-            return f"❌ Cloud AI Connection Error: {str(e)}"
+            return f"Cloud AI Connection Error: {str(e)}"
 
-    return "❌ Gemini API Error 503: High demand spike persisted after retries."
+    return "Gemini API Error 503: High demand spike persisted after retries."
 
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
@@ -197,7 +197,7 @@ def load_users_from_encrypted_csv():
                         "section": row[4].strip()
                     }
         except Exception as e:
-            print(f"❌ Decryption/Loading failed: {str(e)}")
+            print(f"Decryption/Loading failed: {str(e)}")
     return users
 
 
@@ -246,7 +246,7 @@ ADMIN_KEYS = {
 
 SECRET_PORTAL_CODE = os.environ.get("SECRET_PORTAL_CODE", "9080-3456-7890-3456-7280-4562-8729-RJU-2013-2810-4568-6573")
 
-FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
+FAVICON_SVG = r"""<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
   <rect width='32' height='32' rx='8' fill='#070d19' stroke='#38bdf8' stroke-width='1'/>
   <path d='M8 16 C8 10, 12 7, 18 7 C23 7, 26 10, 26 15 C26 18, 24 21, 22 23 C20 25, 18 25, 16 25 C13 25, 11 23, 10 21' fill='none' stroke='#38bdf8' stroke-width='1.5' stroke-linecap='round'/>
   <path d='M12 10 h4 c3 0 5 2 5 5 s-2 5-5 5 h-4 z' fill='none' stroke='#38bdf8' stroke-width='2'/>
@@ -260,7 +260,7 @@ FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
 LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='32' height='32'")
 CENTER_LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='84' height='84'")
 
-FRONT_PAGE_HTML = """<!DOCTYPE html>
+FRONT_PAGE_HTML = r"""<!DOCTYPE html>
 <html>
 <head>
   <title>DigiBoard Master Console</title>
@@ -518,7 +518,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
         .replace(/&/g, "&")
         .replace(/</g, "<")
         .replace(/>/g, ">")
-        .replace(/\"/g, """);
+        .replace(/"/g, """);
     }
 
     function renderStoryContent(data) {
@@ -526,7 +526,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
       document.getElementById("front-story-title").textContent = data.title || "How DigiBoard Happened";
 
       const paragraphs = String(data.story || "")
-        .split(/\\n\\s*\\n/)
+        .split(/\n\s*\n/)
         .map(p => p.trim())
         .filter(Boolean);
 
@@ -536,7 +536,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
         return;
       }
       container.innerHTML = paragraphs
-        .map(p => `<p>${escapeHtml(p).replace(/\\n/g, "<br>")}</p>`)
+        .map(p => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
         .join("");
     }
 
@@ -594,7 +594,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
         .catch(err => {
           if (statusEl) {
             statusEl.style.color = "#ef4444";
-            statusEl.textContent = "❌ " + err.message;
+            statusEl.textContent = "Error: " + err.message;
           }
         });
       };
@@ -603,7 +603,7 @@ FRONT_PAGE_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-LOGIN_HTML = """<!DOCTYPE html>
+LOGIN_HTML = r"""<!DOCTYPE html>
 <html>
 <head>
   <title>DigiBoard - Login</title>
@@ -787,7 +787,7 @@ LOGIN_HTML = """<!DOCTYPE html>
     <form id="admin-ssh-form" action="/login-admin" method="POST" style="display:none;">
       <label>Admin SSH Key ID</label>
       <input type="password" name="admin_key" placeholder="Enter Authorized SSH Key ID..." required>
-      <button type="submit" class="admin-btn">🔑 Log In as Admin</button>
+      <button type="submit" class="admin-btn">Log In as Admin</button>
     </form>
 
     <a href="/" class="back-link">← Back to Front Page</a>
@@ -835,7 +835,7 @@ LOGIN_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
-CONSOLE_HTML = """<!DOCTYPE html>
+CONSOLE_HTML = r"""<!DOCTYPE html>
 <html>
 <head>
   <title>DigiBoard Master Console</title>
@@ -924,7 +924,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     <div class="user-section">
       <!--ADMIN_SECRET_BOX_START-->
       <div class="secret-key-box" title="Enter secret key to open Reader, Cron-Job & GitHub">
-        <span>🔑</span>
+        <span>Key</span>
         <input type="password" id="console-secret-key" placeholder="Enter Secret Key..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); verifyConsoleSecretKey(); }">
         <button type="button" onclick="verifyConsoleSecretKey()">Unlock</button>
       </div>
@@ -980,27 +980,27 @@ CONSOLE_HTML = """<!DOCTYPE html>
   <div class="modal" id="portal-tiles-modal">
     <div class="modal-content" style="max-width: 500px; height: auto;">
       <div class="modal-header">
-        <h3>🚀 Select Portal to Launch</h3>
+        <h3>Select Portal to Launch</h3>
         <span class="close-btn" onclick="closeApp('portal-tiles-modal')">×</span>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; background: #070d19;">
         <p id="portal-toast-msg" style="color: #38bdf8; font-size: 0.9rem; margin-top: 0; font-weight: 500;"></p>
         <a href="https://dashboard.render.com/web/srv-da5e1lijobas73edupi0" target="_blank" class="portal-tile">
-          <span style="font-size: 1.8rem;">☁️</span>
+          <span style="font-size: 1.4rem;">Render</span>
           <div>
             <div style="font-size: 1rem; color: #f8fafc;">Render Dashboard (Reader)</div>
             <div style="font-size: 0.75rem; color: #94a3b8;">Manage cloud deployment & web service</div>
           </div>
         </a>
         <a href="https://console.cron-job.org/dashboard" target="_blank" class="portal-tile">
-          <span style="font-size: 1.8rem;">⏰</span>
+          <span style="font-size: 1.4rem;">Cron</span>
           <div>
             <div style="font-size: 1rem; color: #f8fafc;">Cron-Job Console</div>
             <div style="font-size: 0.75rem; color: #94a3b8;">Manage automated background tasks & pings</div>
           </div>
         </a>
         <a href="https://github.com/Rju2013574/DigiBoardLearning" target="_blank" class="portal-tile">
-          <span style="font-size: 1.8rem;">🐙</span>
+          <span style="font-size: 1.4rem;">GitHub</span>
           <div>
             <div style="font-size: 1rem; color: #f8fafc;">GitHub Repository</div>
             <div style="font-size: 0.75rem; color: #94a3b8;">View source code & documentation</div>
@@ -1016,7 +1016,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       <div class="modal-header">
         <h3>Interactive Flashcards & Notes</h3>
         <div class="header-actions">
-          <button id="fc-back-btn" class="clear-all-btn" style="background:#334155; display:none;" onclick="fcGoBack()">⬅ Back</button>
+          <button id="fc-back-btn" class="clear-all-btn" style="background:#334155; display:none;" onclick="fcGoBack()">Back</button>
           <span class="close-btn" onclick="closeApp('flashcards-modal')">×</span>
         </div>
       </div>
@@ -1043,7 +1043,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <option value="3.1">3.1 - Multitask (100M Tokens)</option>
             <option value="4.5">4.5 - Oral Comm (3 Billion Cr Tokens)</option>
           </select>
-          <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span> ✨</button>
+          <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span></button>
           <span class="close-btn" onclick="closeApp('gemini-modal')">×</span>
         </div>
       </div>
@@ -1118,7 +1118,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       <div class="modal-header">
         <h3>DigiBoard Interactive Whiteboard (<span id="wb-class-label">Class</span>)</h3>
         <div class="header-actions">
-          <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard"><span>Clear All</span> 🗑️</button>
+          <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard"><span>Clear All</span></button>
           <span class="close-btn" onclick="closeApp('whiteboard-modal')">×</span>
         </div>
       </div>
@@ -1126,15 +1126,15 @@ CONSOLE_HTML = """<!DOCTYPE html>
         <div class="wb-viewport" id="wb-container">
           <canvas id="board"></canvas>
           <div class="markup-palette">
-            <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
-            <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
+            <button class="markup-btn" onclick="undo()" title="Undo">←</button>
+            <button class="markup-btn" onclick="redo()" title="Redo">→</button>
             <div class="palette-divider"></div>
-            <button class="markup-btn active" id="tool-pen" onclick="selectTool('pen')" title="Pen">✏️</button>
-            <button class="markup-btn" id="tool-fountain" onclick="selectTool('fountain')" title="Fountain Pen">✒️</button>
-            <button class="markup-btn" id="tool-marker" onclick="selectTool('marker')" title="Marker">🖊️</button>
-            <button class="markup-btn" id="tool-highlighter" onclick="selectTool('highlighter')" title="Highlighter">🖍️</button>
-            <button class="markup-btn" id="tool-tube" onclick="selectTool('tube')" title="Paint Tube">🎨</button>
-            <button class="markup-btn" id="tool-eraser" onclick="selectTool('eraser')" title="Eraser">🧹</button>
+            <button class="markup-btn active" id="tool-pen" onclick="selectTool('pen')" title="Pen">P</button>
+            <button class="markup-btn" id="tool-fountain" onclick="selectTool('fountain')" title="Fountain Pen">F</button>
+            <button class="markup-btn" id="tool-marker" onclick="selectTool('marker')" title="Marker">M</button>
+            <button class="markup-btn" id="tool-highlighter" onclick="selectTool('highlighter')" title="Highlighter">H</button>
+            <button class="markup-btn" id="tool-tube" onclick="selectTool('tube')" title="Paint Tube">T</button>
+            <button class="markup-btn" id="tool-eraser" onclick="selectTool('eraser')" title="Eraser">E</button>
             <div class="palette-divider"></div>
             <div class="color-dot active" style="background:#000000;" onclick="setColor('#000000', this)"></div>
             <div class="color-dot" style="background:#ef4444;" onclick="setColor('#ef4444', this)"></div>
@@ -1143,7 +1143,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div class="color-dot" style="background:#f59e0b;" onclick="setColor('#f59e0b', this)"></div>
             <input type="color" id="custom-color" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" onchange="setColor(this.value, null)">
             <div class="palette-divider"></div>
-            <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">⚙️</button>
+            <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">S</button>
           </div>
           <div class="tool-config-popover" id="config-popover">
             <h4>Stroke Thickness</h4>
@@ -1192,7 +1192,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
           <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">DOCUMENTS FOR SELECTED CLASS</span>
-          <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔄 Refresh</button>
+          <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">Refresh</button>
         </div>
         <ul id="file-list-container" style="list-style:none; padding:0; margin:0;">
           <li style="color:#94a3b8; text-align:center; padding: 2rem 0;">Select a grade and section to view documents.</li>
@@ -1225,8 +1225,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
     }
 
     function openSecretPortals() {
-      showSecretToast("🔓 Secret Code Verified: Select a portal below to launch");
-      document.getElementById('portal-toast-msg').innerText = "🔓 Secret Code Verified: Choose a portal below to open:";
+      showSecretToast("Secret Code Verified: Select a portal below to launch");
+      document.getElementById('portal-toast-msg').innerText = "Secret Code Verified: Choose a portal below to open:";
       openApp('portal-tiles-modal');
     }
 
@@ -1238,7 +1238,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         inputEl.value = "";
         openSecretPortals();
       } else {
-        showSecretToast("❌ Invalid Secret Key!", true);
+        showSecretToast("Invalid Secret Key!", true);
       }
     }
 
@@ -1284,7 +1284,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
           const grid = document.getElementById('fc-grid');
           grid.innerHTML = '';
           if (data.error) {
-            grid.innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">⚠️ Error: ${escapeHtml(data.error)}</div>`;
+            grid.innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">Error: ${escapeHtml(data.error)}</div>`;
             return;
           }
           if (!data.contents || data.contents.length === 0) {
@@ -1295,14 +1295,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
             const card = document.createElement('div');
             card.className = 'fc-card';
             if (item.type === 'folder') {
-              card.innerHTML = `<span style="font-size: 2rem;">📁</span><span style="font-weight:600; color:#cbd5e1; font-size:0.9rem;">${escapeHtml(item.name)}</span>`;
+              card.innerHTML = `<span style="font-size: 1.5rem;">DIR</span><span style="font-weight:600; color:#cbd5e1; font-size:0.9rem;">${escapeHtml(item.name)}</span>`;
               card.onclick = () => {
                 fcPathHistory.push(fcCurrentPath);
                 loadFcDirectory(item.path);
               };
             } else {
-              const cleanName = item.name.replace(/\\.(html|md)$/i, '');
-              card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${escapeHtml(cleanName)}</span>`;
+              const cleanName = item.name.replace(/\.(html|md)$/i, '');
+              card.innerHTML = `<span style="font-size: 1.5rem;">DOC</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${escapeHtml(cleanName)}</span>`;
               card.onclick = () => viewFcFile(item.path);
             }
             grid.appendChild(card);
@@ -1483,7 +1483,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
           }
           container.innerHTML = files.map(file => `
             <li class="file-item">
-              <a href="/uploads/${grade}/${section}/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
+              <a href="/uploads/${grade}/${section}/${encodeURIComponent(file)}" target="_blank" download="${file}">${file}</a>
               ${(USER_ROLE === 'teacher' || USER_ROLE === 'admin') ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
             </li>
           `).join('');
@@ -1702,8 +1702,8 @@ def render_front_page(session):
         header_nav = '<a class="nav-link primary" href="/login">Log In</a>'
 
     if is_admin:
-        edit_btn_html = '<button type="button" class="edit-btn" onclick="toggleStoryEditor(true)">✏️ Edit Story</button>'
-        editor_panel_html = """
+        edit_btn_html = '<button type="button" class="edit-btn" onclick="toggleStoryEditor(true)">Edit Story</button>'
+        editor_panel_html = r"""
         <form id="story-editor-panel" class="editor-panel" onsubmit="saveStoryChanges(event)">
           <label for="edit-story-title">Story Heading</label>
           <input type="text" id="edit-story-title" required>
@@ -2030,7 +2030,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                self.send_html(render_login_page('<div class="error">❌ Unauthorized SSH Key ID!</div>'), 401)
+                self.send_html(render_login_page('<div class="error">Unauthorized SSH Key ID!</div>'), 401)
             return
 
         if path == "/login":
@@ -2109,7 +2109,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 ai_response = query_gemini(prompt, model_mode=model_mode)
                 self.send_json({"response": ai_response})
             except Exception as e:
-                self.send_json({"response": f"❌ Server Error: {str(e)}"}, 500)
+                self.send_json({"response": f"Server Error: {str(e)}"}, 500)
             return
 
         if path == "/api/admin/mass-create":
