@@ -38,6 +38,7 @@ CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9Tk
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
 SECTIONS = ["A", "B", "C", "D", "E", "F", "G"]
 
+
 def ensure_file_manager_structure():
     if not os.path.exists(UPLOAD_DIR):
         os.makedirs(UPLOAD_DIR)
@@ -47,7 +48,9 @@ def ensure_file_manager_structure():
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
+
 ensure_file_manager_structure()
+
 
 # --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & STRICT OUTPUT LIMIT ---
 def query_gemini(prompt, model_mode="0.1"):
@@ -78,7 +81,7 @@ def query_gemini(prompt, model_mode="0.1"):
 
     data = json.dumps(payload).encode('utf-8')
     max_retries = 4
-    
+
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
@@ -111,9 +114,11 @@ def get_fernet():
         return Fernet(b'VlD8h2tEiJkQpKKnDNKnu8ya2fpIBMOo5oc7JKNasvk=')
     return Fernet(CSV_ENCRYPTION_KEY.encode())
 
+
 def init_encrypted_csv():
     if not os.path.exists(ENCRYPTED_CSV_FILE):
         save_users_to_encrypted_csv({})
+
 
 def load_users_from_encrypted_csv():
     users = {}
@@ -139,6 +144,7 @@ def load_users_from_encrypted_csv():
             print(f"❌ Decryption/Loading failed: {str(e)}")
     return users
 
+
 def save_users_to_encrypted_csv(users_dict):
     try:
         fernet = get_fernet()
@@ -155,7 +161,9 @@ def save_users_to_encrypted_csv(users_dict):
     except Exception:
         return False
 
+
 init_encrypted_csv()
+
 
 def log_login_event(username, role, grade, section, auth_method):
     file_exists = os.path.exists(LOGIN_LOGS_CSV)
@@ -165,6 +173,7 @@ def log_login_event(username, role, grade, section, auth_method):
             writer.writerow(["Timestamp", "Username", "Role", "Grade", "Section", "Auth Method"])
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         writer.writerow([timestamp, username, role, grade, section, auth_method])
+
 
 ADMIN_KEYS = {
     "9080-3456-7890-3456-7280-4562-8729-RJU-2013-2810-4568-6573": {
@@ -193,6 +202,7 @@ FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
 </svg>"""
 
 LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='32' height='32'")
+CENTER_LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='84' height='84'")
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html>
@@ -201,41 +211,214 @@ LOGIN_HTML = """<!DOCTYPE html>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #070d19; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-    .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); }
-    h2 { text-align: center; margin-top: 0; color: #38bdf8; font-size: 1.5rem; }
-    label { font-size: 0.85rem; color: #94a3b8; display: block; margin-top: 1rem; }
-    input { width: 100%; padding: 0.65rem; margin-top: 0.3rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 6px; box-sizing: border-box; }
-    input:focus { outline: none; border-color: #38bdf8; }
-    button { width: 100%; padding: 0.75rem; margin-top: 1.2rem; background: #0284c7; border: none; color: white; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-    button:hover { background: #0369a1; }
-    .admin-btn { background: #4f46e5; margin-top: 0.75rem; }
-    .admin-btn:hover { background: #4338ca; }
-    .error { color: #ef4444; font-size: 0.875rem; text-align: center; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 4px; }
-    .divider { border-top: 1px solid #1e293b; margin: 1.5rem 0 0.5rem 0; text-align: center; position: relative; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #050a14;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1.5rem;
+    }
+    .login-card {
+      background: #070d19;
+      border: 1px solid #1e293b;
+      padding: 2.5rem;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 450px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    }
+    .center-logo {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 1.25rem auto;
+    }
+    .center-logo svg {
+      border-radius: 18px;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
+    }
+    h2 {
+      text-align: center;
+      margin: 0 0 1.5rem 0;
+      color: #f8fafc;
+      font-size: 1.5rem;
+      letter-spacing: 0.4px;
+    }
+    .role-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+    }
+    .role-option {
+      padding: 0.7rem 0.45rem;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .role-option:hover {
+      border-color: #38bdf8;
+      color: #f8fafc;
+    }
+    .role-option.active {
+      background: rgba(2, 132, 199, 0.2);
+      border-color: #38bdf8;
+      color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+    }
+    .role-option.admin-opt.active {
+      background: rgba(79, 70, 229, 0.22);
+      border-color: #818cf8;
+      color: #c7d2fe;
+      box-shadow: 0 0 12px rgba(129, 140, 248, 0.22);
+    }
+    label {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      display: block;
+      margin-top: 1rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.7rem;
+      margin-top: 0.35rem;
+      border: 1px solid #334155;
+      background: #050a14;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+    input:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 0.8rem;
+      margin-top: 1.35rem;
+      background: #0284c7;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .submit-btn:hover {
+      background: #0369a1;
+    }
+    .submit-btn.admin-mode {
+      background: #4f46e5;
+    }
+    .submit-btn.admin-mode:hover {
+      background: #4338ca;
+    }
+    .admin-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: #4f46e5;
+      margin-top: 0.75rem;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .admin-btn:hover {
+      background: #4338ca;
+    }
+    .error {
+      color: #ef4444;
+      font-size: 0.875rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      padding: 0.6rem;
+      border-radius: 6px;
+    }
+    .divider {
+      border-top: 1px solid #1e293b;
+      margin: 1.6rem 0 0.6rem 0;
+    }
   </style>
 </head>
 <body>
   <div class="login-card">
-    <div style="display: flex; justify-content: center; margin-bottom: 1rem;">
-      <!--LOGO_HTML-->
+    <div class="center-logo">
+      <!--CENTER_LOGO_HTML-->
     </div>
     <h2>DigiBoard Master Console</h2>
     <!--ERROR-->
+
+    <div class="role-selector" role="group" aria-label="Select login role">
+      <button type="button" id="btn-role-student" class="role-option active" onclick="selectRole('student')">
+        🎓 Student
+      </button>
+      <button type="button" id="btn-role-teacher" class="role-option" onclick="selectRole('teacher')">
+        👩‍🏫 Teacher
+      </button>
+      <button type="button" id="btn-role-admin" class="role-option admin-opt" onclick="selectRole('admin')">
+        🛡️ Admin
+      </button>
+    </div>
+
     <form action="/login" method="POST">
+      <input type="hidden" name="selected_role" id="selected-role" value="student">
       <label>Username</label>
       <input type="text" name="username" placeholder="user@domain.com" required>
       <label>Password</label>
-      <input type="password" name="password" required>
-      <button type="submit">Sign In</button>
+      <input type="password" name="password" placeholder="Enter your password" required>
+      <button type="submit" id="login-submit-btn" class="submit-btn">Log In as Student</button>
     </form>
+
     <div class="divider"></div>
     <form action="/login-admin" method="POST">
       <label>Admin SSH Key ID</label>
       <input type="password" name="admin_key" placeholder="Enter Authorized SSH Key ID..." required>
-      <button type="submit" class="admin-btn">🔑 Authenticate Admin Mode</button>
+      <button type="submit" class="admin-btn">🔑 Log In as Admin (SSH Key)</button>
     </form>
   </div>
+
+  <script>
+    function selectRole(role) {
+      document.getElementById('selected-role').value = role;
+      const studentBtn = document.getElementById('btn-role-student');
+      const teacherBtn = document.getElementById('btn-role-teacher');
+      const adminBtn = document.getElementById('btn-role-admin');
+      const submitBtn = document.getElementById('login-submit-btn');
+
+      studentBtn.classList.remove('active');
+      teacherBtn.classList.remove('active');
+      adminBtn.classList.remove('active');
+      submitBtn.classList.remove('admin-mode');
+
+      if (role === 'teacher') {
+        teacherBtn.classList.add('active');
+        submitBtn.innerText = 'Log In as Teacher';
+      } else if (role === 'admin') {
+        adminBtn.classList.add('active');
+        submitBtn.classList.add('admin-mode');
+        submitBtn.innerText = 'Log In as Admin';
+      } else {
+        studentBtn.classList.add('active');
+        submitBtn.innerText = 'Log In as Student';
+      }
+    }
+  </script>
 </body>
 </html>"""
 
@@ -313,8 +496,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
     .fc-card { background: #091326; border: 1px solid #1e293b; border-radius: 8px; padding: 1.2rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; transition: all 0.2s; }
     .fc-card:hover { border-color: #38bdf8; background: #0e1d38; transform: translateY(-2px); }
     .secret-toast { position: fixed; bottom: 20px; right: 20px; background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.6); z-index: 9999; display: none; }
-    
-    /* Portal Tiles Modal */
     .portal-tile { background: #1e293b; border: 1px solid #334155; padding: 1.2rem; border-radius: 10px; text-decoration: none; color: #f8fafc; font-weight: 600; display: flex; align-items: center; gap: 1rem; transition: all 0.2s; }
     .portal-tile:hover { background: #2563eb; border-color: #38bdf8; transform: translateY(-2px); }
   </style>
@@ -379,7 +560,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- PORTAL TILES MODAL (Opened upon secret code verification) -->
+  <!-- PORTAL TILES MODAL -->
   <div class="modal" id="portal-tiles-modal">
     <div class="modal-content" style="max-width: 500px; height: auto;">
       <div class="modal-header">
@@ -388,7 +569,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; background: #070d19;">
         <p id="portal-toast-msg" style="color: #38bdf8; font-size: 0.9rem; margin-top: 0; font-weight: 500;"></p>
-        
         <a href="https://dashboard.render.com/web/srv-da5e1lijobas73edupi0" target="_blank" class="portal-tile">
           <span style="font-size: 1.8rem;">☁️</span>
           <div>
@@ -396,7 +576,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div style="font-size: 0.75rem; color: #94a3b8;">Manage cloud deployment & web service</div>
           </div>
         </a>
-
         <a href="https://console.cron-job.org/dashboard" target="_blank" class="portal-tile">
           <span style="font-size: 1.8rem;">⏰</span>
           <div>
@@ -404,7 +583,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
             <div style="font-size: 0.75rem; color: #94a3b8;">Manage automated background tasks & pings</div>
           </div>
         </a>
-
         <a href="https://github.com/Rju2013574/DigiBoardLearning" target="_blank" class="portal-tile">
           <span style="font-size: 1.8rem;">🐙</span>
           <div>
@@ -666,7 +844,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
       });
     }
 
-    // --- FLASHCARDS CLIENT LOGIC ---
     const FC_ROOT = "Memory";
     let fcCurrentPath = FC_ROOT;
     let fcPathHistory = [];
@@ -683,7 +860,6 @@ CONSOLE_HTML = """<!DOCTYPE html>
       document.getElementById('fc-viewer-container').style.display = 'none';
       document.getElementById('fc-grid').style.display = 'grid';
       document.getElementById('fc-grid').innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">Loading...</div>';
-      
       document.getElementById('fc-back-btn').style.display = (path === FC_ROOT) ? 'none' : 'block';
 
       fetch(`/api/flashcards/list?path=${encodeURIComponent(path)}`)
@@ -749,7 +925,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       const modelChoice = document.getElementById('ai-model-select').value;
       const msg = input.value.trim();
       if(!msg) return;
-      
+
       const container = document.getElementById('chat-messages');
       container.innerHTML += `<div style="background:#2563eb; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-end; color:#f8fafc; font-size:0.9rem;">${escapeHtml(msg)}</div>`;
       input.value = '';
@@ -771,7 +947,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       .then(res => {
         const loadingEl = document.getElementById(loadingId);
         if(loadingEl) loadingEl.remove();
-        
+
         const responseText = res.response || res.error || "No response received.";
         const parsedMarkdown = marked.parse(responseText);
         container.innerHTML += `<div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">${parsedMarkdown}</div>`;
@@ -848,17 +1024,17 @@ CONSOLE_HTML = """<!DOCTYPE html>
       setTimeout(loadUsers, 500);
     }
 
-    function openApp(id) { 
-      document.getElementById(id).style.display = 'flex'; 
-      if(id === 'whiteboard-modal') { 
-        resizeCanvas(); 
+    function openApp(id) {
+      document.getElementById(id).style.display = 'flex';
+      if(id === 'whiteboard-modal') {
+        resizeCanvas();
         fetchWhiteboard();
         if(!boardPollInterval) { boardPollInterval = setInterval(fetchWhiteboard, 1500); }
       }
     }
-    
-    function closeApp(id) { 
-      document.getElementById(id).style.display = 'none'; 
+
+    function closeApp(id) {
+      document.getElementById(id).style.display = 'none';
       if(id === 'filemanager-modal' && filePollInterval) {
         clearInterval(filePollInterval);
         filePollInterval = null;
@@ -869,8 +1045,8 @@ CONSOLE_HTML = """<!DOCTYPE html>
       }
     }
 
-    function openFileManager() { 
-      openApp('filemanager-modal'); 
+    function openFileManager() {
+      openApp('filemanager-modal');
       loadFileList();
       if(!filePollInterval) { filePollInterval = setInterval(loadFileList, 4000); }
     }
@@ -970,7 +1146,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       const rect = canvas.getBoundingClientRect();
       const currentLine = lines[lines.length - 1];
       currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-      
+
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           redraw();
@@ -979,14 +1155,14 @@ CONSOLE_HTML = """<!DOCTYPE html>
       }
     });
 
-    canvas.addEventListener('pointerup', (e) => { 
+    canvas.addEventListener('pointerup', (e) => {
       if (isDrawing) {
-        isDrawing = false; 
+        isDrawing = false;
         try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
         syncWhiteboard();
       }
     });
-    
+
     canvas.addEventListener('pointercancel', (e) => {
       if (isDrawing) {
         isDrawing = false;
@@ -998,7 +1174,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (!lines) return;
-      
+
       lines.forEach(line => {
         if (!line || !line.pts || line.pts.length === 0) return;
         ctx.save();
@@ -1007,7 +1183,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
         ctx.globalAlpha = line.opacity || 1.0;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        
+
         ctx.beginPath();
         line.pts.forEach((pt, i) => {
           if (i === 0) ctx.moveTo(pt.x, pt.y);
@@ -1095,6 +1271,15 @@ CONSOLE_HTML = """<!DOCTYPE html>
 </body>
 </html>"""
 
+
+def render_login_page(error_html=""):
+    return (
+        LOGIN_HTML
+        .replace("<!--CENTER_LOGO_HTML-->", CENTER_LOGO_HTML)
+        .replace("<!--ERROR-->", error_html)
+    )
+
+
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
     def set_no_cache_headers(self):
@@ -1136,7 +1321,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         content_type = self.headers.get('Content-Type', '')
         if not content_type.startswith('multipart/form-data'):
             return None, None, None, None
-        
+
         boundary = content_type.split('boundary=')[1].encode('utf-8')
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
@@ -1177,8 +1362,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/login":
-            html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", "")
-            self.send_html(html)
+            self.send_html(render_login_page(""))
             return
 
         if path == "/logout":
@@ -1196,7 +1380,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if not session:
                 self.redirect("/login")
                 return
-            
+
             html = CONSOLE_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML)
             html = html.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
@@ -1207,7 +1391,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             grade_opts = "".join([f'<option value="{g}" {"selected" if g == session.get("grade","10th") else ""}>{g}</option>' for g in GRADES])
             sec_opts = "".join([f'<option value="{s}" {"selected" if s == session.get("section","A") else ""}>Section {s}</option>' for s in SECTIONS])
             html = html.replace("<!--GRADES_OPTIONS-->", grade_opts).replace("<!--SECTIONS_OPTIONS-->", sec_opts)
-            
+
             if session['role'] == 'admin':
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
                 html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
@@ -1221,7 +1405,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     html = html.replace("<!--ROLE_TEACHER_OR_ADMIN-->", "").replace("<!--END_ROLE-->", "")
                 else:
                     html = re.sub(r'<!--ROLE_TEACHER_OR_ADMIN-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
-            
+
             self.send_html(html)
             return
 
@@ -1232,11 +1416,11 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             subpath = query_params.get('path', [FLASHCARD_ROOT])[0].strip("/")
             encoded_subpath = "/".join(urllib.parse.quote(seg) for seg in subpath.split("/"))
             gh_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{encoded_subpath}?ref={urllib.parse.quote(GITHUB_BRANCH)}"
-            
+
             req_headers = {'User-Agent': 'DigiBoard-Server', 'Accept': 'application/vnd.github.v3+json'}
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
-            
+
             try:
                 req = urllib.request.Request(gh_url, headers=req_headers)
                 with urllib.request.urlopen(req, timeout=15) as resp:
@@ -1263,27 +1447,27 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if not file_path.startswith(FLASHCARD_ROOT):
                 self.send_json({"error": "Invalid path"}, 400)
                 return
-            
+
             encoded_file_path = "/".join(urllib.parse.quote(seg) for seg in file_path.split("/"))
             raw_url = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO}/{urllib.parse.quote(GITHUB_BRANCH)}/{encoded_file_path}"
             req_headers = {'User-Agent': 'DigiBoard-Server'}
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
-            
+
             try:
                 req = urllib.request.Request(raw_url, headers=req_headers)
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     file_content = resp.read().decode('utf-8')
                     if file_path.lower().endswith('.md'):
                         file_content = f"""<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><style>body{{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;padding:2rem;}}</style></head><body><div id="content"></div><script>document.getElementById('content').innerHTML = marked.parse({json.dumps(file_content)});</script></body></html>"""
-                    
+
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.send_header("Content-Disposition", "inline")
                     self.set_no_cache_headers()
                     self.end_headers()
                     self.wfile.write(file_content.encode('utf-8'))
-            except Exception as e:
+            except Exception:
                 self.send_error(404, "Flashcard page not found")
             return
 
@@ -1370,8 +1554,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
-                self.send_html(err_html, 401)
+                self.send_html(render_login_page('<div class="error">❌ Unauthorized Key ID!</div>'), 401)
             return
 
         if path == "/login":
@@ -1380,18 +1563,28 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             params = urllib.parse.parse_qs(body)
             username = params.get('username', [''])[0].strip()
             password = params.get('password', [''])[0].strip()
+            selected_role = params.get('selected_role', ['student'])[0].strip().lower()
 
             users = load_users_from_encrypted_csv()
             if username in users and users[username]['password'] == password:
-                sid = str(uuid.uuid4())
                 user_data = users[username]
+                actual_role = user_data.get('role', 'student').lower()
+
+                if selected_role in ('student', 'teacher', 'admin') and actual_role != selected_role:
+                    self.send_html(
+                        render_login_page(f'<div class="error">This account is registered as {actual_role}, not {selected_role}.</div>'),
+                        401
+                    )
+                    return
+
+                sid = str(uuid.uuid4())
                 SESSIONS[sid] = {
-                    "username": username, 
+                    "username": username,
                     "role": user_data['role'],
                     "grade": user_data.get('grade', '10th'),
                     "section": user_data.get('section', 'A')
                 }
-                log_login_event(username, user_data['role'], user_data.get('grade', '10th'), user_data.get('section', 'A'), "Password")
+                log_login_event(username, user_data['role'], user_data.get('grade', '10th'), user_data.get('section', 'A'), f"Password ({selected_role})")
 
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
@@ -1399,8 +1592,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
-                self.send_html(err_html, 401)
+                self.send_html(render_login_page('<div class="error">Invalid username or password</div>'), 401)
             return
 
         session = self.get_session()
@@ -1427,7 +1619,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 return
             content_length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(content_length).decode('utf-8'))
-            
+
             role = body.get('role', 'student')
             prefix = body.get('prefix', 'digitalboard')
             grade = body.get('grade', '10th')
@@ -1505,6 +1697,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         self.send_error(404)
+
 
 if __name__ == '__main__':
     ensure_file_manager_structure()
