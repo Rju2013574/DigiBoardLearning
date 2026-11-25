@@ -172,8 +172,8 @@ ADMIN_KEYS = {
         "name": "System Administrator",
         "photo_url": ""
     },
-    "admin-secret-key-12345": {
-        "email": "leadadmin@Digiboardleaning.com",
+    "9080-3456-7890-3456-7280-4562-8729-neelu-20-12-2014-4568-6573": {
+        "email": "neelsairc@gmail.cm",
         "name": "Lead Admin",
         "photo_url": ""
     }
