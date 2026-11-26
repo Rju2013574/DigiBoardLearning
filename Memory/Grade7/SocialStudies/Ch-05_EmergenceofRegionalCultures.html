@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Grade 7 History: Emergence of Regional Cultures</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --surface-card: #1e293b;
+      --surface-back: #172554;
+      --border-back: #2563eb;
+      --accent-primary: #38bdf8;
+      --accent-success: #4ade80;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      height: 100dvh;
+      width: 100vw;
+      overflow: hidden;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1120px;
+      height: 100dvh;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(0.5rem, 2vh, 1.25rem) clamp(0.75rem, 2vw, 1.5rem);
+      gap: clamp(0.4rem, 1.2vh, 0.85rem);
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .brand h1 {
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      font-weight: 800;
+      color: var(--accent-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .brand p {
+      font-size: clamp(0.75rem, 1.2vw, 0.875rem);
+      color: var(--text-muted);
+    }
+
+    /* COMPACT SINGLE-ROW TOOLBAR */
+    .toolbar-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: nowrap;
+    }
+
+    select, button {
+      background: var(--surface-card);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      font-size: clamp(0.75rem, 1.1vw, 0.85rem);
+      padding: 0 0.5rem;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
+
+    select {
+      height: 32px;
+      max-width: 155px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    button {
+      height: 32px;
+      padding: 0 0.65rem;
+      font-weight: 600;
+    }
+
+    button:hover, select:hover {
+      border-color: var(--accent-primary);
+      background: #26334d;
+    }
+
+    button:active {
+      transform: scale(0.96);
+    }
+
+    /* SLIM PROGRESS BAR & STATS */
+    .progress-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      flex-shrink: 0;
+    }
+
+    .stats-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: clamp(0.75rem, 1.2vw, 0.85rem);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-success));
+      transition: width 0.3s ease;
+    }
+
+    /* AUTO-EXPANDING FLASHCARD SCENE */
+    .flashcard-scene {
+      flex: 1;
+      min-height: 0;
+      perspective: 1200px;
+      position: relative;
+      width: 100%;
+    }
+
+    .card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      border-radius: 14px;
+    }
+
+    .card.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 14px;
+      padding: clamp(1rem, 3vh, 2rem) clamp(1rem, 3vw, 2.5rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
+    }
+
+    .card-front {
+      background-color: var(--surface-card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .card-back {
+      background-color: var(--surface-back);
+      border: 2px solid var(--border-back);
+      transform: rotateY(180deg);
+    }
+
+    .card-tag {
+      align-self: flex-start;
+      font-size: clamp(0.7rem, 1vw, 0.8rem);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      color: var(--accent-primary);
+      background: rgba(56, 189, 248, 0.12);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .card-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0.65rem 0;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .question-text {
+      font-size: clamp(1.2rem, 2.4vw, 1.75rem);
+      font-weight: 700;
+      text-align: center;
+      color: var(--text-main);
+      line-height: 1.35;
+    }
+
+    .answer-inner {
+      width: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      text-align: left;
+      font-size: clamp(0.95rem, 1.5vw, 1.2rem);
+      line-height: 1.65;
+      color: #f8fafc;
+      padding-right: 0.4rem;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .answer-inner ul, .answer-inner ol {
+      margin-left: 1.25rem;
+      margin-top: 0.45rem;
+    }
+
+    .answer-inner li {
+      margin-bottom: 0.35rem;
+    }
+
+    .answer-inner code {
+      background: rgba(0, 0, 0, 0.35);
+      padding: 0.12rem 0.35rem;
+      border-radius: 4px;
+      font-family: monospace;
+      color: var(--accent-primary);
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    .flip-hint {
+      font-size: clamp(0.7rem, 1vw, 0.8rem);
+      color: var(--text-muted);
+    }
+
+    .btn-mastery {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: var(--text-main);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: clamp(0.75rem, 1vw, 0.85rem);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-mastery.mastered {
+      background: var(--accent-success);
+      color: #0f172a;
+      border-color: var(--accent-success);
+    }
+
+    /* NAVIGATION BUTTONS */
+    .nav-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      flex: 1;
+      height: 40px;
+      font-size: clamp(0.85rem, 1.2vw, 1rem);
+      font-weight: 700;
+      background: var(--surface-card);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .shortcuts-legend {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .shortcuts-legend kbd {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    /* SWIPE BADGES & ANIMATIONS */
+    .swipe-badge {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 0.5rem 1rem;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid var(--accent-primary);
+      color: var(--accent-primary);
+      border-radius: 8px;
+      font-weight: bold;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 10;
+    }
+
+    .swipe-badge.left { left: 1rem; }
+    .swipe-badge.right { right: 1rem; }
+
+    @keyframes slideLeft {
+      0% { transform: translateX(0); opacity: 1; }
+      50% { transform: translateX(-36px); opacity: 0.35; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideRight {
+      0% { transform: translateX(0); opacity: 1; }
+      50% { transform: translateX(36px); opacity: 0.35; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+
+    .slide-left { animation: slideLeft 0.32s ease; }
+    .slide-right { animation: slideRight 0.32s ease; }
+
+    /* MOBILE VIEWPORT OPTIMIZATIONS */
+    @media (max-width: 640px) {
+      .brand p { display: none; }
+      .btn-label { display: none; }
+      .shortcuts-legend { display: none; }
+      select {
+        height: 28px;
+        max-width: 115px;
+        text-overflow: ellipsis;
+      }
+      button {
+        height: 28px;
+        padding: 0 0.45rem;
+      }
+      .nav-btn {
+        height: 36px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <h1>Emergence of Regional Cultures</h1>
+        <p>Grade 7 History &bull; Interactive Study Deck</p>
+      </div>
+    </header>
+
+    <!-- Single-Row Toolbar -->
+    <div class="toolbar-row">
+      <div class="controls-group">
+        <select id="topicFilter" aria-label="Filter by Topic">
+          <option value="ALL">All Topics</option>
+          <option value="Languages">Languages</option>
+          <option value="Religion & Society">Religion & Society</option>
+          <option value="Dance Forms">Dance Forms</option>
+          <option value="Paintings">Paintings</option>
+          <option value="Bengal Case Study">Bengal Case Study</option>
+        </select>
+        <select id="masteryFilter" aria-label="Filter by Mastery">
+          <option value="ALL">All Cards</option>
+          <option value="UNMASTERED">Still Learning</option>
+          <option value="MASTERED">Mastered</option>
+        </select>
+      </div>
+      <div class="controls-group">
+        <button id="btnShuffle" title="Shuffle Deck (S)">
+          <span class="btn-icon">🔀</span><span class="btn-label">Shuffle</span>
+        </button>
+        <button id="btnReset" title="Reset Mastery Progress">
+          <span class="btn-icon">🔄</span><span class="btn-label">Reset</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Slim Progress Bar -->
+    <div class="progress-section">
+      <div class="stats-header">
+        <span id="cardCounter">Card 1 of 20</span>
+        <span id="masteryStats">0% Mastered (0/20)</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+    </div>
+
+    <!-- Auto-Expanding Flashcard Scene -->
+    <div class="flashcard-scene" id="scene">
+      <div class="swipe-badge left" id="badgePrev">&larr; Previous</div>
+      <div class="swipe-badge right" id="badgeNext">Next &rarr;</div>
+
+      <div class="card" id="card">
+        <!-- Front Face -->
+        <div class="card-face card-front">
+          <span class="card-tag" id="cardTag">Topic</span>
+          <div class="card-body">
+            <h2 class="question-text" id="questionText">Question</h2>
+          </div>
+          <div class="card-footer">
+            <span class="flip-hint">Tap card or press Space to flip</span>
+            <button class="btn-mastery" id="btnMasteryFront">Mark Mastered</button>
+          </div>
+        </div>
+
+        <!-- Back Face -->
+        <div class="card-face card-back">
+          <span class="card-tag" id="cardTagBack">Topic</span>
+          <div class="card-body">
+            <div class="answer-inner" id="answerText">Answer</div>
+          </div>
+          <div class="card-footer">
+            <span class="flip-hint">Tap card to flip back</span>
+            <button class="btn-mastery" id="btnMasteryBack">Mark Mastered</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Row -->
+    <div class="nav-row">
+      <button class="nav-btn" id="btnPrev">&larr; Previous</button>
+      <button class="nav-btn" id="btnNext">Next &rarr;</button>
+    </div>
+
+    <!-- Desktop Shortcuts Legend -->
+    <div class="shortcuts-legend">
+      Keyboard Shortcuts: <kbd>Space</kbd> / <kbd>Enter</kbd> Flip &bull; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> Navigate &bull; <kbd>M</kbd> Toggle Mastery &bull; <kbd>S</kbd> Shuffle
+    </div>
+  </div>
+
+  <script>
+    const flashcards = [
+      {
+        id: "reg_1",
+        topic: "Languages",
+        question: "How did the language Urdu develop during the medieval period?",
+        answer: "Urdu developed in the <b>military camps</b> during the medieval period as a linguistic mixture of <b>Arabic and Persian</b>."
+      },
+      {
+        id: "reg_2",
+        topic: "Languages",
+        question: "Which dynasty patronized the growth of the Malayalam language in Kerala?",
+        answer: "Malayalam developed under the <b>Chera dynasty of Mahodayapuram</b> in Kerala. The rulers used Malayalam for official records while drawing literary inspiration from Sanskrit epics."
+      },
+      {
+        id: "reg_3",
+        topic: "Languages",
+        question: "Who wrote the famous epic Ramacharitmanas and Sur Sagar in Hindi?",
+        answer: "<ul><li><b>Ramacharitmanas:</b> Written by Goswami Tulsidas.</li><li><b>Sur Sagar:</b> Composed by Surdas.</li></ul>Both wrote in medieval Hindi (specifically Brij Bhasha)."
+      },
+      {
+        id: "reg_4",
+        topic: "Languages",
+        question: "Which Bhakti saints enriched the Marathi language?",
+        answer: "Marathi was patronized by the Bahmani rulers and enriched by Bhakti saints such as:<ul><li><b>Jnaneshwar</b></li><li><b>Tukaram</b></li><li><b>Namdeva</b></li><li><b>Eknath</b></li></ul>"
+      },
+      {
+        id: "reg_5",
+        topic: "Languages",
+        question: "What is a 'kissa' in Punjabi literature, and what is the most famous example?",
+        answer: "A <b>kissa</b> refers to the romantic poetic writings of Muslim writers in Punjabi.<br><br>The most famous kissa is <b><i>Heer Ranjha</i></b>, written by <b>Waris Shah</b>."
+      },
+      {
+        id: "reg_6",
+        topic: "Languages",
+        question: "Which Vijayanagara ruler contributed greatly to Telugu literature, and what did he write?",
+        answer: "The powerful Vijayanagara emperor **Krishnadevaraya** contributed greatly to Telugu. He wrote ***Amuktamalyada***, which described the duties of kings. His court poet was Tenali Rama."
+      },
+      {
+        id: "reg_7",
+        topic: "Religion & Society",
+        question: "What is the Jagannatha Cult, and who built the famous temple at Puri?",
+        answer: "The Jagannatha Cult centres around the worship of <b>Lord Jagannatha</b> (an avatar of Lord Vishnu) at Puri, Odisha.<br><br>The famous temple was built in the 12th century by **Anantavarman**, a ruler of the Ganga dynasty."
+      },
+      {
+        id: "reg_8",
+        topic: "Religion & Society",
+        question: "What was the traditional culture of the Rajputs in Rajputana?",
+        answer: "The culture of the Rajputs in Rajasthan was built on **heroism, valour, and supreme sacrifice** in battle, which bards recited in folk songs and ballads."
+      },
+      {
+        id: "reg_9",
+        topic: "Religion & Society",
+        question: "What was the historical practice known as 'Jauhar'?",
+        answer: "<b>Jauhar</b> was the historical practice where Rajput women committed mass self-immolation on funeral pyres to protect their honour and avoid capture by enemies upon the defeat of their men."
+      },
+      {
+        id: "reg_10",
+        topic: "Dance Forms",
+        question: "Where did Bharatanatyam originate, and who originally performed it?",
+        answer: "Bharatanatyam originated in <b>Tamil Nadu</b> as a temple dance.<br><br>It was performed by **Devadasis** (girls who devoted their lives to temple service) and was heavily patronized by the Chola Empire."
+      },
+      {
+        id: "reg_11",
+        topic: "Dance Forms",
+        question: "What are the key features of Kathakali and Odissi dance forms?",
+        answer: "<ul><li><b>Kathakali (Kerala):</b> A dance-drama featuring elaborate makeup, colourful costumes, and stories from the Ramayana and Mahabharata.</li><li><b>Odissi (Odisha):</b> A soft, graceful dance based on devotion to Lord Krishna and Radha-Krishna legends.</li></ul>"
+      },
+      {
+        id: "reg_12",
+        topic: "Dance Forms",
+        question: "What are the two major Gharanas (traditions) of Kathak dance?",
+        answer: "Kathak (the storytelling dance of North India) developed two major Gharanas:<ul><li><b>Jaipur Gharana</b> (in the courts of Rajasthan)</li><li><b>Lucknow Gharana</b> (featuring intricate footwork and elaborate costumes)</li></ul>"
+      },
+      {
+        id: "reg_13",
+        topic: "Paintings",
+        question: "Which Mughal emperor greatly encouraged miniature paintings?",
+        answer: "**Emperor Jahangir** strongly encouraged miniature paintings (small, highly detailed works depicting court scenes, hunts, and battles)."
+      },
+      {
+        id: "reg_14",
+        topic: "Paintings",
+        question: "Which two miniature painting schools developed after the decline of the Mughal Empire?",
+        answer: "When artists moved to the Himalayan foothills and Rajput courts, they developed:<ul><li><b>Rajputana School</b> (Rajasthan)</li><li><b>Kangra School</b> (Himachal Pradesh)</li></ul>"
+      },
+      {
+        id: "reg_15",
+        topic: "Bengal Case Study",
+        question: "How did Bangla (Bengali) develop as a language?",
+        answer: "Bangla is derived from Sanskrit and was enriched by absorbing words from Persian, tribal languages, and European languages, alongside Bhakti songs of the masses."
+      },
+      {
+        id: "reg_16",
+        topic: "Bengal Case Study",
+        question: "What is 'Jatra' in Bengali culture?",
+        answer: "<b>Jatra</b> is a traditional <b>folk drama</b> of Bengal based on social and historical themes that are regularly performed and appreciated."
+      },
+      {
+        id: "reg_17",
+        topic: "Bengal Case Study",
+        question: "How did temple-building evolve in medieval Bengal?",
+        answer: "Local deities previously worshipped in thatched village huts began to be housed in magnificent <b>brick and terracotta temples</b> built with contributions from ordinary craftsmen and artisans."
+      },
+      {
+        id: "reg_18",
+        topic: "Bengal Case Study",
+        question: "Why did fish become the staple diet of the people of Bengal?",
+        answer: "Due to the abundance of rivers in Bengal, **fish** became readily available and emerged as the essential staple food for everyone—even leading traditional vegetarian Bengali Brahmins to make an exception and eat fish."
+      },
+      {
+        id: "reg_19",
+        topic: "Languages",
+        question: "Who composed Geet Govind, describing the divine couple Radha and Krishna?",
+        answer: "The poet **Jayadeva** composed the famous poetic work ***Geet Govind***."
+      },
+      {
+        id: "reg_20",
+        topic: "Dance Forms",
+        question: "Which dance form arose in Andhra Pradesh combining music, dance, and acting from epics?",
+        answer: "<b>Kuchipudi</b> arose as a dance form in Andhra Pradesh, combining music, dance, and acting to depict scenes from Hindu epics and mythology."
+      }
+    ];
+
+    // State Management
+    let currentCards = [...flashcards];
+    let currentIndex = 0;
+    let isFlipped = false;
+    const STORAGE_KEY = 'history_g7_regional_cultures_mastered_v1';
+    let masteredIds = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+
+    // DOM Elements
+    const scene = document.getElementById('scene');
+    const card = document.getElementById('card');
+    const questionText = document.getElementById('questionText');
+    const answerText = document.getElementById('answerText');
+    const cardTag = document.getElementById('cardTag');
+    const cardTagBack = document.getElementById('cardTagBack');
+    const cardCounter = document.getElementById('cardCounter');
+    const masteryStats = document.getElementById('masteryStats');
+    const progressBar = document.getElementById('progressBar');
+    const topicFilter = document.getElementById('topicFilter');
+    const masteryFilter = document.getElementById('masteryFilter');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnShuffle = document.getElementById('btnShuffle');
+    const btnReset = document.getElementById('btnReset');
+    const btnMasteryFront = document.getElementById('btnMasteryFront');
+    const btnMasteryBack = document.getElementById('btnMasteryBack');
+    const badgePrev = document.getElementById('badgePrev');
+    const badgeNext = document.getElementById('badgeNext');
+
+    function saveMastery() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...masteredIds]));
+      updateStats();
+    }
+
+    function applyFilters() {
+      const topic = topicFilter.value;
+      const mastery = masteryFilter.value;
+
+      currentCards = flashcards.filter(c => {
+        const matchTopic = (topic === 'ALL' || c.topic === topic);
+        const isM = masteredIds.has(c.id);
+        const matchMastery = (mastery === 'ALL') ||
+                             (mastery === 'MASTERED' && isM) ||
+                             (mastery === 'UNMASTERED' && !isM);
+        return matchTopic && matchMastery;
+      });
+
+      currentIndex = 0;
+      isFlipped = false;
+      card.classList.remove('is-flipped');
+      renderCard();
+      updateStats();
+    }
+
+    function renderCard() {
+      if (currentCards.length === 0) {
+        questionText.textContent = "No flashcards match the current filter.";
+        answerText.innerHTML = "Try switching the Topic or Mastery filter back to <b>All</b>.";
+        cardTag.textContent = "No Results";
+        cardTagBack.textContent = "No Results";
+        cardCounter.textContent = "Card 0 of 0";
+        btnMasteryFront.style.display = 'none';
+        btnMasteryBack.style.display = 'none';
+        return;
+      }
+
+      btnMasteryFront.style.display = 'inline-block';
+      btnMasteryBack.style.display = 'inline-block';
+
+      const item = currentCards[currentIndex];
+      questionText.textContent = item.question;
+      answerText.innerHTML = item.answer;
+      answerText.scrollTop = 0;
+      cardTag.textContent = item.topic;
+      cardTagBack.textContent = item.topic;
+      cardCounter.textContent = `Card ${currentIndex + 1} of ${currentCards.length}`;
+
+      const isM = masteredIds.has(item.id);
+      [btnMasteryFront, btnMasteryBack].forEach(btn => {
+        if (isM) {
+          btn.classList.add('mastered');
+          btn.textContent = '✓ Mastered';
+        } else {
+          btn.classList.remove('mastered');
+          btn.textContent = 'Mark Mastered';
+        }
+      });
+    }
+
+    function updateStats() {
+      const total = flashcards.length;
+      const mCount = masteredIds.size;
+      const pct = Math.round((mCount / total) * 100);
+      masteryStats.textContent = `${pct}% Mastered (${mCount}/${total})`;
+      progressBar.style.width = `${pct}%`;
+    }
+
+    function toggleFlip() {
+      if (currentCards.length === 0) return;
+      isFlipped = !isFlipped;
+      card.classList.toggle('is-flipped', isFlipped);
+    }
+
+    function prevCard() {
+      if (currentCards.length <= 1) return;
+      card.classList.remove('is-flipped');
+      isFlipped = false;
+      scene.classList.remove('slide-left', 'slide-right');
+      void scene.offsetWidth;
+      scene.classList.add('slide-right');
+      currentIndex = (currentIndex - 1 + currentCards.length) % currentCards.length;
+      renderCard();
+    }
+
+    function nextCard() {
+      if (currentCards.length <= 1) return;
+      card.classList.remove('is-flipped');
+      isFlipped = false;
+      scene.classList.remove('slide-left', 'slide-right');
+      void scene.offsetWidth;
+      scene.classList.add('slide-left');
+      currentIndex = (currentIndex + 1) % currentCards.length;
+      renderCard();
+    }
+
+    function toggleMastery(e) {
+      if (e) e.stopPropagation();
+      if (currentCards.length === 0) return;
+      const item = currentCards[currentIndex];
+      if (masteredIds.has(item.id)) {
+        masteredIds.delete(item.id);
+      } else {
+        masteredIds.add(item.id);
+      }
+      saveMastery();
+      if (masteryFilter.value !== 'ALL') {
+        applyFilters();
+      } else {
+        renderCard();
+      }
+    }
+
+    // Event Listeners
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-mastery') || didDrag) return;
+      toggleFlip();
+    });
+
+    btnPrev.addEventListener('click', prevCard);
+    btnNext.addEventListener('click', nextCard);
+
+    [btnMasteryFront, btnMasteryBack].forEach(btn => {
+      btn.addEventListener('click', toggleMastery);
+    });
+
+    topicFilter.addEventListener('change', applyFilters);
+    masteryFilter.addEventListener('change', applyFilters);
+
+    btnShuffle.addEventListener('click', () => {
+      for (let i = currentCards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [currentCards[i], currentCards[j]] = [currentCards[j], currentCards[i]];
+      }
+      currentIndex = 0;
+      isFlipped = false;
+      card.classList.remove('is-flipped');
+      renderCard();
+    });
+
+    btnReset.addEventListener('click', () => {
+      masteredIds.clear();
+      saveMastery();
+      applyFilters();
+    });
+
+    // Touch & Mouse Drag Navigation
+    let startX = 0;
+    let dragDistance = 0;
+    let isPointerDown = false;
+    let didDrag = false;
+
+    function handlePointerStart(x) {
+      startX = x;
+      dragDistance = 0;
+      isPointerDown = true;
+      didDrag = false;
+    }
+
+    function handlePointerMove(x) {
+      if (!isPointerDown) return;
+      dragDistance = x - startX;
+      if (Math.abs(dragDistance) > 12) {
+        didDrag = true;
+      }
+      if (dragDistance > 40) {
+        badgePrev.style.opacity = Math.min((dragDistance - 40) / 60, 1);
+        badgeNext.style.opacity = 0;
+      } else if (dragDistance < -40) {
+        badgeNext.style.opacity = Math.min((-dragDistance - 40) / 60, 1);
+        badgePrev.style.opacity = 0;
+      } else {
+        badgePrev.style.opacity = 0;
+        badgeNext.style.opacity = 0;
+      }
+    }
+
+    function handlePointerEnd() {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+      badgePrev.style.opacity = 0;
+      badgeNext.style.opacity = 0;
+
+      if (dragDistance > 65) {
+        prevCard();
+      } else if (dragDistance < -65) {
+        nextCard();
+      }
+      setTimeout(() => { didDrag = false; }, 50);
+    }
+
+    // Touch events
+    scene.addEventListener('touchstart', (e) => handlePointerStart(e.touches[0].clientX), { passive: true });
+    scene.addEventListener('touchmove', (e) => handlePointerMove(e.touches[0].clientX), { passive: true });
+    scene.addEventListener('touchend', handlePointerEnd);
+
+    // Mouse drag events
+    scene.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.btn-mastery')) return;
+      handlePointerStart(e.clientX);
+    });
+    window.addEventListener('mousemove', (e) => handlePointerMove(e.clientX));
+    window.addEventListener('mouseup', handlePointerEnd);
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        toggleFlip();
+      } else if (e.code === 'ArrowLeft') {
+        prevCard();
+      } else if (e.code === 'ArrowRight') {
+        nextCard();
+      } else if (e.code === 'KeyM') {
+        toggleMastery();
+      } else if (e.code === 'KeyS') {
+        btnShuffle.click();
+      }
+    });
+
+    // Initialize
+    renderCard();
+    updateStats();
+  </script>
+</body>
+</html>
