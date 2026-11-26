@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Grade 7 Civics: Role of the Government in Health</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --surface-card: #1e293b;
+      --surface-back: #172554;
+      --border-back: #2563eb;
+      --accent-primary: #38bdf8;
+      --accent-success: #4ade80;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      height: 100dvh;
+      width: 100vw;
+      overflow: hidden;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1120px;
+      height: 100dvh;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(0.5rem, 2vh, 1.25rem) clamp(0.75rem, 2vw, 1.5rem);
+      gap: clamp(0.4rem, 1.2vh, 0.85rem);
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .brand h1 {
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      font-weight: 800;
+      color: var(--accent-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .brand p {
+      font-size: clamp(0.75rem, 1.2vw, 0.875rem);
+      color: var(--text-muted);
+    }
+
+    /* COMPACT SINGLE-ROW TOOLBAR */
+    .toolbar-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+    }
+
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: nowrap;
+    }
+
+    select, button {
+      background: var(--surface-card);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      font-size: clamp(0.75rem, 1.1vw, 0.85rem);
+      padding: 0 0.5rem;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
+
+    select {
+      height: 32px;
+      max-width: 155px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    button {
+      height: 32px;
+      padding: 0 0.65rem;
+      font-weight: 600;
+    }
+
+    button:hover, select:hover {
+      border-color: var(--accent-primary);
+      background: #26334d;
+    }
+
+    button:active {
+      transform: scale(0.96);
+    }
+
+    /* SLIM PROGRESS BAR & STATS */
+    .progress-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      flex-shrink: 0;
+    }
+
+    .stats-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: clamp(0.75rem, 1.2vw, 0.85rem);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-success));
+      transition: width 0.3s ease;
+    }
+
+    /* AUTO-EXPANDING FLASHCARD SCENE */
+    .flashcard-scene {
+      flex: 1;
+      min-height: 0;
+      perspective: 1200px;
+      position: relative;
+      width: 100%;
+    }
+
+    .card {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      border-radius: 14px;
+    }
+
+    .card.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 14px;
+      padding: clamp(1rem, 3vh, 2rem) clamp(1rem, 3vw, 2.5rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
+    }
+
+    .card-front {
+      background-color: var(--surface-card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .card-back {
+      background-color: var(--surface-back);
+      border: 2px solid var(--border-back);
+      transform: rotateY(180deg);
+    }
+
+    .card-tag {
+      align-self: flex-start;
+      font-size: clamp(0.7rem, 1vw, 0.8rem);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      color: var(--accent-primary);
+      background: rgba(56, 189, 248, 0.12);
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .card-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0.65rem 0;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .question-text {
+      font-size: clamp(1.2rem, 2.4vw, 1.75rem);
+      font-weight: 700;
+      text-align: center;
+      color: var(--text-main);
+      line-height: 1.35;
+    }
+
+    .answer-inner {
+      width: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      text-align: left;
+      font-size: clamp(0.95rem, 1.5vw, 1.2rem);
+      line-height: 1.65;
+      color: #f8fafc;
+      padding-right: 0.4rem;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .answer-inner ul, .answer-inner ol {
+      margin-left: 1.25rem;
+      margin-top: 0.45rem;
+    }
+
+    .answer-inner li {
+      margin-bottom: 0.35rem;
+    }
+
+    .answer-inner code {
+      background: rgba(0, 0, 0, 0.35);
+      padding: 0.12rem 0.35rem;
+      border-radius: 4px;
+      font-family: monospace;
+      color: var(--accent-primary);
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    .flip-hint {
+      font-size: clamp(0.7rem, 1vw, 0.8rem);
+      color: var(--text-muted);
+    }
+
+    .btn-mastery {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: var(--text-main);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: clamp(0.75rem, 1vw, 0.85rem);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-mastery.mastered {
+      background: var(--accent-success);
+      color: #0f172a;
+      border-color: var(--accent-success);
+    }
+
+    /* NAVIGATION BUTTONS */
+    .nav-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      flex: 1;
+      height: 40px;
+      font-size: clamp(0.85rem, 1.2vw, 1rem);
+      font-weight: 700;
+      background: var(--surface-card);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .shortcuts-legend {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .shortcuts-legend kbd {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    /* SWIPE BADGES & ANIMATIONS */
+    .swipe-badge {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 0.5rem 1rem;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid var(--accent-primary);
+      color: var(--accent-primary);
+      border-radius: 8px;
+      font-weight: bold;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 10;
+    }
+
+    .swipe-badge.left { left: 1rem; }
+    .swipe-badge.right { right: 1rem; }
+
+    @keyframes slideLeft {
+      0% { transform: translateX(0); opacity: 1; }
+      50% { transform: translateX(-36px); opacity: 0.35; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideRight {
+      0% { transform: translateX(0); opacity: 1; }
+      50% { transform: translateX(36px); opacity: 0.35; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+
+    .slide-left { animation: slideLeft 0.32s ease; }
+    .slide-right { animation: slideRight 0.32s ease; }
+
+    /* MOBILE VIEWPORT OPTIMIZATIONS */
+    @media (max-width: 640px) {
+      .brand p { display: none; }
+      .btn-label { display: none; }
+      .shortcuts-legend { display: none; }
+      select {
+        height: 28px;
+        max-width: 115px;
+        text-overflow: ellipsis;
+      }
+      button {
+        height: 28px;
+        padding: 0 0.45rem;
+      }
+      .nav-btn {
+        height: 36px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <h1>Role of the Government in Health</h1>
+        <p>Grade 7 Social Studies &bull; Interactive Study Deck</p>
+      </div>
+    </header>
+
+    <!-- Single-Row Toolbar -->
+    <div class="toolbar-row">
+      <div class="controls-group">
+        <select id="topicFilter" aria-label="Filter by Topic">
+          <option value="ALL">All Topics</option>
+          <option value="Concepts of Health">Concepts of Health</option>
+          <option value="Indian Healthcare">Indian Healthcare</option>
+          <option value="Public vs Private">Public vs Private</option>
+          <option value="Equality & Reforms">Equality & Reforms</option>
+          <option value="COVID-19 Case Study">COVID-19 Case Study</option>
+        </select>
+        <select id="masteryFilter" aria-label="Filter by Mastery">
+          <option value="ALL">All Cards</option>
+          <option value="UNMASTERED">Still Learning</option>
+          <option value="MASTERED">Mastered</option>
+        </select>
+      </div>
+      <div class="controls-group">
+        <button id="btnShuffle" title="Shuffle Deck (S)">
+          <span class="btn-icon">🔀</span><span class="btn-label">Shuffle</span>
+        </button>
+        <button id="btnReset" title="Reset Mastery Progress">
+          <span class="btn-icon">🔄</span><span class="btn-label">Reset</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Slim Progress Bar -->
+    <div class="progress-section">
+      <div class="stats-header">
+        <span id="cardCounter">Card 1 of 22</span>
+        <span id="masteryStats">0% Mastered (0/22)</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progressBar"></div>
+      </div>
+    </div>
+
+    <!-- Auto-Expanding Flashcard Scene -->
+    <div class="flashcard-scene" id="scene">
+      <div class="swipe-badge left" id="badgePrev">&larr; Previous</div>
+      <div class="swipe-badge right" id="badgeNext">Next &rarr;</div>
+
+      <div class="card" id="card">
+        <!-- Front Face -->
+        <div class="card-face card-front">
+          <span class="card-tag" id="cardTag">Topic</span>
+          <div class="card-body">
+            <h2 class="question-text" id="questionText">Question</h2>
+          </div>
+          <div class="card-footer">
+            <span class="flip-hint">Tap card or press Space to flip</span>
+            <button class="btn-mastery" id="btnMasteryFront">Mark Mastered</button>
+          </div>
+        </div>
+
+        <!-- Back Face -->
+        <div class="card-face card-back">
+          <span class="card-tag" id="cardTagBack">Topic</span>
+          <div class="card-body">
+            <div class="answer-inner" id="answerText">Answer</div>
+          </div>
+          <div class="card-footer">
+            <span class="flip-hint">Tap card to flip back</span>
+            <button class="btn-mastery" id="btnMasteryBack">Mark Mastered</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Row -->
+    <div class="nav-row">
+      <button class="nav-btn" id="btnPrev">&larr; Previous</button>
+      <button class="nav-btn" id="btnNext">Next &rarr;</button>
+    </div>
+
+    <!-- Desktop Shortcuts Legend -->
+    <div class="shortcuts-legend">
+      Keyboard Shortcuts: <kbd>Space</kbd> / <kbd>Enter</kbd> Flip &bull; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> Navigate &bull; <kbd>M</kbd> Toggle Mastery &bull; <kbd>S</kbd> Shuffle
+    </div>
+  </div>
+
+  <script>
+    const flashcards = [
+      {
+        id: "health_1",
+        topic: "Concepts of Health",
+        question: "How did the World Health Organisation (WHO) define 'Health' in 1948?",
+        answer: "WHO defined health as <b>'a state of complete physical, mental, and social well-being and not merely the absence of disease or infirmity.'</b><br><br>In modern terms, it also includes the ability to lead a <b>socially and economically productive life</b> without undue fatigue."
+      },
+      {
+        id: "health_2",
+        topic: "Concepts of Health",
+        question: "What are the three main aspects of health?",
+        answer: "<ol><li><b>Physical Health:</b> A well-built, sound body achieved through regular exercise, balanced nutrition, and proper rest.</li><li><b>Mental Health:</b> Emotional and psychological well-being, enabling clear thinking, stress management, and sound decision-making.</li><li><b>Social Health:</b> The ability to live peacefully in society and maintain positive relationships.</li></ol>"
+      },
+      {
+        id: "health_3",
+        topic: "Concepts of Health",
+        question: "What are the four general determinants of health?",
+        answer: "Health is determined by four major factors:<ul><li><b>Human Biology:</b> Genetics and physical make-up.</li><li><b>Lifestyle:</b> Diet, physical activity, hygiene, and daily habits.</li><li><b>Environment:</b> Clean drinking water, sanitation, and pollution-free air.</li><li><b>Healthcare Services:</b> Access to hospitals, doctors, and medicines.</li></ul>"
+      },
+      {
+        id: "health_4",
+        topic: "Concepts of Health",
+        question: "What did the Ottawa Charter for Health Promotion (1986) state about health?",
+        answer: "The Ottawa Charter stated that health is <b>'a resource for everyday life, not the objective of living.'</b> It emphasizes social and personal resources alongside physical capacities."
+      },
+      {
+        id: "health_5",
+        topic: "Concepts of Health",
+        question: "Differentiate between Preventive, Curative, and Promotive aspects of healthcare.",
+        answer: "<ul><li><b>Preventive:</b> Stopping diseases before they start (e.g., vaccinations, clean surroundings, mosquito control).</li><li><b>Curative:</b> Treating existing illnesses through doctors, medicines, and hospitals.</li><li><b>Promotive:</b> Encouraging healthy habits like balanced diets, yoga, exercise, and mental wellness.</li></ul>"
+      },
+      {
+        id: "health_6",
+        topic: "Indian Healthcare",
+        question: "Which Article of the Indian Constitution safeguards the 'Right to Life'?",
+        answer: "<b>Article 21</b> of the Indian Constitution guarantees the <b>Right to Life</b>.<br><br>Therefore, it is the primary constitutional duty of the government to safeguard citizens' lives by providing adequate healthcare, nutrition, and clean living conditions."
+      },
+      {
+        id: "health_7",
+        topic: "Indian Healthcare",
+        question: "When was India's National Health Policy (NHP) endorsed, and what is its aim?",
+        answer: "The National Health Policy was endorsed by the Parliament of India in <b>1983</b>.<br><br>Its main aim is to improve general public health by establishing healthcare centres, providing dietary guidance, and making medical care accessible and affordable."
+      },
+      {
+        id: "health_8",
+        topic: "Indian Healthcare",
+        question: "How has India's healthcare infrastructure grown between 1991 and 2021?",
+        answer: "<ul><li><b>Hospitals:</b> Increased from <code>11,174</code> in 1991 to <code>69,000</code> in 2021.</li><li><b>Doctors & Nurses (2021):</b> Approximately <b>12.5 million doctors</b> and <b>3 million nurses</b>.</li><li><b>Annual Training:</b> Over <b>15,000</b> new graduate and post-graduate doctors are trained every year.</li></ul>"
+      },
+      {
+        id: "health_9",
+        topic: "Indian Healthcare",
+        question: "Why do many medical tourists visit India every year?",
+        answer: "Medical tourists from around the world visit India because India offers <b>world-class hospitals and advanced medical treatments at much lower costs</b> than many developed countries. Medical tourism in India has been growing at around <b>25% per annum</b>."
+      },
+      {
+        id: "health_10",
+        topic: "Indian Healthcare",
+        question: "Why has India not been able to ensure good health for all despite having many hospitals?",
+        answer: "<ul><li><b>Rapid population growth</b> reduces per-capita access to facilities.</li><li><b>Poverty and malnutrition</b> lead to weak immunity against infections.</li><li><b>Urban pollution</b> causes respiratory and lifestyle diseases.</li><li><b>Uneven distribution:</b> Most doctors and modern hospitals are located in cities, leaving rural areas underserved.</li></ul>"
+      },
+      {
+        id: "health_11",
+        topic: "Public vs Private",
+        question: "What are Public Health Services, and how are they funded?",
+        answer: "Public Health Services are a chain of hospitals and health centres owned and run by the <b>Government</b> across rural and urban areas.<br><br>They are funded by the <b>taxes</b> paid by citizens, allowing them to offer treatment free of cost or at very low subsidised rates."
+      },
+      {
+        id: "health_12",
+        topic: "Public vs Private",
+        question: "What is a Primary Health Centre (PHC)?",
+        answer: "A <b>Primary Health Centre (PHC)</b> is a government-run basic medical facility located in rural areas.<br><br>Staffed by trained nurses and village health workers, a PHC covers several villages in a rural block and works under the supervision of a <b>District Hospital</b>."
+      },
+      {
+        id: "health_13",
+        topic: "Public vs Private",
+        question: "List three major functions of the Public Health System.",
+        answer: "<ol><li><b>Affordable Treatment:</b> Providing free or low-cost healthcare to all citizens, especially the poor.</li><li><b>Disease Prevention:</b> Running vaccination drives and campaigns to prevent Tuberculosis (TB), polio, malaria, dengue, and diarrhoea.</li><li><b>Sanitation & Awareness:</b> Ensuring clean water, sanitation, and maternal/child healthcare programs.</li></ol>"
+      },
+      {
+        id: "health_14",
+        topic: "Public vs Private",
+        question: "What are Private Health Services, and why are they unaffordable for the poor?",
+        answer: "Private Health Services are clinics, nursing homes, diagnostic labs (MRI, X-Ray, Ultrasound), and hospitals owned by <b>private individuals or companies</b>.<br><br>Because they operate to <b>make a profit</b>, their consultation fees, tests, and medicines are very expensive and out of reach for poor families."
+      },
+      {
+        id: "health_15",
+        topic: "Public vs Private",
+        question: "Who are 'quacks', and why do poor rural patients often end up visiting them?",
+        answer: "<b>Quacks</b> are unqualified people who pretend to be skilled doctors without proper medical degrees.<br><br>Poor patients in rural areas often depend on quacks because qualified doctors are scarce in villages and private hospitals in cities are too expensive."
+      },
+      {
+        id: "health_16",
+        topic: "Equality & Reforms",
+        question: "How is inequality visible in India's healthcare system?",
+        answer: "<ul><li>Private hospitals are booming (making up ~90% of hospitals by 2020) and are concentrated in cities for wealthy patients.</li><li>Meanwhile, public hospitals often lack adequate staff and supplies.</li><li>Poor families frequently fall into debt to pay for emergency private medical care.</li></ul>"
+      },
+      {
+        id: "health_17",
+        topic: "Equality & Reforms",
+        question: "What major healthcare reform did the Kerala government introduce in 1996?",
+        answer: "In 1996, the Kerala government allocated <b>40% of its entire state budget directly to Panchayats</b>.<br><br>Villages planned their own development—improving <b>clean water supply, food security, women's development, schools, Anganwadis, and local health centres</b>."
+      },
+      {
+        id: "health_18",
+        topic: "Equality & Reforms",
+        question: "Explain the 'Costa Rican Approach' to public health.",
+        answer: "Costa Rica (in Central America) took the bold decision to <b>abolish its army</b> and redirect all military funds toward <b>public health, education, safe drinking water, sanitation, and housing</b>.<br><br>As a result, Costa Rica became one of the healthiest countries in Central America."
+      },
+      {
+        id: "health_19",
+        topic: "Equality & Reforms",
+        question: "What indicators are used to assess the overall health of a nation?",
+        answer: "A nation's health is assessed using key health indicators:<ul><li><b>Infant Mortality Rate (IMR)</b> & <b>Maternal Mortality Rate (MMR)</b></li><li><b>Life Expectancy</b> (average lifespan)</li><li><b>Nutrition levels</b></li><li>Incidence of communicable and non-communicable diseases</li></ul>"
+      },
+      {
+        id: "health_20",
+        topic: "COVID-19 Case Study",
+        question: "What causes COVID-19, and why is a 14-day isolation period recommended after exposure?",
+        answer: "COVID-19 is a contagious disease caused by the <b>SARS-CoV-2</b> virus (first identified in Wuhan, China, in Dec 2019).<br><br>Symptoms take an average of <b>5–6 days</b> to appear, ranging from <b>1 to 14 days</b>. Isolating for 14 days prevents unknowingly spreading the virus to others."
+      },
+      {
+        id: "health_21",
+        topic: "COVID-19 Case Study",
+        question: "What are the common vs. severe symptoms of COVID-19?",
+        answer: "<ul><li><b>Common Symptoms:</b> Fever, dry cough, fatigue, loss of smell/taste, muscle aches, sore throat.</li><li><b>Severe Symptoms:</b> Shortness of breath, persistent chest pain/pressure, confusion, difficulty walking, bluish lips/face, and kidney failure (requires immediate emergency care).</li></ul>"
+      },
+      {
+        id: "health_22",
+        topic: "COVID-19 Case Study",
+        question: "List five key precautions to prevent the spread of COVID-19.",
+        answer: "<ol><li>Wash hands frequently with soap for at least <b>20 seconds</b>.</li><li>Always wear a mask properly in public (covering nose and mouth).</li><li>Maintain at least <b>1 metre</b> of physical distance.</li><li>Keep indoor spaces well-ventilated and disinfect touched surfaces daily.</li><li>Avoid crowds/handshakes and <b>get vaccinated</b>.</li></ol>"
+      }
+    ];
+
+    // State Management
+    let currentCards = [...flashcards];
+    let currentIndex = 0;
+    let isFlipped = false;
+    const STORAGE_KEY = 'civics_g7_health_gov_mastered_v1';
+    let masteredIds = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+
+    // DOM Elements
+    const scene = document.getElementById('scene');
+    const card = document.getElementById('card');
+    const questionText = document.getElementById('questionText');
+    const answerText = document.getElementById('answerText');
+    const cardTag = document.getElementById('cardTag');
+    const cardTagBack = document.getElementById('cardTagBack');
+    const cardCounter = document.getElementById('cardCounter');
+    const masteryStats = document.getElementById('masteryStats');
+    const progressBar = document.getElementById('progressBar');
+    const topicFilter = document.getElementById('topicFilter');
+    const masteryFilter = document.getElementById('masteryFilter');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnShuffle = document.getElementById('btnShuffle');
+    const btnReset = document.getElementById('btnReset');
+    const btnMasteryFront = document.getElementById('btnMasteryFront');
+    const btnMasteryBack = document.getElementById('btnMasteryBack');
+    const badgePrev = document.getElementById('badgePrev');
+    const badgeNext = document.getElementById('badgeNext');
+
+    function saveMastery() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...masteredIds]));
+      updateStats();
+    }
+
+    function applyFilters() {
+      const topic = topicFilter.value;
+      const mastery = masteryFilter.value;
+
+      currentCards = flashcards.filter(c => {
+        const matchTopic = (topic === 'ALL' || c.topic === topic);
+        const isM = masteredIds.has(c.id);
+        const matchMastery = (mastery === 'ALL') ||
+                             (mastery === 'MASTERED' && isM) ||
+                             (mastery === 'UNMASTERED' && !isM);
+        return matchTopic && matchMastery;
+      });
+
+      currentIndex = 0;
+      isFlipped = false;
+      card.classList.remove('is-flipped');
+      renderCard();
+      updateStats();
+    }
+
+    function renderCard() {
+      if (currentCards.length === 0) {
+        questionText.textContent = "No flashcards match the current filter.";
+        answerText.innerHTML = "Try switching the Topic or Mastery filter back to <b>All</b>.";
+        cardTag.textContent = "No Results";
+        cardTagBack.textContent = "No Results";
+        cardCounter.textContent = "Card 0 of 0";
+        btnMasteryFront.style.display = 'none';
+        btnMasteryBack.style.display = 'none';
+        return;
+      }
+
+      btnMasteryFront.style.display = 'inline-block';
+      btnMasteryBack.style.display = 'inline-block';
+
+      const item = currentCards[currentIndex];
+      questionText.textContent = item.question;
+      answerText.innerHTML = item.answer;
+      answerText.scrollTop = 0;
+      cardTag.textContent = item.topic;
+      cardTagBack.textContent = item.topic;
+      cardCounter.textContent = `Card ${currentIndex + 1} of ${currentCards.length}`;
+
+      const isM = masteredIds.has(item.id);
+      [btnMasteryFront, btnMasteryBack].forEach(btn => {
+        if (isM) {
+          btn.classList.add('mastered');
+          btn.textContent = '✓ Mastered';
+        } else {
+          btn.classList.remove('mastered');
+          btn.textContent = 'Mark Mastered';
+        }
+      });
+    }
+
+    function updateStats() {
+      const total = flashcards.length;
+      const mCount = masteredIds.size;
+      const pct = Math.round((mCount / total) * 100);
+      masteryStats.textContent = `${pct}% Mastered (${mCount}/${total})`;
+      progressBar.style.width = `${pct}%`;
+    }
+
+    function toggleFlip() {
+      if (currentCards.length === 0) return;
+      isFlipped = !isFlipped;
+      card.classList.toggle('is-flipped', isFlipped);
+    }
+
+    function prevCard() {
+      if (currentCards.length <= 1) return;
+      card.classList.remove('is-flipped');
+      isFlipped = false;
+      scene.classList.remove('slide-left', 'slide-right');
+      void scene.offsetWidth;
+      scene.classList.add('slide-right');
+      currentIndex = (currentIndex - 1 + currentCards.length) % currentCards.length;
+      renderCard();
+    }
+
+    function nextCard() {
+      if (currentCards.length <= 1) return;
+      card.classList.remove('is-flipped');
+      isFlipped = false;
+      scene.classList.remove('slide-left', 'slide-right');
+      void scene.offsetWidth;
+      scene.classList.add('slide-left');
+      currentIndex = (currentIndex + 1) % currentCards.length;
+      renderCard();
+    }
+
+    function toggleMastery(e) {
+      if (e) e.stopPropagation();
+      if (currentCards.length === 0) return;
+      const item = currentCards[currentIndex];
+      if (masteredIds.has(item.id)) {
+        masteredIds.delete(item.id);
+      } else {
+        masteredIds.add(item.id);
+      }
+      saveMastery();
+      if (masteryFilter.value !== 'ALL') {
+        applyFilters();
+      } else {
+        renderCard();
+      }
+    }
+
+    // Event Listeners
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-mastery') || didDrag) return;
+      toggleFlip();
+    });
+
+    btnPrev.addEventListener('click', prevCard);
+    btnNext.addEventListener('click', nextCard);
+
+    [btnMasteryFront, btnMasteryBack].forEach(btn => {
+      btn.addEventListener('click', toggleMastery);
+    });
+
+    topicFilter.addEventListener('change', applyFilters);
+    masteryFilter.addEventListener('change', applyFilters);
+
+    btnShuffle.addEventListener('click', () => {
+      for (let i = currentCards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [currentCards[i], currentCards[j]] = [currentCards[j], currentCards[i]];
+      }
+      currentIndex = 0;
+      isFlipped = false;
+      card.classList.remove('is-flipped');
+      renderCard();
+    });
+
+    btnReset.addEventListener('click', () => {
+      masteredIds.clear();
+      saveMastery();
+      applyFilters();
+    });
+
+    // Touch & Mouse Drag Navigation
+    let startX = 0;
+    let dragDistance = 0;
+    let isPointerDown = false;
+    let didDrag = false;
+
+    function handlePointerStart(x) {
+      startX = x;
+      dragDistance = 0;
+      isPointerDown = true;
+      didDrag = false;
+    }
+
+    function handlePointerMove(x) {
+      if (!isPointerDown) return;
+      dragDistance = x - startX;
+      if (Math.abs(dragDistance) > 12) {
+        didDrag = true;
+      }
+      if (dragDistance > 40) {
+        badgePrev.style.opacity = Math.min((dragDistance - 40) / 60, 1);
+        badgeNext.style.opacity = 0;
+      } else if (dragDistance < -40) {
+        badgeNext.style.opacity = Math.min((-dragDistance - 40) / 60, 1);
+        badgePrev.style.opacity = 0;
+      } else {
+        badgePrev.style.opacity = 0;
+        badgeNext.style.opacity = 0;
+      }
+    }
+
+    function handlePointerEnd() {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+      badgePrev.style.opacity = 0;
+      badgeNext.style.opacity = 0;
+
+      if (dragDistance > 65) {
+        prevCard();
+      } else if (dragDistance < -65) {
+        nextCard();
+      }
+      setTimeout(() => { didDrag = false; }, 50);
+    }
+
+    // Touch events
+    scene.addEventListener('touchstart', (e) => handlePointerStart(e.touches[0].clientX), { passive: true });
+    scene.addEventListener('touchmove', (e) => handlePointerMove(e.touches[0].clientX), { passive: true });
+    scene.addEventListener('touchend', handlePointerEnd);
+
+    // Mouse drag events
+    scene.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.btn-mastery')) return;
+      handlePointerStart(e.clientX);
+    });
+    window.addEventListener('mousemove', (e) => handlePointerMove(e.clientX));
+    window.addEventListener('mouseup', handlePointerEnd);
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        toggleFlip();
+      } else if (e.code === 'ArrowLeft') {
+        prevCard();
+      } else if (e.code === 'ArrowRight') {
+        nextCard();
+      } else if (e.code === 'KeyM') {
+        toggleMastery();
+      } else if (e.code === 'KeyS') {
+        btnShuffle.click();
+      }
+    });
+
+    // Initialize
+    renderCard();
+    updateStats();
+  </script>
+</body>
+</html>
