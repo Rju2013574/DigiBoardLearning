@@ -19,24 +19,7 @@ PORT = int(os.environ.get("PORT", 8000))
 UPLOAD_DIR = "uploads"
 ENCRYPTED_CSV_FILE = "accounts_encrypted.csv"
 LOGIN_LOGS_CSV = "login_logs.csv"
-STORY_FILE = "front_page_story.json"
 SESSIONS = {}
-
-DEFAULT_STORY_DATA = {
-    "title": "How DigiBoard Happened",
-    "subtitle": "Founded by Raghav JU & Co-Founded by Neel Sai R — Built for Hill Rock National Public School and modern classrooms.",
-    "story": (
-        "DigiBoard Master Console began with a real mission at Hill Rock National Public School: to solve the everyday burdens "
-        "teachers face in managing classroom tools, lesson files, and interactive boards. Founded by Raghav JU (Managing Director "
-        "& Project Head) and co-founded by classmate Neel Sai R, the project set out to unite live class-isolated whiteboards, "
-        "organized grade-and-section file sharing, structured flashcard memory banks, and multi-mode AI study tools into one "
-        "fast, lightweight, pure-Python workspace.\n\n"
-        "Between August 2 and October 16, 2026, the core architecture was built, deployed, and functionally verified—designed to run "
-        "both on local school servers and 24/7 cloud environments with encrypted CSV account security. Guided by the vision of "
-        "school leadership—Chairman Bramresh sir, Principal Veda ma\u2019am, Director Jayanthi ma\u2019am, and Secretary Pushpak sir—DigiBoard "
-        "keeps every classroom connected, giving teachers effortless control and students a seamless learning experience."
-    )
-}
 
 # Class-Isolated Whiteboard Sessions: Keyed by "Grade_Section"
 CLASS_BOARDS = {}
@@ -55,7 +38,6 @@ CSV_ENCRYPTION_KEY = os.environ.get("CSV_ENCRYPTION_KEY", "-_L6Lrh-ujfHHi4wMe9Tk
 GRADES = ["PRKG", "LKG", "UKG"] + [f"{i}th" for i in range(1, 11)]
 SECTIONS = ["A", "B", "C", "D", "E", "F", "G"]
 
-
 def ensure_file_manager_structure():
     if not os.path.exists(UPLOAD_DIR):
         os.makedirs(UPLOAD_DIR)
@@ -65,55 +47,14 @@ def ensure_file_manager_structure():
             if not os.path.exists(folder_path):
                 os.makedirs(folder_path)
 
-
 ensure_file_manager_structure()
-
-
-def load_story_data():
-    if os.path.exists(STORY_FILE):
-        try:
-            with open(STORY_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    return {
-                        "title": str(data.get("title") or DEFAULT_STORY_DATA["title"]),
-                        "subtitle": str(data.get("subtitle") or DEFAULT_STORY_DATA["subtitle"]),
-                        "story": str(data.get("story") or DEFAULT_STORY_DATA["story"]),
-                    }
-        except Exception as e:
-            print(f"Failed to load {STORY_FILE}: {str(e)}")
-    return dict(DEFAULT_STORY_DATA)
-
-
-def save_story_data(title, subtitle, story):
-    payload = {
-        "title": title.strip() or DEFAULT_STORY_DATA["title"],
-        "subtitle": subtitle.strip() or DEFAULT_STORY_DATA["subtitle"],
-        "story": story.strip() or DEFAULT_STORY_DATA["story"],
-    }
-    with open(STORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
-    return payload
-
-
-def init_story_file():
-    if not os.path.exists(STORY_FILE):
-        save_story_data(
-            DEFAULT_STORY_DATA["title"],
-            DEFAULT_STORY_DATA["subtitle"],
-            DEFAULT_STORY_DATA["story"],
-        )
-
-
-init_story_file()
-
 
 # --- MULTI-MODEL ROUTER WITH CUSTOM TOKEN BUDGETS & STRICT OUTPUT LIMIT ---
 def query_gemini(prompt, model_mode="0.1"):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        print("GEMINI_API_KEY is missing from environment variables!")
-        return "Error: GEMINI_API_KEY environment variable is not set in Render."
+        print("❌ GEMINI_API_KEY is missing from environment variables!")
+        return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     max_tokens = 200
@@ -137,7 +78,7 @@ def query_gemini(prompt, model_mode="0.1"):
 
     data = json.dumps(payload).encode('utf-8')
     max_retries = 4
-
+    
     for attempt in range(max_retries):
         try:
             req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
@@ -148,20 +89,20 @@ def query_gemini(prompt, model_mode="0.1"):
                     parts = candidates[0].get('content', {}).get('parts', [])
                     if parts and parts[0].get('text'):
                         return parts[0].get('text')
-                return "No response text found in candidate output."
+                return "❌ No response text found in candidate output."
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8')
             if e.code == 503 and attempt < max_retries - 1:
                 time.sleep((attempt + 1) * 1.5)
                 continue
-            return f"Gemini API Error {e.code}: {error_body}"
+            return f"❌ Gemini API Error {e.code}: {error_body}"
         except Exception as e:
             if attempt < max_retries - 1:
                 time.sleep(2)
                 continue
-            return f"Cloud AI Connection Error: {str(e)}"
+            return f"❌ Cloud AI Connection Error: {str(e)}"
 
-    return "Gemini API Error 503: High demand spike persisted after retries."
+    return "❌ Gemini API Error 503: High demand spike persisted after retries."
 
 
 # --- ENCRYPTED CSV DATABASE & LOGGING MANAGEMENT ---
@@ -170,11 +111,9 @@ def get_fernet():
         return Fernet(b'VlD8h2tEiJkQpKKnDNKnu8ya2fpIBMOo5oc7JKNasvk=')
     return Fernet(CSV_ENCRYPTION_KEY.encode())
 
-
 def init_encrypted_csv():
     if not os.path.exists(ENCRYPTED_CSV_FILE):
         save_users_to_encrypted_csv({})
-
 
 def load_users_from_encrypted_csv():
     users = {}
@@ -197,9 +136,8 @@ def load_users_from_encrypted_csv():
                         "section": row[4].strip()
                     }
         except Exception as e:
-            print(f"Decryption/Loading failed: {str(e)}")
+            print(f"❌ Decryption/Loading failed: {str(e)}")
     return users
-
 
 def save_users_to_encrypted_csv(users_dict):
     try:
@@ -217,9 +155,7 @@ def save_users_to_encrypted_csv(users_dict):
     except Exception:
         return False
 
-
 init_encrypted_csv()
-
 
 def log_login_event(username, role, grade, section, auth_method):
     file_exists = os.path.exists(LOGIN_LOGS_CSV)
@@ -229,7 +165,6 @@ def log_login_event(username, role, grade, section, auth_method):
             writer.writerow(["Timestamp", "Username", "Role", "Grade", "Section", "Auth Method"])
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         writer.writerow([timestamp, username, role, grade, section, auth_method])
-
 
 ADMIN_KEYS = {
     "9080-3456-7890-3456-7280-4562-8729-RJU-2013-2810-4568-6573": {
@@ -246,7 +181,7 @@ ADMIN_KEYS = {
 
 SECRET_PORTAL_CODE = os.environ.get("SECRET_PORTAL_CODE", "9080-3456-7890-3456-7280-4562-8729-RJU-2013-2810-4568-6573")
 
-FAVICON_SVG = r"""<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
+FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
   <rect width='32' height='32' rx='8' fill='#070d19' stroke='#38bdf8' stroke-width='1'/>
   <path d='M8 16 C8 10, 12 7, 18 7 C23 7, 26 10, 26 15 C26 18, 24 21, 22 23 C20 25, 18 25, 16 25 C13 25, 11 23, 10 21' fill='none' stroke='#38bdf8' stroke-width='1.5' stroke-linecap='round'/>
   <path d='M12 10 h4 c3 0 5 2 5 5 s-2 5-5 5 h-4 z' fill='none' stroke='#38bdf8' stroke-width='2'/>
@@ -258,353 +193,62 @@ FAVICON_SVG = r"""<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>
 </svg>"""
 
 LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='32' height='32'")
-CENTER_LOGO_HTML = FAVICON_SVG.replace("viewBox='0 0 32 32'", "viewBox='0 0 32 32' width='84' height='84'")
 
-FRONT_PAGE_HTML = r"""<!DOCTYPE html>
+# --- LANDING / FRONT PAGE HTML ---
+LANDING_HTML = """<!DOCTYPE html>
 <html>
 <head>
-  <title>DigiBoard Master Console</title>
+  <title>DigiBoard Learning - Welcome</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #050a14;
-      color: #f8fafc;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1.1rem 2rem;
-      background: #070d19;
-      border-bottom: 1px solid #111c30;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-    .brand-bar {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-weight: 700;
-      font-size: 1.15rem;
-      color: #f8fafc;
-    }
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-    .nav-link {
-      text-decoration: none;
-      color: #cbd5e1;
-      background: #0f172a;
-      border: 1px solid #334155;
-      padding: 0.45rem 0.95rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      transition: all 0.2s ease;
-    }
-    .nav-link:hover {
-      border-color: #38bdf8;
-      color: #ffffff;
-    }
-    .nav-link.primary {
-      background: #0284c7;
-      border-color: #0284c7;
-      color: #ffffff;
-    }
-    .nav-link.primary:hover {
-      background: #0369a1;
-    }
-    .front-main {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 2.5rem 1.5rem;
-    }
-    .front-card {
-      width: 100%;
-      max-width: 780px;
-      background: #070d19;
-      border: 1px solid #1e293b;
-      border-radius: 16px;
-      padding: 2.5rem 2.25rem;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-    }
-    .hero-center {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .hero-logo {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 0 auto 1.25rem auto;
-    }
-    .hero-logo svg {
-      border-radius: 18px;
-      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
-    }
-    h1 {
-      margin: 0;
-      font-size: 1.9rem;
-      color: #ffffff;
-      letter-spacing: 0.4px;
-    }
-    .hero-subtitle {
-      margin: 0.6rem auto 0 auto;
-      max-width: 580px;
-      color: #94a3b8;
-      font-size: 0.96rem;
-      line-height: 1.6;
-    }
-    .story-box {
-      background: #050a14;
-      border: 1px solid #1e293b;
-      border-left: 4px solid #38bdf8;
-      border-radius: 12px;
-      padding: 1.65rem;
-    }
-    .story-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 0.9rem;
-      flex-wrap: wrap;
-    }
-    .story-header h2 {
-      margin: 0;
-      font-size: 1.2rem;
-      color: #38bdf8;
-    }
-    .edit-btn {
-      background: #4f46e5;
-      color: #ffffff;
-      border: none;
-      padding: 0.45rem 0.9rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .edit-btn:hover {
-      background: #4338ca;
-    }
-    .story-text {
-      color: #e2e8f0;
-      font-size: 0.96rem;
-      line-height: 1.75;
-    }
-    .story-text p {
-      margin: 0 0 1rem 0;
-    }
-    .story-text p:last-child {
-      margin-bottom: 0;
-    }
-    .editor-panel {
-      display: none;
-      margin-top: 1.25rem;
-      padding-top: 1.25rem;
-      border-top: 1px solid #1e293b;
-    }
-    .editor-panel label {
-      display: block;
-      font-size: 0.82rem;
-      color: #94a3b8;
-      margin-top: 0.85rem;
-      margin-bottom: 0.3rem;
-    }
-    .editor-panel label:first-child {
-      margin-top: 0;
-    }
-    .editor-panel input,
-    .editor-panel textarea {
-      width: 100%;
-      padding: 0.7rem 0.8rem;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      background: #070d19;
-      color: #f8fafc;
-      font-family: inherit;
-      font-size: 0.92rem;
-    }
-    .editor-panel textarea {
-      min-height: 170px;
-      resize: vertical;
-      line-height: 1.6;
-    }
-    .editor-actions {
-      display: flex;
-      gap: 0.75rem;
-      margin-top: 1rem;
-      flex-wrap: wrap;
-    }
-    .save-btn {
-      background: #10b981;
-      color: #052e16;
-      border: none;
-      padding: 0.55rem 1.15rem;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 0.88rem;
-      cursor: pointer;
-    }
-    .cancel-btn {
-      background: #1e293b;
-      color: #e2e8f0;
-      border: 1px solid #334155;
-      padding: 0.55rem 1rem;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 0.88rem;
-      cursor: pointer;
-    }
-    .status-msg {
-      margin-top: 0.75rem;
-      font-size: 0.85rem;
-      min-height: 1.2rem;
-    }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 1.2rem 2.5rem; border-bottom: 1px solid #111c30; background: #070d19; }
+    .brand { display: flex; align-items: center; gap: 0.85rem; font-size: 1.25rem; font-weight: bold; color: #fff; }
+    .login-nav-btn { background: #0284c7; color: white; padding: 0.5rem 1.25rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: background 0.2s; }
+    .login-nav-btn:hover { background: #0369a1; }
+    .hero { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem 1.5rem; text-align: center; }
+    .story-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 14px; padding: 2.5rem; max-width: 800px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: left; position: relative; }
+    .story-box h1 { margin-top: 0; color: #38bdf8; font-size: 1.8rem; text-align: center; margin-bottom: 1.5rem; }
+    .story-box h3 { color: #38bdf8; font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    .story-box p { color: #cbd5e1; line-height: 1.7; font-size: 0.95rem; margin-bottom: 1rem; }
+    .creators { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #1e293b; font-size: 0.9rem; color: #94a3b8; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+    .creators span { color: #38bdf8; font-weight: 600; }
+    .github-badge { display: inline-block; margin-top: 1.5rem; background: #1e293b; color: #94a3b8; padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.75rem; border: 1px solid #334155; }
   </style>
 </head>
 <body>
   <header>
-    <div class="brand-bar">
+    <div class="brand">
       <!--LOGO_HTML-->
-      <span>DigiBoard Master Console</span>
+      <span>DigiBoard Learning</span>
     </div>
-    <div class="nav-actions">
-      <!--HEADER_NAV_ACTIONS-->
-    </div>
+    <a href="/login" class="login-nav-btn">Log In ➔</a>
   </header>
-
-  <main class="front-main">
-    <section class="front-card">
-      <div class="hero-center">
-        <div class="hero-logo">
-          <!--CENTER_LOGO_HTML-->
-        </div>
-        <h1>DigiBoard Master Console</h1>
-        <p class="hero-subtitle" id="front-subtitle"></p>
+  <div class="hero">
+    <div class="story-box">
+      <h1>DigiBoard Master Console</h1>
+      <p><strong>Founded by Raghav JU & Co-Founded by Neel Sai R</strong> - Built for Hill Rock National Public School and modern classrooms.</p>
+      
+      <h3>How DigiBoard Happened</h3>
+      <p>DigiBoard Master Console began with a real mission at Hill Rock National Public School: to solve the everyday burdens teachers face in managing classroom tools, lesson files, and interactive boards. Founded by Raghav JU (Managing Director & Project Head) and co-founded by classmate Neel Sai R (who joined in the middle of the project), the project set out to unite live class-isolated whiteboards, organized grade-and-section file sharing, structured flashcard memory banks, and multi-mode AI study tools into one fast, lightweight, pure-Python workspace.</p>
+      <p>Between August 2 and October 16, 2026, the core architecture was built, deployed, and functionally verified—designed to run both on local school servers and 24/7 cloud environments with encrypted CSV account security. Guided by the vision of school leadership—Chairman Bramresh sir, Principal Veda ma'am, Director Jayanthi ma'am, and Secretary Pushpak sir—DigiBoard keeps every classroom connected, giving teachers effortless control and students a seamless learning experience.</p>
+      
+      <div class="creators">
+        <div>Founder: <span>Raghav JU</span></div>
+        <div>Co-Founder: <span>Neel Sai R</span> (Joined in the middle of the project)</div>
       </div>
-
-      <div class="story-box">
-        <div class="story-header">
-          <h2 id="front-story-title"></h2>
-          <!--ADMIN_EDIT_BUTTON-->
-        </div>
-        <div class="story-text" id="front-story-body"></div>
-
-        <!--ADMIN_EDITOR_PANEL-->
+      <div style="text-align: center;">
+        <span class="github-badge">🔒 Read-only Source Story (Editable exclusively on GitHub)</span>
       </div>
-    </section>
-  </main>
-
-  <script>
-    const INITIAL_STORY_DATA = <!--STORY_JSON-->;
-    const IS_ADMIN = <!--IS_ADMIN_BOOL-->;
-
-    function escapeHtml(text) {
-      return String(text || "")
-        .replace(/&/g, "&")
-        .replace(/</g, "<")
-        .replace(/>/g, ">")
-        .replace(/"/g, "&quot;");
-
-    }
-
-    function renderStoryContent(data) {
-      document.getElementById("front-subtitle").textContent = data.subtitle || "";
-      document.getElementById("front-story-title").textContent = data.title || "How DigiBoard Happened";
-
-      const paragraphs = String(data.story || "")
-        .split(/\n\s*\n/)
-        .map(p => p.trim())
-        .filter(Boolean);
-
-      const container = document.getElementById("front-story-body");
-      if (!paragraphs.length) {
-        container.innerHTML = "<p></p>";
-        return;
-      }
-      container.innerHTML = paragraphs
-        .map(p => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
-        .join("");
-    }
-
-    renderStoryContent(INITIAL_STORY_DATA);
-
-    if (IS_ADMIN) {
-      window.toggleStoryEditor = function(show) {
-        const panel = document.getElementById("story-editor-panel");
-        const statusEl = document.getElementById("story-status-msg");
-        if (!panel) return;
-        if (show) {
-          document.getElementById("edit-story-title").value = document.getElementById("front-story-title").textContent;
-          document.getElementById("edit-story-subtitle").value = document.getElementById("front-subtitle").textContent;
-          document.getElementById("edit-story-body").value = INITIAL_STORY_DATA.story || "";
-          if (statusEl) statusEl.textContent = "";
-          panel.style.display = "block";
-        } else {
-          panel.style.display = "none";
-        }
-      };
-
-      window.saveStoryChanges = function(event) {
-        event.preventDefault();
-        const title = document.getElementById("edit-story-title").value;
-        const subtitle = document.getElementById("edit-story-subtitle").value;
-        const story = document.getElementById("edit-story-body").value;
-        const statusEl = document.getElementById("story-status-msg");
-
-        if (statusEl) {
-          statusEl.style.color = "#94a3b8";
-          statusEl.textContent = "Saving story...";
-        }
-
-        fetch("/api/front-page/story", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, subtitle, story })
-        })
-        .then(async r => {
-          const data = await r.json();
-          if (!r.ok) throw new Error(data.error || "Failed to save story.");
-          return data;
-        })
-        .then(updated => {
-          INITIAL_STORY_DATA.title = updated.title;
-          INITIAL_STORY_DATA.subtitle = updated.subtitle;
-          INITIAL_STORY_DATA.story = updated.story;
-          renderStoryContent(updated);
-          document.getElementById("story-editor-panel").style.display = "none";
-          if (statusEl) {
-            statusEl.style.color = "#34d399";
-            statusEl.textContent = "Story updated.";
-          }
-        })
-        .catch(err => {
-          if (statusEl) {
-            statusEl.style.color = "#ef4444";
-            statusEl.textContent = "Error: " + err.message;
-          }
-        });
-      };
-    }
-  </script>
+    </div>
+  </div>
 </body>
 </html>"""
 
-LOGIN_HTML = r"""<!DOCTYPE html>
+# --- LOGIN CREDENTIALS MODULAR PATTERN ---
+LOGIN_HTML = """<!DOCTYPE html>
 <html>
 <head>
   <title>DigiBoard - Login</title>
@@ -612,231 +256,93 @@ LOGIN_HTML = r"""<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #050a14;
-      color: #f8fafc;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 1.5rem;
-    }
-    .login-card {
-      background: #070d19;
-      border: 1px solid #1e293b;
-      padding: 2.5rem;
-      border-radius: 16px;
-      width: 100%;
-      max-width: 440px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-    }
-    .center-logo {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 0 auto 1.25rem auto;
-    }
-    .center-logo svg {
-      border-radius: 18px;
-      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
-    }
-    h2 {
-      text-align: center;
-      margin: 0 0 1.4rem 0;
-      color: #f8fafc;
-      font-size: 1.5rem;
-      letter-spacing: 0.4px;
-    }
-    .mode-switch {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.55rem;
-      margin-bottom: 1.25rem;
-    }
-    .mode-tab {
-      padding: 0.65rem 0.4rem;
-      border-radius: 8px;
-      border: 1px solid #334155;
-      background: #0f172a;
-      color: #94a3b8;
-      font-size: 0.8rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-    }
-    .mode-tab:hover {
-      border-color: #38bdf8;
-      color: #f8fafc;
-    }
-    .mode-tab.active {
-      background: #0284c7;
-      border-color: #38bdf8;
-      color: #ffffff;
-    }
-    .mode-tab.admin-tab.active {
-      background: #4f46e5;
-      border-color: #818cf8;
-      color: #ffffff;
-    }
-    label {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      display: block;
-      margin-top: 1rem;
-    }
-    input {
-      width: 100%;
-      padding: 0.7rem;
-      margin-top: 0.35rem;
-      border: 1px solid #334155;
-      background: #050a14;
-      color: #fff;
-      border-radius: 8px;
-      font-size: 0.95rem;
-    }
-    input:focus {
-      outline: none;
-      border-color: #38bdf8;
-    }
-    .submit-btn {
-      width: 100%;
-      padding: 0.8rem;
-      margin-top: 1.4rem;
-      background: #0284c7;
-      border: none;
-      color: white;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .submit-btn:hover {
-      background: #0369a1;
-    }
-    .admin-btn {
-      width: 100%;
-      padding: 0.8rem;
-      background: #4f46e5;
-      margin-top: 1.4rem;
-      border: none;
-      color: white;
-      border-radius: 8px;
-      font-weight: bold;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .admin-btn:hover {
-      background: #4338ca;
-    }
-    .error {
-      color: #ef4444;
-      font-size: 0.875rem;
-      text-align: center;
-      margin-bottom: 1rem;
-      background: rgba(239, 68, 68, 0.12);
-      border: 1px solid rgba(239, 68, 68, 0.35);
-      padding: 0.6rem;
-      border-radius: 6px;
-    }
-    .back-link {
-      display: block;
-      text-align: center;
-      margin-top: 1.25rem;
-      color: #94a3b8;
-      text-decoration: none;
-      font-size: 0.85rem;
-    }
-    .back-link:hover {
-      color: #38bdf8;
-    }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #050a14; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    .login-card { background: #0f172a; border: 1px solid #1e293b; padding: 2.5rem; border-radius: 16px; width: 440px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); display: flex; flex-direction: column; align-items: center; }
+    .logo-container { width: 64px; height: 64px; background: #070d19; border: 1px solid #38bdf8; border-radius: 16px; display: flex; justify-content: center; align-items: center; margin-bottom: 1.2rem; box-shadow: 0 0 15px rgba(56,189,248,0.3); }
+    .logo-container svg { width: 36px; height: 36px; fill: #38bdf8; }
+    h2 { text-align: center; margin: 0 0 1.5rem 0; color: #ffffff; font-size: 1.4rem; letter-spacing: 0.3px; }
+    
+    .role-tabs { display: flex; background: #070d19; border: 1px solid #1e293b; border-radius: 8px; padding: 4px; width: 100%; margin-bottom: 1.5rem; gap: 4px; }
+    .role-tab { flex: 1; text-align: center; padding: 0.6rem 0.2rem; font-size: 0.8rem; font-weight: 600; color: #94a3b8; background: transparent; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+    .role-tab.active { background: #0284c7; color: #ffffff; box-shadow: 0 2px 8px rgba(2,132,199,0.4); }
+    .role-tab:hover:not(.active) { color: #f8fafc; background: #1e293b; }
+
+    form { width: 100%; }
+    label { font-size: 0.8rem; color: #94a3b8; display: block; margin-bottom: 0.4rem; font-weight: 500; }
+    input { width: 100%; padding: 0.75rem 1rem; margin-bottom: 1.2rem; border: 1px solid #334155; background: #070d19; color: #fff; border-radius: 8px; font-size: 0.95rem; }
+    input:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
+    
+    .submit-btn { width: 100%; padding: 0.8rem; background: #0284c7; border: none; color: white; border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 12px rgba(2,132,199,0.3); }
+    .submit-btn:hover { background: #0369a1; }
+    .admin-submit-btn { background: #4f46e5; box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+    .admin-submit-btn:hover { background: #4338ca; }
+
+    .error { color: #ef4444; font-size: 0.85rem; text-align: center; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.1); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.2); width: 100%; }
+    .back-link { display: block; text-align: center; margin-top: 1.5rem; color: #94a3b8; font-size: 0.85rem; text-decoration: none; }
+    .back-link:hover { color: #38bdf8; text-decoration: underline; }
   </style>
 </head>
 <body>
   <div class="login-card">
-    <div class="center-logo">
-      <!--CENTER_LOGO_HTML-->
+    <div class="logo-container">
+      <!--LOGO_HTML-->
     </div>
     <h2>DigiBoard Master Console</h2>
     <!--ERROR-->
 
-    <div class="mode-switch" role="tablist" aria-label="Account Login Type">
-      <button type="button" id="tab-student" class="mode-tab active" onclick="switchLoginMode('student')">
-        Login as Student
-      </button>
-      <button type="button" id="tab-teacher" class="mode-tab" onclick="switchLoginMode('teacher')">
-        Login as Teacher
-      </button>
-      <button type="button" id="tab-admin" class="mode-tab admin-tab" onclick="switchLoginMode('admin')">
-        Login as Admin
-      </button>
+    <div class="role-tabs">
+      <a href="/login?role=student" class="role-tab <!--STUDENT_ACTIVE-->">Login as Student</a>
+      <a href="/login?role=teacher" class="role-tab <!--TEACHER_ACTIVE-->">Login as Teacher</a>
+      <a href="/login?role=admin" class="role-tab <!--ADMIN_ACTIVE-->">Login as Admin</a>
     </div>
 
-    <form id="credentials-login-form" action="/login" method="POST">
-      <input type="hidden" name="selected_role" id="selected-role" value="student">
-      <label id="cred-username-label">Student Username</label>
+    <!--STUDENT_FORM_START-->
+    <form action="/login" method="POST" style="display:none;" id="student-form">
+      <input type="hidden" name="role_type" value="student">
+      <label>Student Username</label>
       <input type="text" name="username" placeholder="user@domain.com" required>
-      <label id="cred-password-label">Student Password</label>
+      <label>Student Password</label>
       <input type="password" name="password" placeholder="Enter your password" required>
-      <button type="submit" id="cred-submit-btn" class="submit-btn">Log In as Student</button>
+      <button type="submit" class="submit-btn">Log In as Student</button>
     </form>
+    <!--STUDENT_FORM_END-->
 
-    <form id="admin-ssh-form" action="/login-admin" method="POST" style="display:none;">
+    <!--TEACHER_FORM_START-->
+    <form action="/login" method="POST" style="display:none;" id="teacher-form">
+      <input type="hidden" name="role_type" value="teacher">
+      <label>Teacher Username</label>
+      <input type="text" name="username" placeholder="user@domain.com" required>
+      <label>Teacher Password</label>
+      <input type="password" name="password" placeholder="Enter your password" required>
+      <button type="submit" class="submit-btn">Log In as Teacher</button>
+    </form>
+    <!--TEACHER_FORM_END-->
+
+    <!--ADMIN_FORM_START-->
+    <form action="/login-admin" method="POST" style="display:none;" id="admin-form">
       <label>Admin SSH Key ID</label>
       <input type="password" name="admin_key" placeholder="Enter Authorized SSH Key ID..." required>
-      <button type="submit" class="admin-btn">Log In as Admin</button>
+      <button type="submit" class="submit-btn admin-submit-btn">Log In as Admin</button>
     </form>
+    <!--ADMIN_FORM_END-->
 
-    <a href="/" class="back-link">← Back to Front Page</a>
+    <a href="/" class="back-link">&larr; Back to Front Page</a>
   </div>
 
   <script>
-    function switchLoginMode(mode) {
-      const tabStudent = document.getElementById('tab-student');
-      const tabTeacher = document.getElementById('tab-teacher');
-      const tabAdmin = document.getElementById('tab-admin');
-      const credForm = document.getElementById('credentials-login-form');
-      const adminForm = document.getElementById('admin-ssh-form');
-      const roleInput = document.getElementById('selected-role');
-      const userLabel = document.getElementById('cred-username-label');
-      const passLabel = document.getElementById('cred-password-label');
-      const submitBtn = document.getElementById('cred-submit-btn');
-
-      tabStudent.classList.remove('active');
-      tabTeacher.classList.remove('active');
-      tabAdmin.classList.remove('active');
-
-      if (mode === 'admin') {
-        tabAdmin.classList.add('active');
-        credForm.style.display = 'none';
-        adminForm.style.display = 'block';
-      } else if (mode === 'teacher') {
-        tabTeacher.classList.add('active');
-        adminForm.style.display = 'none';
-        credForm.style.display = 'block';
-        roleInput.value = 'teacher';
-        userLabel.innerText = 'Teacher Username';
-        passLabel.innerText = 'Teacher Password';
-        submitBtn.innerText = 'Log In as Teacher';
-      } else {
-        tabStudent.classList.add('active');
-        adminForm.style.display = 'none';
-        credForm.style.display = 'block';
-        roleInput.value = 'student';
-        userLabel.innerText = 'Student Username';
-        passLabel.innerText = 'Student Password';
-        submitBtn.innerText = 'Log In as Student';
-      }
+    const activeRole = "<!--ACTIVE_ROLE_JS-->";
+    if (activeRole === 'teacher') {
+      document.getElementById('teacher-form').style.display = 'block';
+    } else if (activeRole === 'admin') {
+      document.getElementById('admin-form').style.display = 'block';
+    } else {
+      document.getElementById('student-form').style.display = 'block';
     }
   </script>
 </body>
 </html>"""
 
-CONSOLE_HTML = r"""<!DOCTYPE html>
+CONSOLE_HTML = """<!DOCTYPE html>
 <html>
 <head>
   <title>DigiBoard Master Console</title>
@@ -852,8 +358,6 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     .user-id { color: #ffffff; font-weight: 600; }
     .user-role-badge { background: #1e293b; color: #38bdf8; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; }
     .admin-badge { background: #4f46e5 !important; color: #fff !important; }
-    .front-link-btn { text-decoration: none; border: 1px solid #1e293b; color: #cbd5e1; padding: 0.4rem 0.9rem; border-radius: 4px; font-size: 0.85rem; }
-    .front-link-btn:hover { border-color: #38bdf8; color: #fff; }
     .logout-btn { background: transparent; border: 1px solid #1e293b; color: #38bdf8; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
     .logout-btn:hover { background: #1e293b; color: #fff; }
     .secret-key-box { display: flex; align-items: center; gap: 0.4rem; background: #0f172a; border: 1px solid #334155; padding: 0.25rem 0.5rem; border-radius: 6px; }
@@ -912,6 +416,8 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     .fc-card { background: #091326; border: 1px solid #1e293b; border-radius: 8px; padding: 1.2rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; transition: all 0.2s; }
     .fc-card:hover { border-color: #38bdf8; background: #0e1d38; transform: translateY(-2px); }
     .secret-toast { position: fixed; bottom: 20px; right: 20px; background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.6); z-index: 9999; display: none; }
+    
+    /* Portal Tiles Modal */
     .portal-tile { background: #1e293b; border: 1px solid #334155; padding: 1.2rem; border-radius: 10px; text-decoration: none; color: #f8fafc; font-weight: 600; display: flex; align-items: center; gap: 1rem; transition: all 0.2s; }
     .portal-tile:hover { background: #2563eb; border-color: #38bdf8; transform: translateY(-2px); }
   </style>
@@ -925,7 +431,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     <div class="user-section">
       <!--ADMIN_SECRET_BOX_START-->
       <div class="secret-key-box" title="Enter secret key to open Reader, Cron-Job & GitHub">
-        <span>Key</span>
+        <span>🔑</span>
         <input type="password" id="console-secret-key" placeholder="Enter Secret Key..." onkeydown="if(event.key==='Enter'){ event.preventDefault(); verifyConsoleSecretKey(); }">
         <button type="button" onclick="verifyConsoleSecretKey()">Unlock</button>
       </div>
@@ -934,7 +440,6 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       User ID: <span class="user-id"><!--USERNAME--></span>
       <span class="user-role-badge <!--ADMIN_CLASS-->"><!--USER_ROLE--></span>
       <span style="color:#38bdf8; font-size:0.8rem; background:#0f172a; padding:0.2rem 0.5rem; border:1px solid #1e293b; border-radius:4px;">Class: <!--USER_GRADE-->-<!--USER_SECTION--></span>
-      <a class="front-link-btn" href="/">Front Page</a>
       <button class="logout-btn" onclick="window.location.href='/logout'">Logout</button>
     </div>
   </header>
@@ -977,31 +482,34 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- PORTAL TILES MODAL -->
+  <!-- PORTAL TILES MODAL (Opened upon secret code verification) -->
   <div class="modal" id="portal-tiles-modal">
     <div class="modal-content" style="max-width: 500px; height: auto;">
       <div class="modal-header">
-        <h3>Select Portal to Launch</h3>
-        <span class="close-btn" onclick="closeApp('portal-tiles-modal')">×</span>
+        <h3>🚀 Select Portal to Launch</h3>
+        <span class="close-btn" onclick="closeApp('portal-tiles-modal')">&times;</span>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; background: #070d19;">
         <p id="portal-toast-msg" style="color: #38bdf8; font-size: 0.9rem; margin-top: 0; font-weight: 500;"></p>
+        
         <a href="https://dashboard.render.com/web/srv-da5e1lijobas73edupi0" target="_blank" class="portal-tile">
-          <span style="font-size: 1.4rem;">Render</span>
+          <span style="font-size: 1.8rem;">☁️</span>
           <div>
             <div style="font-size: 1rem; color: #f8fafc;">Render Dashboard (Reader)</div>
             <div style="font-size: 0.75rem; color: #94a3b8;">Manage cloud deployment & web service</div>
           </div>
         </a>
+
         <a href="https://console.cron-job.org/dashboard" target="_blank" class="portal-tile">
-          <span style="font-size: 1.4rem;">Cron</span>
+          <span style="font-size: 1.8rem;">⏰</span>
           <div>
             <div style="font-size: 1rem; color: #f8fafc;">Cron-Job Console</div>
             <div style="font-size: 0.75rem; color: #94a3b8;">Manage automated background tasks & pings</div>
           </div>
         </a>
+
         <a href="https://github.com/Rju2013574/DigiBoardLearning" target="_blank" class="portal-tile">
-          <span style="font-size: 1.4rem;">GitHub</span>
+          <span style="font-size: 1.8rem;">🐙</span>
           <div>
             <div style="font-size: 1rem; color: #f8fafc;">GitHub Repository</div>
             <div style="font-size: 0.75rem; color: #94a3b8;">View source code & documentation</div>
@@ -1017,8 +525,8 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       <div class="modal-header">
         <h3>Interactive Flashcards & Notes</h3>
         <div class="header-actions">
-          <button id="fc-back-btn" class="clear-all-btn" style="background:#334155; display:none;" onclick="fcGoBack()">Back</button>
-          <span class="close-btn" onclick="closeApp('flashcards-modal')">×</span>
+          <button id="fc-back-btn" class="clear-all-btn" style="background:#334155; display:none;" onclick="fcGoBack()">⬅ Back</button>
+          <span class="close-btn" onclick="closeApp('flashcards-modal')">&times;</span>
         </div>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1.5rem; overflow-y:auto; background:#070d19;">
@@ -1044,8 +552,8 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
             <option value="3.1">3.1 - Multitask (100M Tokens)</option>
             <option value="4.5">4.5 - Oral Comm (3 Billion Cr Tokens)</option>
           </select>
-          <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span></button>
-          <span class="close-btn" onclick="closeApp('gemini-modal')">×</span>
+          <button class="clear-all-btn" onclick="clearChat()" title="Clear Conversation"><span>New Chat</span> ✨</button>
+          <span class="close-btn" onclick="closeApp('gemini-modal')">&times;</span>
         </div>
       </div>
       <div class="modal-body" style="display:flex; flex-direction:column; height: 100%; padding: 1rem;">
@@ -1068,7 +576,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     <div class="modal-content" style="max-width: 850px; height:auto;">
       <div class="modal-header">
         <h3>Admin Management Console</h3>
-        <span class="close-btn" onclick="closeApp('admin-modal')">×</span>
+        <span class="close-btn" onclick="closeApp('admin-modal')">&times;</span>
       </div>
       <div class="modal-body" style="height: 520px; overflow-y: auto;">
         <div style="background:#070d19; padding:1.2rem; border-radius:8px; border:1px solid #1e293b;">
@@ -1119,23 +627,23 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       <div class="modal-header">
         <h3>DigiBoard Interactive Whiteboard (<span id="wb-class-label">Class</span>)</h3>
         <div class="header-actions">
-          <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard"><span>Clear All</span></button>
-          <span class="close-btn" onclick="closeApp('whiteboard-modal')">×</span>
+          <button class="clear-all-btn" onclick="clearBoard()" title="Clear Entire Whiteboard"><span>Clear All</span> 🗑️</button>
+          <span class="close-btn" onclick="closeApp('whiteboard-modal')">&times;</span>
         </div>
       </div>
       <div class="modal-body">
         <div class="wb-viewport" id="wb-container">
           <canvas id="board"></canvas>
           <div class="markup-palette">
-            <button class="markup-btn" onclick="undo()" title="Undo">←</button>
-            <button class="markup-btn" onclick="redo()" title="Redo">→</button>
+            <button class="markup-btn" onclick="undo()" title="Undo">↩️</button>
+            <button class="markup-btn" onclick="redo()" title="Redo">↪️</button>
             <div class="palette-divider"></div>
-            <button class="markup-btn active" id="tool-pen" onclick="selectTool('pen')" title="Pen">P</button>
-            <button class="markup-btn" id="tool-fountain" onclick="selectTool('fountain')" title="Fountain Pen">F</button>
-            <button class="markup-btn" id="tool-marker" onclick="selectTool('marker')" title="Marker">M</button>
-            <button class="markup-btn" id="tool-highlighter" onclick="selectTool('highlighter')" title="Highlighter">H</button>
-            <button class="markup-btn" id="tool-tube" onclick="selectTool('tube')" title="Paint Tube">T</button>
-            <button class="markup-btn" id="tool-eraser" onclick="selectTool('eraser')" title="Eraser">E</button>
+            <button class="markup-btn active" id="tool-pen" onclick="selectTool('pen')" title="Pen">✏️</button>
+            <button class="markup-btn" id="tool-fountain" onclick="selectTool('fountain')" title="Fountain Pen">✒️</button>
+            <button class="markup-btn" id="tool-marker" onclick="selectTool('marker')" title="Marker">🖊️</button>
+            <button class="markup-btn" id="tool-highlighter" onclick="selectTool('highlighter')" title="Highlighter">🖍️</button>
+            <button class="markup-btn" id="tool-tube" onclick="selectTool('tube')" title="Paint Tube">🎨</button>
+            <button class="markup-btn" id="tool-eraser" onclick="selectTool('eraser')" title="Eraser">🧹</button>
             <div class="palette-divider"></div>
             <div class="color-dot active" style="background:#000000;" onclick="setColor('#000000', this)"></div>
             <div class="color-dot" style="background:#ef4444;" onclick="setColor('#ef4444', this)"></div>
@@ -1144,7 +652,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
             <div class="color-dot" style="background:#f59e0b;" onclick="setColor('#f59e0b', this)"></div>
             <input type="color" id="custom-color" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" onchange="setColor(this.value, null)">
             <div class="palette-divider"></div>
-            <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">S</button>
+            <button class="markup-btn" onclick="toggleConfigPopover()" title="Tool Settings">⚙️</button>
           </div>
           <div class="tool-config-popover" id="config-popover">
             <h4>Stroke Thickness</h4>
@@ -1167,7 +675,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     <div class="modal-content" style="max-width: 700px; height:auto;">
       <div class="modal-header">
         <h3>Class File Manager</h3>
-        <span class="close-btn" onclick="closeApp('filemanager-modal')">×</span>
+        <span class="close-btn" onclick="closeApp('filemanager-modal')">&times;</span>
       </div>
       <div class="modal-body" style="height: 520px; overflow-y: auto;">
         <div style="display:flex; gap:1rem; margin-bottom:1rem; background:#070d19; padding:0.75rem; border-radius:6px; border:1px solid #1e293b;">
@@ -1193,7 +701,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
           <span style="color:#94a3b8; font-size:0.85rem; font-weight:600;">DOCUMENTS FOR SELECTED CLASS</span>
-          <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">Refresh</button>
+          <button onclick="loadFileList()" style="background:transparent; border:1px solid #334155; color:#38bdf8; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">🔄 Refresh</button>
         </div>
         <ul id="file-list-container" style="list-style:none; padding:0; margin:0;">
           <li style="color:#94a3b8; text-align:center; padding: 2rem 0;">Select a grade and section to view documents.</li>
@@ -1226,8 +734,8 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     }
 
     function openSecretPortals() {
-      showSecretToast("Secret Code Verified: Select a portal below to launch");
-      document.getElementById('portal-toast-msg').innerText = "Secret Code Verified: Choose a portal below to open:";
+      showSecretToast("🔓 Secret Code Verified: Select a portal below to launch");
+      document.getElementById('portal-toast-msg').innerText = "🔓 Secret Code Verified: Choose a portal below to open:";
       openApp('portal-tiles-modal');
     }
 
@@ -1239,7 +747,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
         inputEl.value = "";
         openSecretPortals();
       } else {
-        showSecretToast("Invalid Secret Key!", true);
+        showSecretToast("❌ Invalid Secret Key!", true);
       }
     }
 
@@ -1261,6 +769,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       });
     }
 
+    // --- FLASHCARDS CLIENT LOGIC ---
     const FC_ROOT = "Memory";
     let fcCurrentPath = FC_ROOT;
     let fcPathHistory = [];
@@ -1277,6 +786,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       document.getElementById('fc-viewer-container').style.display = 'none';
       document.getElementById('fc-grid').style.display = 'grid';
       document.getElementById('fc-grid').innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">Loading...</div>';
+      
       document.getElementById('fc-back-btn').style.display = (path === FC_ROOT) ? 'none' : 'block';
 
       fetch(`/api/flashcards/list?path=${encodeURIComponent(path)}`)
@@ -1285,7 +795,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
           const grid = document.getElementById('fc-grid');
           grid.innerHTML = '';
           if (data.error) {
-            grid.innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">Error: ${escapeHtml(data.error)}</div>`;
+            grid.innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">⚠️ Error: ${escapeHtml(data.error)}</div>`;
             return;
           }
           if (!data.contents || data.contents.length === 0) {
@@ -1296,14 +806,14 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
             const card = document.createElement('div');
             card.className = 'fc-card';
             if (item.type === 'folder') {
-              card.innerHTML = `<span style="font-size: 1.5rem;">DIR</span><span style="font-weight:600; color:#cbd5e1; font-size:0.9rem;">${escapeHtml(item.name)}</span>`;
+              card.innerHTML = `<span style="font-size: 2rem;">📁</span><span style="font-weight:600; color:#cbd5e1; font-size:0.9rem;">${escapeHtml(item.name)}</span>`;
               card.onclick = () => {
                 fcPathHistory.push(fcCurrentPath);
                 loadFcDirectory(item.path);
               };
             } else {
               const cleanName = item.name.replace(/\.(html|md)$/i, '');
-              card.innerHTML = `<span style="font-size: 1.5rem;">DOC</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${escapeHtml(cleanName)}</span>`;
+              card.innerHTML = `<span style="font-size: 2rem;">📄</span><span style="font-weight:600; color:#38bdf8; font-size:0.9rem;">${escapeHtml(cleanName)}</span>`;
               card.onclick = () => viewFcFile(item.path);
             }
             grid.appendChild(card);
@@ -1342,7 +852,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       const modelChoice = document.getElementById('ai-model-select').value;
       const msg = input.value.trim();
       if(!msg) return;
-
+      
       const container = document.getElementById('chat-messages');
       container.innerHTML += `<div style="background:#2563eb; padding:0.75rem 1rem; border-radius:8px; max-width:80%; align-self:flex-end; color:#f8fafc; font-size:0.9rem;">${escapeHtml(msg)}</div>`;
       input.value = '';
@@ -1364,7 +874,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       .then(res => {
         const loadingEl = document.getElementById(loadingId);
         if(loadingEl) loadingEl.remove();
-
+        
         const responseText = res.response || res.error || "No response received.";
         const parsedMarkdown = marked.parse(responseText);
         container.innerHTML += `<div class="ai-msg" style="background:#1e293b; padding:0.85rem 1.1rem; border-radius:10px; max-width:85%; align-self:flex-start; color:#f8fafc; font-size:0.95rem; border-left: 3px solid #38bdf8;">${parsedMarkdown}</div>`;
@@ -1386,7 +896,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     }
 
     function escapeHtml(text) {
-      return String(text).replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+      return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
     if (USER_ROLE === 'admin') {
@@ -1441,17 +951,17 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       setTimeout(loadUsers, 500);
     }
 
-    function openApp(id) {
-      document.getElementById(id).style.display = 'flex';
-      if(id === 'whiteboard-modal') {
-        resizeCanvas();
+    function openApp(id) { 
+      document.getElementById(id).style.display = 'flex'; 
+      if(id === 'whiteboard-modal') { 
+        resizeCanvas(); 
         fetchWhiteboard();
         if(!boardPollInterval) { boardPollInterval = setInterval(fetchWhiteboard, 1500); }
       }
     }
-
-    function closeApp(id) {
-      document.getElementById(id).style.display = 'none';
+    
+    function closeApp(id) { 
+      document.getElementById(id).style.display = 'none'; 
       if(id === 'filemanager-modal' && filePollInterval) {
         clearInterval(filePollInterval);
         filePollInterval = null;
@@ -1462,8 +972,8 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       }
     }
 
-    function openFileManager() {
-      openApp('filemanager-modal');
+    function openFileManager() { 
+      openApp('filemanager-modal'); 
       loadFileList();
       if(!filePollInterval) { filePollInterval = setInterval(loadFileList, 4000); }
     }
@@ -1473,7 +983,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       const section = document.getElementById('filter-section').value;
       if(!grade || !section) return;
 
-      fetch(`/api/files?grade=${encodeURIComponent(grade)}§ion=${encodeURIComponent(section)}&t=` + Date.now(), { cache: "no-store" })
+      fetch(`/api/files?grade=${encodeURIComponent(grade)}&section=${encodeURIComponent(section)}&t=` + Date.now(), { cache: "no-store" })
         .then(r => r.json())
         .then(files => {
           const container = document.getElementById('file-list-container');
@@ -1484,7 +994,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
           }
           container.innerHTML = files.map(file => `
             <li class="file-item">
-              <a href="/uploads/${grade}/${section}/${encodeURIComponent(file)}" target="_blank" download="${file}">${file}</a>
+              <a href="/uploads/${grade}/${section}/${encodeURIComponent(file)}" target="_blank" download="${file}">📄 ${file}</a>
               ${(USER_ROLE === 'teacher' || USER_ROLE === 'admin') ? `<button class="delete-btn" onclick="deleteFile('${file}')">Delete</button>` : ''}
             </li>
           `).join('');
@@ -1501,7 +1011,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       const grade = document.getElementById('filter-grade').value;
       const section = document.getElementById('filter-section').value;
       if (!confirm('Delete file: ' + filename + '?')) return;
-      fetch(`/api/delete-file?grade=${encodeURIComponent(grade)}§ion=${encodeURIComponent(section)}&name=` + encodeURIComponent(filename), { method: 'DELETE' })
+      fetch(`/api/delete-file?grade=${encodeURIComponent(grade)}&section=${encodeURIComponent(section)}&name=` + encodeURIComponent(filename), { method: 'DELETE' })
         .then(r => r.json())
         .then(() => loadFileList());
     }
@@ -1563,7 +1073,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       const rect = canvas.getBoundingClientRect();
       const currentLine = lines[lines.length - 1];
       currentLine.pts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-
+      
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           redraw();
@@ -1572,14 +1082,14 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
       }
     });
 
-    canvas.addEventListener('pointerup', (e) => {
+    canvas.addEventListener('pointerup', (e) => { 
       if (isDrawing) {
-        isDrawing = false;
+        isDrawing = false; 
         try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
         syncWhiteboard();
       }
     });
-
+    
     canvas.addEventListener('pointercancel', (e) => {
       if (isDrawing) {
         isDrawing = false;
@@ -1591,7 +1101,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (!lines) return;
-
+      
       lines.forEach(line => {
         if (!line || !line.pts || line.pts.length === 0) return;
         ctx.save();
@@ -1600,7 +1110,7 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
         ctx.globalAlpha = line.opacity || 1.0;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-
+        
         ctx.beginPath();
         line.pts.forEach((pt, i) => {
           if (i === 0) ctx.moveTo(pt.x, pt.y);
@@ -1688,64 +1198,6 @@ CONSOLE_HTML = r"""<!DOCTYPE html>
 </body>
 </html>"""
 
-
-def render_front_page(session):
-    story_data = load_story_data()
-    is_admin = bool(session and session.get("role") == "admin")
-    safe_story_json = json.dumps(story_data).replace("</", "<\\/")
-
-    if session:
-        header_nav = (
-            '<a class="nav-link primary" href="/dashboard">Open Console</a>'
-            '<a class="nav-link" href="/logout">Logout</a>'
-        )
-    else:
-        header_nav = '<a class="nav-link primary" href="/login">Log In</a>'
-
-    if is_admin:
-        edit_btn_html = '<button type="button" class="edit-btn" onclick="toggleStoryEditor(true)">Edit Story</button>'
-        editor_panel_html = r"""
-        <form id="story-editor-panel" class="editor-panel" onsubmit="saveStoryChanges(event)">
-          <label for="edit-story-title">Story Heading</label>
-          <input type="text" id="edit-story-title" required>
-
-          <label for="edit-story-subtitle">Tagline / Subtitle</label>
-          <input type="text" id="edit-story-subtitle" required>
-
-          <label for="edit-story-body">How It Happened Story</label>
-          <textarea id="edit-story-body" required></textarea>
-
-          <div class="editor-actions">
-            <button type="submit" class="save-btn">Save Story</button>
-            <button type="button" class="cancel-btn" onclick="toggleStoryEditor(false)">Cancel</button>
-          </div>
-          <div id="story-status-msg" class="status-msg"></div>
-        </form>
-        """
-    else:
-        edit_btn_html = ""
-        editor_panel_html = ""
-
-    return (
-        FRONT_PAGE_HTML
-        .replace("<!--LOGO_HTML-->", LOGO_HTML)
-        .replace("<!--CENTER_LOGO_HTML-->", CENTER_LOGO_HTML)
-        .replace("<!--HEADER_NAV_ACTIONS-->", header_nav)
-        .replace("<!--ADMIN_EDIT_BUTTON-->", edit_btn_html)
-        .replace("<!--ADMIN_EDITOR_PANEL-->", editor_panel_html)
-        .replace("<!--STORY_JSON-->", safe_story_json)
-        .replace("<!--IS_ADMIN_BOOL-->", "true" if is_admin else "false")
-    )
-
-
-def render_login_page(error_html=""):
-    return (
-        LOGIN_HTML
-        .replace("<!--CENTER_LOGO_HTML-->", CENTER_LOGO_HTML)
-        .replace("<!--ERROR-->", error_html)
-    )
-
-
 class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
 
     def set_no_cache_headers(self):
@@ -1787,7 +1239,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
         content_type = self.headers.get('Content-Type', '')
         if not content_type.startswith('multipart/form-data'):
             return None, None, None, None
-
+        
         boundary = content_type.split('boundary=')[1].encode('utf-8')
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
@@ -1827,19 +1279,27 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(FAVICON_SVG.encode('utf-8'))
             return
 
-        if path == "/api/front-page/story":
-            self.send_json(load_story_data())
-            return
-
         if path == "/":
-            self.send_html(render_front_page(session))
+            html = LANDING_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML)
+            self.send_html(html)
             return
 
         if path == "/login":
-            if session:
-                self.redirect("/dashboard")
-                return
-            self.send_html(render_login_page(""))
+            role_tab = query_params.get('role', ['student'])[0].lower()
+            if role_tab not in ['student', 'teacher', 'admin']:
+                role_tab = 'student'
+
+            html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", "")
+            html = html.replace("<!--ACTIVE_ROLE_JS-->", role_tab)
+
+            if role_tab == 'student':
+                html = html.replace("<!--STUDENT_ACTIVE-->", "active").replace("<!--TEACHER_ACTIVE-->", "").replace("<!--ADMIN_ACTIVE-->", "")
+            elif role_tab == 'teacher':
+                html = html.replace("<!--STUDENT_ACTIVE-->", "").replace("<!--TEACHER_ACTIVE-->", "active").replace("<!--ADMIN_ACTIVE-->", "")
+            else:
+                html = html.replace("<!--STUDENT_ACTIVE-->", "").replace("<!--TEACHER_ACTIVE-->", "").replace("<!--ADMIN_ACTIVE-->", "active")
+
+            self.send_html(html)
             return
 
         if path == "/logout":
@@ -1850,14 +1310,14 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 if 'session_id' in cookie:
                     sid = cookie['session_id'].value
                     SESSIONS.pop(sid, None)
-            self.redirect("/")
+            self.redirect("/login")
             return
 
         if path == "/dashboard":
             if not session:
                 self.redirect("/login")
                 return
-
+            
             html = CONSOLE_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML)
             html = html.replace("<!--USERNAME-->", session['username'])
             html = html.replace("<!--USER_ROLE-->", session['role'])
@@ -1868,7 +1328,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             grade_opts = "".join([f'<option value="{g}" {"selected" if g == session.get("grade","10th") else ""}>{g}</option>' for g in GRADES])
             sec_opts = "".join([f'<option value="{s}" {"selected" if s == session.get("section","A") else ""}>Section {s}</option>' for s in SECTIONS])
             html = html.replace("<!--GRADES_OPTIONS-->", grade_opts).replace("<!--SECTIONS_OPTIONS-->", sec_opts)
-
+            
             if session['role'] == 'admin':
                 html = html.replace("<!--ADMIN_CLASS-->", "admin-badge")
                 html = html.replace("<!--ROLE_ADMIN_ONLY-->", "").replace("<!--END_ADMIN_ROLE-->", "")
@@ -1882,7 +1342,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                     html = html.replace("<!--ROLE_TEACHER_OR_ADMIN-->", "").replace("<!--END_ROLE-->", "")
                 else:
                     html = re.sub(r'<!--ROLE_TEACHER_OR_ADMIN-->.*?<!--END_ROLE-->', '', html, flags=re.DOTALL)
-
+            
             self.send_html(html)
             return
 
@@ -1893,11 +1353,11 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             subpath = query_params.get('path', [FLASHCARD_ROOT])[0].strip("/")
             encoded_subpath = "/".join(urllib.parse.quote(seg) for seg in subpath.split("/"))
             gh_url = f"https://api.github.com/repos/{GITHUB_USERNAME}/{GITHUB_REPO}/contents/{encoded_subpath}?ref={urllib.parse.quote(GITHUB_BRANCH)}"
-
+            
             req_headers = {'User-Agent': 'DigiBoard-Server', 'Accept': 'application/vnd.github.v3+json'}
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
-
+            
             try:
                 req = urllib.request.Request(gh_url, headers=req_headers)
                 with urllib.request.urlopen(req, timeout=15) as resp:
@@ -1911,7 +1371,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                                 result.append({"name": item['name'], "type": "file", "path": item['path']})
                     self.send_json({"path": subpath, "contents": result})
             except urllib.error.HTTPError as e:
-                self.send_json({"error": f"GitHub API HTTP {e.code} for path '{subpath}'."}, e.code)
+                self.send_json({"error": f"GitHub API HTTP {e.code} for path '{subpath}'. Ensure GITHUB_TOKEN environment variable is set correctly in Render."}, e.code)
             except Exception as e:
                 self.send_json({"error": str(e)}, 500)
             return
@@ -1924,27 +1384,27 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if not file_path.startswith(FLASHCARD_ROOT):
                 self.send_json({"error": "Invalid path"}, 400)
                 return
-
+            
             encoded_file_path = "/".join(urllib.parse.quote(seg) for seg in file_path.split("/"))
             raw_url = f"https://raw.githubusercontent.com/{GITHUB_USERNAME}/{GITHUB_REPO}/{urllib.parse.quote(GITHUB_BRANCH)}/{encoded_file_path}"
             req_headers = {'User-Agent': 'DigiBoard-Server'}
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
-
+            
             try:
                 req = urllib.request.Request(raw_url, headers=req_headers)
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     file_content = resp.read().decode('utf-8')
                     if file_path.lower().endswith('.md'):
                         file_content = f"""<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><style>body{{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;padding:2rem;}}</style></head><body><div id="content"></div><script>document.getElementById('content').innerHTML = marked.parse({json.dumps(file_content)});</script></body></html>"""
-
+                    
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.send_header("Content-Disposition", "inline")
                     self.set_no_cache_headers()
                     self.end_headers()
                     self.wfile.write(file_content.encode('utf-8'))
-            except Exception:
+            except Exception as e:
                 self.send_error(404, "Flashcard page not found")
             return
 
@@ -2031,7 +1491,9 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                self.send_html(render_login_page('<div class="error">Unauthorized SSH Key ID!</div>'), 401)
+                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">❌ Unauthorized Key ID!</div>')
+                html = err_html.replace("<!--ACTIVE_ROLE_JS-->", "admin").replace("<!--STUDENT_ACTIVE-->", "").replace("<!--TEACHER_ACTIVE-->", "").replace("<!--ADMIN_ACTIVE-->", "active")
+                self.send_html(html, 401)
             return
 
         if path == "/login":
@@ -2040,28 +1502,19 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             params = urllib.parse.parse_qs(body)
             username = params.get('username', [''])[0].strip()
             password = params.get('password', [''])[0].strip()
-            selected_role = params.get('selected_role', ['student'])[0].strip().lower()
+            role_type = params.get('role_type', ['student'])[0].strip()
 
             users = load_users_from_encrypted_csv()
             if username in users and users[username]['password'] == password:
-                user_data = users[username]
-                actual_role = user_data.get('role', 'student').lower()
-
-                if selected_role in ('student', 'teacher', 'admin') and actual_role != selected_role:
-                    self.send_html(
-                        render_login_page(f'<div class="error">This account is registered as {actual_role}, not {selected_role}.</div>'),
-                        401
-                    )
-                    return
-
                 sid = str(uuid.uuid4())
+                user_data = users[username]
                 SESSIONS[sid] = {
-                    "username": username,
+                    "username": username, 
                     "role": user_data['role'],
                     "grade": user_data.get('grade', '10th'),
                     "section": user_data.get('section', 'A')
                 }
-                log_login_event(username, user_data['role'], user_data.get('grade', '10th'), user_data.get('section', 'A'), f"Password ({selected_role})")
+                log_login_event(username, user_data['role'], user_data.get('grade', '10th'), user_data.get('section', 'A'), "Password")
 
                 self.send_response(302)
                 self.send_header("Set-Cookie", f"session_id={sid}; Path=/; HttpOnly")
@@ -2069,35 +1522,17 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 self.set_no_cache_headers()
                 self.end_headers()
             else:
-                self.send_html(render_login_page('<div class="error">Invalid username or password</div>'), 401)
+                err_html = LOGIN_HTML.replace("<!--LOGO_HTML-->", LOGO_HTML).replace("<!--ERROR-->", '<div class="error">Invalid username or password</div>')
+                html = err_html.replace(f"<!--{role_type.upper()}_ACTIVE-->", "active").replace("<!--ACTIVE_ROLE_JS-->", role_type)
+                for r in ['student', 'teacher', 'admin']:
+                    if r != role_type:
+                        html = html.replace(f"<!--{r.upper()}_ACTIVE-->", "")
+                self.send_html(html, 401)
             return
 
         session = self.get_session()
         if not session:
             self.send_json({"error": "Unauthorized"}, 401)
-            return
-
-        if path == "/api/front-page/story":
-            if session.get('role') != 'admin':
-                self.send_json({"error": "Forbidden"}, 403)
-                return
-            try:
-                content_length = int(self.headers.get('Content-Length', 0))
-                raw_body = self.rfile.read(content_length).decode('utf-8')
-                body = json.loads(raw_body) if raw_body else {}
-                if not isinstance(body, dict):
-                    self.send_json({"error": "Invalid payload"}, 400)
-                    return
-                updated = save_story_data(
-                    str(body.get("title", "")),
-                    str(body.get("subtitle", "")),
-                    str(body.get("story", "")),
-                )
-                self.send_json(updated)
-            except json.JSONDecodeError:
-                self.send_json({"error": "Invalid JSON body"}, 400)
-            except Exception as e:
-                self.send_json({"error": str(e)}, 500)
             return
 
         if path == "/api/gemini":
@@ -2110,7 +1545,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 ai_response = query_gemini(prompt, model_mode=model_mode)
                 self.send_json({"response": ai_response})
             except Exception as e:
-                self.send_json({"response": f"Server Error: {str(e)}"}, 500)
+                self.send_json({"response": f"❌ Server Error: {str(e)}"}, 500)
             return
 
         if path == "/api/admin/mass-create":
@@ -2119,7 +1554,7 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
                 return
             content_length = int(self.headers.get('Content-Length', 0))
             body = json.loads(self.rfile.read(content_length).decode('utf-8'))
-
+            
             role = body.get('role', 'student')
             prefix = body.get('prefix', 'digitalboard')
             grade = body.get('grade', '10th')
@@ -2197,7 +1632,6 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         self.send_error(404)
-
 
 if __name__ == '__main__':
     ensure_file_manager_structure()
