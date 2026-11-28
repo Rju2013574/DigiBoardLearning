@@ -25,7 +25,7 @@ SESSIONS = {}
 CLASS_BOARDS = {}
 BOARD_LOCK = threading.Lock()
 
-# GitHub Configuration for Flashcards (Root path: Memory/)
+# GitHub Configuration for Flashcards (Strictly mandatory root path: Memory/)
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME", "Rju2013574")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "DigiBoardLearning")
 GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
@@ -53,7 +53,6 @@ ensure_file_manager_structure()
 def query_gemini(prompt, model_mode="0.1"):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
-        print("❌ GEMINI_API_KEY is missing from environment variables!")
         return "❌ Error: GEMINI_API_KEY environment variable is not set in Render."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
@@ -523,7 +522,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
   <div class="modal" id="flashcards-modal">
     <div class="modal-content" style="max-width: 950px; height: 88vh;">
       <div class="modal-header">
-        <h3>Interactive Flashcards & Notes</h3>
+        <h3>Interactive Flashcards & Notes (GitHub Memory Bank)</h3>
         <div class="header-actions">
           <button id="fc-back-btn" class="clear-all-btn" style="background:#334155; display:none;" onclick="fcGoBack()">⬅ Back</button>
           <span class="close-btn" onclick="closeApp('flashcards-modal')">&times;</span>
@@ -769,7 +768,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       });
     }
 
-    // --- FLASHCARDS CLIENT LOGIC ---
+    // --- FLASHCARDS CLIENT LOGIC (Strictly GitHub Repo Driven) ---
     const FC_ROOT = "Memory";
     let fcCurrentPath = FC_ROOT;
     let fcPathHistory = [];
@@ -785,7 +784,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
       document.getElementById('fc-breadcrumb').innerText = path;
       document.getElementById('fc-viewer-container').style.display = 'none';
       document.getElementById('fc-grid').style.display = 'grid';
-      document.getElementById('fc-grid').innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">Loading...</div>';
+      document.getElementById('fc-grid').innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">Fetching from GitHub repository...</div>';
       
       document.getElementById('fc-back-btn').style.display = (path === FC_ROOT) ? 'none' : 'block';
 
@@ -795,11 +794,11 @@ CONSOLE_HTML = """<!DOCTYPE html>
           const grid = document.getElementById('fc-grid');
           grid.innerHTML = '';
           if (data.error) {
-            grid.innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">⚠️ Error: ${escapeHtml(data.error)}</div>`;
+            grid.innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">⚠️ GitHub Repository Error: ${escapeHtml(data.error)}</div>`;
             return;
           }
           if (!data.contents || data.contents.length === 0) {
-            grid.innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">No folders or chapters found here.</div>';
+            grid.innerHTML = '<div style="color:#94a3b8; grid-column: 1/-1; text-align:center; padding:2rem;">No folders or files found in this GitHub directory.</div>';
             return;
           }
           data.contents.forEach(item => {
@@ -820,7 +819,7 @@ CONSOLE_HTML = """<!DOCTYPE html>
           });
         })
         .catch(err => {
-          document.getElementById('fc-grid').innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">Connection error: ${escapeHtml(err.message)}</div>`;
+          document.getElementById('fc-grid').innerHTML = `<div style="color:#ef4444; grid-column: 1/-1; text-align:center; padding:2rem;">Connection error with GitHub API: ${escapeHtml(err.message)}</div>`;
         });
     }
 
@@ -1358,22 +1357,44 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
             
-            try:
-                req = urllib.request.Request(gh_url, headers=req_headers)
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    items = json.loads(resp.read().decode('utf-8'))
-                    result = []
-                    if isinstance(items, list):
-                        for item in items:
-                            if item['type'] == 'dir':
-                                result.append({"name": item['name'], "type": "folder", "path": item['path']})
-                            elif item['type'] == 'file' and item['name'].lower().endswith(('.html', '.md')):
-                                result.append({"name": item['name'], "type": "file", "path": item['path']})
-                    self.send_json({"path": subpath, "contents": result})
-            except urllib.error.HTTPError as e:
-                self.send_json({"error": f"GitHub API HTTP {e.code} for path '{subpath}'. Ensure GITHUB_TOKEN environment variable is set correctly in Render."}, e.code)
-            except Exception as e:
-                self.send_json({"error": str(e)}, 500)
+            max_retries = 3
+            success = False
+            items = []
+            last_error = ""
+
+            for attempt in range(max_retries):
+                try:
+                    req = urllib.request.Request(gh_url, headers=req_headers)
+                    with urllib.request.urlopen(req, timeout=20) as resp:
+                        items = json.loads(resp.read().decode('utf-8'))
+                        success = True
+                        break
+                except urllib.error.HTTPError as e:
+                    last_error = f"GitHub API HTTP {e.code}"
+                    if e.code == 403 and not GITHUB_TOKEN:
+                        last_error = "GitHub API HTTP 403 (Rate limit exceeded or token missing). Please configure GITHUB_TOKEN environment variable."
+                        break
+                    if attempt < max_retries - 1:
+                        time.sleep(1.5 * (attempt + 1))
+                        continue
+                except Exception as e:
+                    last_error = str(e)
+                    if attempt < max_retries - 1:
+                        time.sleep(1.5 * (attempt + 1))
+                        continue
+
+            if not success:
+                self.send_json({"error": f"Failed to fetch from GitHub repository ({last_error})."}, 502)
+                return
+
+            result = []
+            if isinstance(items, list):
+                for item in items:
+                    if item['type'] == 'dir':
+                        result.append({"name": item['name'], "type": "folder", "path": item['path']})
+                    elif item['type'] == 'file' and item['name'].lower().endswith(('.html', '.md')):
+                        result.append({"name": item['name'], "type": "file", "path": item['path']})
+            self.send_json({"path": subpath, "contents": result})
             return
 
         if path == "/api/flashcards/view":
@@ -1391,21 +1412,37 @@ class DigiBoardHandler(http.server.BaseHTTPRequestHandler):
             if GITHUB_TOKEN:
                 req_headers['Authorization'] = f"token {GITHUB_TOKEN}"
             
-            try:
-                req = urllib.request.Request(raw_url, headers=req_headers)
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    file_content = resp.read().decode('utf-8')
-                    if file_path.lower().endswith('.md'):
-                        file_content = f"""<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><style>body{{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;padding:2rem;}}</style></head><body><div id="content"></div><script>document.getElementById('content').innerHTML = marked.parse({json.dumps(file_content)});</script></body></html>"""
-                    
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/html; charset=utf-8")
-                    self.send_header("Content-Disposition", "inline")
-                    self.set_no_cache_headers()
-                    self.end_headers()
-                    self.wfile.write(file_content.encode('utf-8'))
-            except Exception as e:
-                self.send_error(404, "Flashcard page not found")
+            max_retries = 3
+            success = False
+            file_content = ""
+            last_error = ""
+
+            for attempt in range(max_retries):
+                try:
+                    req = urllib.request.Request(raw_url, headers=req_headers)
+                    with urllib.request.urlopen(req, timeout=20) as resp:
+                        file_content = resp.read().decode('utf-8')
+                        success = True
+                        break
+                except Exception as e:
+                    last_error = str(e)
+                    if attempt < max_retries - 1:
+                        time.sleep(1.5 * (attempt + 1))
+                        continue
+
+            if not success:
+                self.send_error(502, f"Failed to retrieve file from GitHub: {last_error}")
+                return
+
+            if file_path.lower().endswith('.md'):
+                file_content = f"""<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><style>body{{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#f8fafc;padding:2rem;}}</style></head><body><div id="content"></div><script>document.getElementById('content').innerHTML = marked.parse({json.dumps(file_content)});</script></body></html>"""
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Disposition", "inline")
+            self.set_no_cache_headers()
+            self.end_headers()
+            self.wfile.write(file_content.encode('utf-8'))
             return
 
         if path == "/api/admin/users":
